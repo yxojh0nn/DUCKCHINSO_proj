@@ -1,0 +1,763 @@
+<title>덕친소 운영 방안</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* 레이아웃: 왼쪽은 운영 순서도(세로 흐름), 오른쪽은 버튼으로 여는 앱 디자인 예시(폰 목업) 패널 */
+:root {
+  --bg: #F3F5FA;
+  --surface: #FFFFFF;
+  --ink: #161B2E;
+  --muted: #5B6383;
+  --line: #D8DDEB;
+  --accent: #D9306F;      /* 응원봉 핑크: 운영자(사람)가 하는 일 */
+  --accent-soft: #FBE4EE;
+  --sys: #1A8AA6;         /* 시스템 자동 처리 */
+  --sys-soft: #DDF1F6;
+  --user: #5B4FC9;        /* 사용자 행동 */
+  --user-soft: #E8E6FA;
+  --warn: #B87500;
+  --crit: #C2362B;
+  --good: #23855A;
+  --phone-bg: #FFFFFF;
+  --phone-ink: #171A28;
+  --phone-muted: #6B7190;
+  --phone-line: #E6E8F0;
+  --phone-chip: #F2F3F8;
+  --shadow: 0 1px 2px rgba(22,27,46,.06), 0 8px 24px rgba(22,27,46,.06);
+  --font-display: "Do Hyeon", "IBM Plex Sans KR", "Malgun Gothic", sans-serif;
+  --font-body: "IBM Plex Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F1220; --surface: #181C2E; --ink: #E8EAF4; --muted: #9AA1C0; --line: #2C3250;
+    --accent: #FF5A98; --accent-soft: #3A1A2B; --sys: #4CC3DF; --sys-soft: #12303A;
+    --user: #9D93FF; --user-soft: #24204A; --warn: #F0B23E; --crit: #FF7466; --good: #4CC98D;
+    --phone-bg: #12152A; --phone-ink: #ECEEF8; --phone-muted: #9AA1C0; --phone-line: #262B47; --phone-chip: #1E2340;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.3);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F1220; --surface: #181C2E; --ink: #E8EAF4; --muted: #9AA1C0; --line: #2C3250;
+  --accent: #FF5A98; --accent-soft: #3A1A2B; --sys: #4CC3DF; --sys-soft: #12303A;
+  --user: #9D93FF; --user-soft: #24204A; --warn: #F0B23E; --crit: #FF7466; --good: #4CC98D;
+  --phone-bg: #12152A; --phone-ink: #ECEEF8; --phone-muted: #9AA1C0; --phone-line: #262B47; --phone-chip: #1E2340;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.3);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.6;
+}
+.wrap {
+  max-width: 1320px; margin: 0 auto;
+  padding-block: 32px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 32px;
+}
+body.design-open .wrap { grid-template-columns: minmax(0, 1fr) 420px; }
+main { min-width: 0; display: grid; gap: 40px; }
+
+h1, h2 { font-family: var(--font-display); font-weight: 400; letter-spacing: .01em; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(2rem, 4vw, 2.75rem); line-height: 1.15; }
+h2 { font-size: 1.6rem; line-height: 1.2; }
+p { margin: 0; }
+.eyebrow { font-family: var(--font-mono); font-size: .75rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+
+/* 헤더 */
+header.top { display: grid; gap: 16px; }
+.top-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; justify-content: space-between; }
+.lead { max-width: 62ch; color: var(--muted); }
+.btn-design {
+  font: inherit; font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 10px;
+  background: var(--accent); color: #fff; border: 0; border-radius: 999px;
+  padding: 12px 20px; box-shadow: var(--shadow);
+}
+.btn-design:hover { filter: brightness(1.06); }
+.btn-design:focus-visible, button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid var(--sys); outline-offset: 2px; }
+.btn-design svg { width: 18px; height: 18px; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: .85rem; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.sw.sys { background: var(--sys); } .sw.op { background: var(--accent); } .sw.us { background: var(--user); }
+.sw.dec { background: transparent; border: 2px solid var(--muted); transform: rotate(45deg); width: 10px; height: 10px; border-radius: 1px; }
+
+/* 운영 순환 개요 */
+.cycle { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: grid; gap: 14px; }
+.cycle ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.cycle li { display: flex; align-items: center; gap: 10px; }
+.cycle li:not(:last-child)::after { content: "→"; color: var(--muted); font-weight: 600; }
+.cycle a {
+  display: grid; gap: 2px; text-decoration: none; color: var(--ink);
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; background: var(--bg);
+}
+.cycle a:hover { border-color: var(--accent); }
+.cycle a b { font-weight: 600; }
+.cycle a small { color: var(--muted); font-size: .78rem; }
+.cycle .loop { font-size: .85rem; color: var(--muted); }
+.cycle .loop b { color: var(--accent); font-weight: 600; }
+
+/* 순서도 섹션 */
+section.flow-sec { display: grid; gap: 18px; scroll-margin-top: 16px; }
+.sec-head { display: grid; gap: 6px; }
+.sec-head .meta { display: flex; flex-wrap: wrap; gap: 8px; }
+.tag { font-family: var(--font-mono); font-size: .72rem; padding: 3px 8px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); color: var(--muted); }
+.sec-head p { color: var(--muted); max-width: 64ch; }
+
+.flow { display: grid; gap: 0; max-width: 760px; }
+.node {
+  position: relative; display: grid; gap: 4px;
+  background: var(--surface); border: 1px solid var(--line); border-left-width: 4px;
+  border-radius: 10px; padding: 12px 16px; box-shadow: var(--shadow);
+}
+.node.sys { border-left-color: var(--sys); }
+.node.op { border-left-color: var(--accent); }
+.node.us { border-left-color: var(--user); }
+.node .who { font-family: var(--font-mono); font-size: .7rem; letter-spacing: .08em; }
+.node.sys .who { color: var(--sys); } .node.op .who { color: var(--accent); } .node.us .who { color: var(--user); }
+.node b { font-weight: 600; font-size: 1rem; }
+.node p { color: var(--muted); font-size: .9rem; }
+.node .tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.node .tools span { font-size: .72rem; font-family: var(--font-mono); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; color: var(--muted); }
+
+.arrow { height: 26px; width: 2px; background: var(--line); margin-left: 28px; position: relative; }
+.arrow::after { content: ""; position: absolute; bottom: -1px; left: -5px; border: 6px solid transparent; border-top: 7px solid var(--line); border-bottom: 0; }
+
+.decision { display: grid; gap: 12px; }
+.q {
+  justify-self: start; display: inline-flex; align-items: center; gap: 10px;
+  font-weight: 600; padding: 10px 16px; border-radius: 10px;
+  border: 2px dashed var(--muted); background: var(--bg);
+}
+.q::before { content: ""; width: 10px; height: 10px; border: 2px solid var(--muted); transform: rotate(45deg); flex: none; }
+.branches { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; padding-left: 28px; border-left: 2px solid var(--line); margin-left: 28px; }
+.branch { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.blabel { font-size: .78rem; font-weight: 700; justify-self: start; padding: 2px 10px; border-radius: 999px; }
+.blabel.yes { background: color-mix(in srgb, var(--good) 15%, transparent); color: var(--good); }
+.blabel.no { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
+.blabel.crit { background: color-mix(in srgb, var(--crit) 15%, transparent); color: var(--crit); }
+.blabel.n { background: var(--surface); border: 1px solid var(--line); color: var(--muted); }
+.branch .node { box-shadow: none; }
+.back { font-size: .82rem; color: var(--muted); padding-left: 4px; }
+.back::before { content: "↺ "; color: var(--warn); font-weight: 700; }
+
+/* 디자인 예시 패널 */
+aside.design {
+  display: none; position: sticky; top: max(16px, env(safe-area-inset-top, 0px));
+  align-self: start; max-height: calc(100vh - 32px); overflow: auto;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; box-shadow: var(--shadow);
+}
+body.design-open aside.design { display: grid; gap: 12px; }
+.design-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.design-head h2 { font-size: 1.3rem; }
+.close { font: inherit; cursor: pointer; border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 8px; padding: 6px 10px; }
+.note { font-size: .78rem; color: var(--muted); }
+.screens { display: flex; flex-wrap: wrap; gap: 6px; }
+.screens button {
+  font: inherit; font-size: .8rem; cursor: pointer; border-radius: 999px; padding: 5px 12px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+}
+.screens button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+/* 폰 목업 */
+.phone {
+  justify-self: center; width: 100%; max-width: 360px; aspect-ratio: 9 / 18.5;
+  border-radius: 36px; padding: 10px; background: #0B0D16;
+  box-shadow: 0 0 0 1px #2A2F48, var(--shadow);
+}
+.screen {
+  position: relative; height: 100%; border-radius: 28px; overflow: hidden;
+  background: var(--phone-bg); color: var(--phone-ink); display: flex; flex-direction: column;
+  font-size: 13px; line-height: 1.45;
+}
+.status { display: flex; justify-content: space-between; padding: 10px 20px 4px; font-family: var(--font-mono); font-size: 11px; color: var(--phone-muted); }
+.view { flex: 1; overflow: auto; padding: 8px 16px 16px; display: grid; align-content: start; gap: 12px; }
+.view[hidden] { display: none; }
+.app-title { font-family: var(--font-display); font-size: 20px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font: inherit; font-size: 12px; border-radius: 999px; padding: 4px 10px; border: 1px solid var(--phone-line); background: var(--phone-chip); color: var(--phone-ink); cursor: pointer; }
+.chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.search { font: inherit; width: 100%; border: 1px solid var(--phone-line); background: var(--phone-chip); color: var(--phone-ink); border-radius: 10px; padding: 8px 12px; }
+.primary { font: inherit; font-weight: 600; width: 100%; cursor: pointer; border: 0; border-radius: 12px; padding: 11px; background: var(--accent); color: #fff; }
+.primary:disabled { opacity: .45; cursor: default; }
+.ghost { font: inherit; width: 100%; cursor: pointer; border: 1px solid var(--phone-line); border-radius: 12px; padding: 10px; background: transparent; color: var(--phone-ink); }
+.muted { color: var(--phone-muted); }
+.small { font-size: 11px; }
+
+.cal-head { display: flex; justify-content: space-between; align-items: center; }
+.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; font-variant-numeric: tabular-nums; }
+.cal .dow { font-size: 10px; color: var(--phone-muted); padding: 2px 0; }
+.cal .dow:first-child { color: var(--crit); }
+.cal button { font: inherit; font-size: 12px; cursor: pointer; border: 0; background: transparent; color: var(--phone-ink); border-radius: 8px; padding: 4px 0 6px; display: grid; justify-items: center; gap: 2px; }
+.cal button.off { color: var(--phone-muted); opacity: .45; }
+.cal button.sel { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.cal .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+.cal .dot.dim { background: var(--phone-line); }
+.cal .dot.none { background: transparent; }
+
+.concert { display: grid; grid-template-columns: 52px 1fr; gap: 10px; align-items: center; text-align: left; font: inherit; color: inherit; background: var(--phone-chip); border: 1px solid var(--phone-line); border-radius: 12px; padding: 8px; cursor: pointer; width: 100%; }
+.poster { aspect-ratio: 3/4; border-radius: 8px; background: linear-gradient(160deg, #2B2F7A, #D9306F 70%, #FFB35C); position: relative; overflow: hidden; }
+.poster.b { background: linear-gradient(160deg, #0E5E73, #4CC3DF 60%, #F4F1A8); }
+.poster::after { content: ""; position: absolute; inset: auto -20% 18% -20%; height: 2px; background: rgba(255,255,255,.55); transform: rotate(-12deg); }
+.concert b { font-size: 13px; }
+.badge { display: inline-block; font-size: 10px; font-weight: 700; border-radius: 6px; padding: 1px 6px; }
+.badge.open { background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good); }
+.badge.soon { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
+
+.hero-poster { aspect-ratio: 4/3; border-radius: 14px; }
+.kv { display: grid; grid-template-columns: 56px 1fr; gap: 4px 8px; font-size: 12px; }
+.kv dt { color: var(--phone-muted); } .kv dd { margin: 0; font-variant-numeric: tabular-nums; }
+.vendor { display: flex; justify-content: space-between; align-items: center; }
+
+.mcard { border: 1px solid var(--phone-line); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--phone-chip); }
+.avatar { width: 44px; height: 44px; border-radius: 50%; background: conic-gradient(var(--accent), var(--user), var(--sys), var(--accent)); }
+.mrow { display: flex; gap: 10px; align-items: center; }
+.score { margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--accent); }
+.btn-row { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; }
+.sheet { border-top: 1px solid var(--phone-line); padding-top: 10px; display: grid; gap: 8px; }
+textarea { font: inherit; width: 100%; resize: none; border: 1px solid var(--phone-line); background: var(--phone-bg); color: var(--phone-ink); border-radius: 10px; padding: 8px; }
+.sent { border-radius: 12px; padding: 10px; background: var(--accent-soft); color: var(--accent); font-size: 12px; }
+
+.chat-head { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--phone-line); padding-bottom: 8px; }
+.chat-head .avatar { width: 30px; height: 30px; }
+.kebab { margin-left: auto; font: inherit; cursor: pointer; border: 0; background: transparent; color: var(--phone-ink); font-size: 18px; padding: 0 4px; }
+.menu { display: grid; border: 1px solid var(--phone-line); border-radius: 10px; overflow: hidden; }
+.menu button { font: inherit; text-align: left; cursor: pointer; border: 0; border-bottom: 1px solid var(--phone-line); background: var(--phone-bg); color: var(--phone-ink); padding: 8px 12px; }
+.menu button:last-child { border-bottom: 0; color: var(--crit); }
+.msgs { display: grid; gap: 6px; }
+.msg { max-width: 78%; padding: 7px 11px; border-radius: 14px; background: var(--phone-chip); }
+.msg.me { justify-self: end; background: var(--accent); color: #fff; }
+.sys-msg { justify-self: center; font-size: 11px; color: var(--phone-muted); }
+.warn-msg { justify-self: end; font-size: 11px; color: var(--warn); }
+.compose { display: flex; gap: 6px; }
+.compose input { font: inherit; flex: 1; min-width: 0; border: 1px solid var(--phone-line); background: var(--phone-chip); color: var(--phone-ink); border-radius: 999px; padding: 8px 12px; }
+.compose button { font: inherit; cursor: pointer; border: 0; border-radius: 999px; background: var(--accent); color: #fff; padding: 0 14px; }
+
+.tabbar { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--phone-line); padding: 6px 4px calc(10px); }
+.tabbar button { font: inherit; font-size: 10px; cursor: pointer; border: 0; background: transparent; color: var(--phone-muted); display: grid; justify-items: center; gap: 2px; padding: 4px 0; }
+.tabbar button svg { width: 20px; height: 20px; }
+.tabbar button[aria-current="page"] { color: var(--accent); font-weight: 700; }
+.toast { position: absolute; left: 12px; right: 12px; bottom: 70px; background: var(--phone-ink); color: var(--phone-bg); border-radius: 12px; padding: 10px 12px; font-size: 12px; }
+
+@media (max-width: 1099px) {
+  body.design-open .wrap { grid-template-columns: minmax(0, 1fr); }
+  aside.design {
+    position: fixed; inset: 0; z-index: 20; max-height: none; border-radius: 0; border: 0;
+    padding-top: max(16px, env(safe-area-inset-top, 0px));
+    padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    align-content: start;
+  }
+  .phone { max-width: 340px; }
+}
+@media (max-width: 520px) {
+  .branches { padding-left: 14px; margin-left: 12px; }
+  .arrow { margin-left: 18px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .toast { animation: rise .2s ease-out; }
+  @keyframes rise { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+}
+</style>
+
+<div class="wrap">
+<main>
+  <header class="top">
+    <span class="eyebrow">덕친소(가칭) · J-pop 공연 캘린더 + 취향 매칭 · MVP 운영 기준</span>
+    <div class="top-row">
+      <div style="display:grid;gap:10px;min-width:0">
+        <h1>덕친소 운영 방안 순서도</h1>
+        <p class="lead">앱이 출시된 뒤 매일·매주 돌아가는 다섯 가지 운영 흐름입니다. 각 단계에는 누가 처리하는지(자동·운영자·사용자)와 쓰는 툴을 표시했습니다.</p>
+      </div>
+      <button class="btn-design" id="openDesign" type="button" aria-controls="design" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>
+        <span>앱 디자인 예시 보기</span>
+      </button>
+    </div>
+    <div class="legend" aria-label="범례">
+      <span><i class="sw sys"></i>자동(시스템)</span>
+      <span><i class="sw op"></i>운영자</span>
+      <span><i class="sw us"></i>사용자</span>
+      <span><i class="sw dec"></i>판단(분기)</span>
+    </div>
+  </header>
+
+  <nav class="cycle" aria-label="운영 순환 개요">
+    <span class="eyebrow">운영 순환</span>
+    <ol>
+      <li><a href="#data"><b>A. 공연 데이터</b><small>매일 · 수집→검수→게시</small></a></li>
+      <li><a href="#user"><b>B. 사용자 이용</b><small>상시 · 탐색→예매·매칭</small></a></li>
+      <li><a href="#safety"><b>C. 커뮤니티 안전</b><small>상시 · 필터→신고→제재</small></a></li>
+      <li><a href="#release"><b>D. 업데이트·출시</b><small>수시 · PR→배포→스토어</small></a></li>
+      <li><a href="#review"><b>E. 지표 리뷰</b><small>주 1회 · 지표→개선 과제</small></a></li>
+    </ol>
+    <p class="loop">E에서 나온 개선 과제는 <b>D(업데이트·출시)</b>로, 데이터 보강 과제는 <b>A(공연 데이터)</b>로 돌아가 다음 주기를 시작합니다.</p>
+  </nav>
+
+  <!-- A -->
+  <section class="flow-sec" id="data">
+    <div class="sec-head">
+      <span class="eyebrow">A · 매일</span>
+      <h2>공연 데이터 운영</h2>
+      <div class="meta"><span class="tag">Supabase Cron</span><span class="tag">Edge Functions</span><span class="tag">KOPIS API</span><span class="tag">관리자 화면</span></div>
+      <p>J-pop 공연은 공공 데이터만으로 판별이 어려워 운영자 검수를 거쳐야 게시됩니다.</p>
+    </div>
+    <div class="flow">
+      <div class="node sys"><span class="who">자동</span><b>정기 수집</b><p>Cron이 Edge Function을 실행해 KOPIS에서 대중음악 공연을 가져옵니다.</p><div class="tools"><span>Supabase Cron</span><span>Edge Functions</span><span>KOPIS</span></div></div>
+      <div class="arrow" aria-hidden="true"></div>
+      <div class="node sys"><span class="who">자동</span><b>J-pop 후보 판별</b><p>출연진을 J-pop 아티스트 목록과 대조해 일치하는 공연을 검수 대기열에 올립니다.</p><div class="tools"><span>artists 테이블</span></div></div>
+      <div class="arrow" aria-hidden="true"></div>
+      <div class="node op"><span class="who">운영자 · 병행</span><b>직접 등록</b><p>기획사 공지·SNS에서 확인한 내한 공연을 관리자 화면에 입력해 같은 대기열에 넣습니다.</p><div class="tools"><span>Supabase Studio → 관리자 페이지</span></div></div>
+      <div class="arrow" aria-hidden="true"></div>
+      <div class="decision">
+        <div class="q">아티스트·일시·장소·예매 링크가 정확한가?</div>
+        <div class="branches">
+          <div class="branch">
+            <span class="blabel yes">예</span>
+            <div class="node op"><span class="who">운영자</span><b>게시 승인</b><p>공연이 캘린더에 노출됩니다.</p></div>
+            <div class="node sys"><span class="who">자동</span><b>관심 사용자 알림</b><p>해당 아티스트를 고른 사용자에게 새 공연 푸시(예매 오픈 알림은 2차).</p><div class="tools"><span>FCM</span></div></div>
+          </div>
+          <div class="branch">
+            <span class="blabel no">아니오</span>
+            <div class="node op"><span class="who">운영자</span><b>수정 또는 보류</b><p>정보를 고치거나 공식 발표까지 보류합니다.</p></div>
+            <span class="back">수정 후 다시 검수</span>
+          </div>
+        </div>
+      </div>
+      <div class="arrow" aria-hidden="true"></div>
+      <div class="node sys"><span class="who">자동</span><b>상태 갱신</b><p>예매 오픈일이 지나면 "예매 중", 공연일이 지나면 보관 처리합니다. 매진은 운영자가 표시합니다.</p></div>
+    </div>
+  </section>
+
+  <!-- B -->
+  <section class="flow-sec" id="user">
+    <div class="sec-head">
+      <span class="eyebrow">B · 상시</span>
+      <h2>사용자 이용 흐름</h2>
+      <div class="meta"><span class="tag">익명 Auth</span><span class="tag">FullCalendar</span><span class="tag">Capacitor Browser</span><span class="tag">Realtime</span></div>
+      <p>회원가입 없이 익명으로 시작하고, 공연 찾기와 사람 찾기 두 갈래로 나뉩니다. 오른쪽 디자인 예시에서 같은 흐름을 눌러 볼 수 있습니다.</p>
+    </div>
+    <div class="flow">
+      <div class="node us"><span class="who">사용자</span><b>앱 설치·첫 실행</b><p>익명 ID가 자동으로 발급됩니다.</p><div class="tools"><span>Supabase Auth</span></div></div>
+      <div class="arrow" aria-hidden="true"></div>
+      <div class="node us"><span class="who">사용자</span><b>좋아하는 J-pop 아티스트 선택</b><p>여러 명 선택 가능, 설정에서 언제든 수정.</p></div>
+      <div class="arrow" aria-hidden="true"></div>
+      <div class="node us"><span class="who">사용자</span><b>캘린더에서 공연 탐색 → 공연 상세</b><p>내 아티스트·지역·예매 상태로 필터.</p></div>
+      <div class="arrow" aria-hidden="true"></div>
+      <div class="decision">
+        <div class="q">무엇을 할까?</div>
+        <div class="branches">
+          <div class="branch">
+            <span class="blabel n">예매하기</span>
+            <div class="node sys"><span class="who">자동</span><b>예매처로 이동</b><p>인앱 브라우저로 NOL티켓·멜론티켓 등을 엽니다. 클릭 로그를 남깁니다.</p><div class="tools"><span>Capacitor Browser</span><span>PostHog</span></div></div>
+          </div>
+          <div class="branch">
+            <span class="blabel n">같이 갈 사람 찾기</span>
+            <div class="node us"><span class="who">사용자</span><b>매칭 추천 → 대화 요청</b><p>겹치는 아티스트가 많은 순 카드, 인사말 50자 선택 첨부.</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="arrow" aria-hidden="true"></div>
+      <div class="decision">
+        <div class="q">상대도 수락했는가?</div>
+        <div class="branches">
+          <div class="branch">
+            <span class="blabel yes">예</span>
+            <div class="node sys"><span class="who">자동</span><b>1:1 채팅방 생성 + 푸시</b><p>양쪽 모두에게 알림, 신고·차단 메뉴 항상 표시.</p><div class="tools"><span>Realtime</span><span>FCM</span></div></div>
+          </div>
+          <div class="branch">
+            <span class="blabel no">아니오</span>
+            <div class="node sys"><span class="who">자동</span><b>상대에게 알리지 않음</b><p>거절한 상대는 다시 추천하지 않습니다.</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- C -->
+  <section class="flow-sec" id="safety">
+    <div class="sec-head">
+      <span class="eyebrow">C · 상시</span>
+      <h2>커뮤니티 안전 운영</h2>
+      <div class="meta"><span class="tag">금칙어 필터</span><span class="tag">신고 대기열</span><span class="tag">reports · blocks</span></div>
+      <p>익명 채팅이므로 자동 필터 → 신고 → 운영자 판단 → 제재의 순서를 MVP부터 갖춥니다. 신고 처리 목표 시간은 베타 운영 후 정합니다.</p>
+    </div>
+    <div class="flow">
+      <div class="node sys"><span class="who">자동</span><b>메시지 1차 필터</b><p>욕설·연락처·외부 링크가 감지되면 보내는 사람에게 경고를 띄웁니다.</p><div class="tools"><span>Edge Functions</span></div></div>
+      <div class="arrow" aria-hidden="true"></div>
+      <div class="node us"><span class="who">사용자</span><b>신고·차단</b><p>사유(욕설, 성희롱, 사기·암표, 스팸, 기타)를 고르면 해당 대화가 첨부됩니다. 차단은 즉시 적용됩니다.</p></div>
+      <div class="arrow" aria-hidden="true"></div>
+      <div class="node op"><span class="who">운영자</span><b>신고 대기열 검토</b><p>대화 맥락과 해당 사용자의 이전 신고 이력을 함께 확인합니다.</p><div class="tools"><span>관리자 페이지</span></div></div>
+      <div class="arrow" aria-hidden="true"></div>
+      <div class="decision">
+        <div class="q">위반 정도는?</div>
+        <div class="branches">
+          <div class="branch">
+            <span class="blabel n">위반 아님</span>
+            <div class="node op"><span class="who">운영자</span><b>종결</b><p>기록만 남깁니다.</p></div>
+          </div>
+          <div class="branch">
+            <span class="blabel no">경미</span>
+            <div class="node op"><span class="who">운영자</span><b>경고</b><p>앱 내 경고 알림.</p></div>
+          </div>
+          <div class="branch">
+            <span class="blabel crit">반복·중대</span>
+            <div class="node op"><span class="who">운영자</span><b>일시·영구 정지</b><p>사기·성범죄 의심은 영구 정지 후 신고자에게 수사기관 신고 방법을 안내합니다.</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="arrow" aria-hidden="true"></div>
+      <div class="node sys"><span class="who">자동</span><b>제재 적용·기록</b><p>추천과 채팅에서 제외하고, 신고자에게 처리 결과를 알립니다. 재설치 우회는 기기 패턴으로 보조 제재합니다.</p></div>
+    </div>
+  </section>
+
+  <!-- D -->
+  <section class="flow-sec" id="release">
+    <div class="sec-head">
+      <span class="eyebrow">D · 수시</span>
+      <h2>업데이트·출시 운영</h2>
+      <div class="meta"><span class="tag">GitHub</span><span class="tag">Actions CI</span><span class="tag">Vercel</span><span class="tag">Codemagic</span><span class="tag">Sentry</span></div>
+      <p>웹은 main에 머지되면 바로 배포되고, 앱은 버전 태그를 달 때만 스토어로 나갑니다.</p>
+    </div>
+    <div class="flow">
+      <div class="node op"><span class="who">운영자</span><b>이슈 등록 → 작업 브랜치 → PR</b><p>이슈 하나 = 브랜치 하나 = PR 하나.</p><div class="tools"><span>GitHub Issues</span><span>feat/·fix/ 브랜치</span></div></div>
+      <div class="arrow" aria-hidden="true"></div>
+      <div class="node sys"><span class="who">자동</span><b>CI 검사 + 미리보기</b><p>lint · typecheck · test · build, PR별 미리보기 주소 생성.</p><div class="tools"><span>GitHub Actions</span><span>Vercel Preview</span></div></div>
+      <div class="arrow" aria-hidden="true"></div>
+      <div class="decision">
+        <div class="q">검사 통과 + 화면 확인 완료?</div>
+        <div class="branches">
+          <div class="branch">
+            <span class="blabel yes">예</span>
+            <div class="node sys"><span class="who">자동</span><b>Squash merge → 웹 배포</b><p>DB 마이그레이션과 Edge Functions도 함께 반영.</p><div class="tools"><span>Vercel</span><span>Supabase CLI</span></div></div>
+          </div>
+          <div class="branch">
+            <span class="blabel no">아니오</span>
+            <div class="node op"><span class="who">운영자</span><b>수정 커밋</b><p>같은 PR에서 고칩니다.</p></div>
+            <span class="back">CI 검사로 돌아감</span>
+          </div>
+        </div>
+      </div>
+      <div class="arrow" aria-hidden="true"></div>
+      <div class="node op"><span class="who">운영자</span><b>앱 출시가 필요하면 버전 태그</b><p>예: v0.2.0 — 스토어 버전과 코드 버전을 1:1로 맞춥니다.</p></div>
+      <div class="arrow" aria-hidden="true"></div>
+      <div class="node sys"><span class="who">자동</span><b>iOS·Android 빌드 → 내부 테스트</b><p>TestFlight와 Play 내부 테스트 트랙에 업로드.</p><div class="tools"><span>Codemagic</span></div></div>
+      <div class="arrow" aria-hidden="true"></div>
+      <div class="decision">
+        <div class="q">내부 테스트에서 문제가 없는가?</div>
+        <div class="branches">
+          <div class="branch">
+            <span class="blabel yes">예</span>
+            <div class="node op"><span class="who">운영자</span><b>스토어 심사 제출 → 출시</b><p>App Store · Google Play.</p></div>
+          </div>
+          <div class="branch">
+            <span class="blabel no">아니오</span>
+            <div class="node op"><span class="who">운영자</span><b>fix/ 브랜치로 수정</b></div>
+            <span class="back">이슈 등록 단계로 돌아감</span>
+          </div>
+        </div>
+      </div>
+      <div class="arrow" aria-hidden="true"></div>
+      <div class="node sys"><span class="who">자동</span><b>오류 모니터링</b><p>새 버전의 오류를 추적하고, 급한 오류는 핫픽스 이슈로 다시 이 흐름에 올립니다.</p><div class="tools"><span>Sentry</span></div></div>
+    </div>
+  </section>
+
+  <!-- E -->
+  <section class="flow-sec" id="review">
+    <div class="sec-head">
+      <span class="eyebrow">E · 주 1회</span>
+      <h2>지표 리뷰·개선 주기</h2>
+      <div class="meta"><span class="tag">PostHog</span><span class="tag">GitHub Projects</span></div>
+      <p>목표 수치는 베타 데이터를 본 뒤 정하고, 그 전까지는 주별 추세만 봅니다.</p>
+    </div>
+    <div class="flow">
+      <div class="node sys"><span class="who">자동</span><b>지표 수집</b><p>WAU · 예매 이동률 · 매칭 수락률 · 대화 지속률 · D7 리텐션 · 신고율.</p><div class="tools"><span>PostHog</span></div></div>
+      <div class="arrow" aria-hidden="true"></div>
+      <div class="node op"><span class="who">운영자</span><b>주간 리뷰</b><p>지난주 대비 변화와 이상치를 확인합니다.</p></div>
+      <div class="arrow" aria-hidden="true"></div>
+      <div class="decision">
+        <div class="q">어디에서 막혔는가?</div>
+        <div class="branches">
+          <div class="branch">
+            <span class="blabel no">예매 이동률 하락</span>
+            <div class="node op"><span class="who">운영자</span><b>공연 데이터·상세 화면 보강</b></div>
+            <span class="back">A. 공연 데이터로</span>
+          </div>
+          <div class="branch">
+            <span class="blabel no">매칭 수락률 하락</span>
+            <div class="node op"><span class="who">운영자</span><b>추천 점수·프로필 개선</b></div>
+            <span class="back">D. 업데이트로</span>
+          </div>
+          <div class="branch">
+            <span class="blabel crit">신고율 상승</span>
+            <div class="node op"><span class="who">운영자</span><b>필터·제재 기준 강화</b></div>
+            <span class="back">C. 안전 운영으로</span>
+          </div>
+        </div>
+      </div>
+      <div class="arrow" aria-hidden="true"></div>
+      <div class="node op"><span class="who">운영자</span><b>개선 과제 등록</b><p>GitHub Issues에 올리고 우선순위를 정합니다.</p><div class="tools"><span>GitHub Projects</span></div></div>
+      <div class="arrow" aria-hidden="true"></div>
+      <div class="decision">
+        <div class="q">2차 확장을 시작할 때인가?</div>
+        <div class="branches">
+          <div class="branch">
+            <span class="blabel yes">예</span>
+            <div class="node op"><span class="who">운영자</span><b>2차 착수</b><p>장르 확장(락·국내 인디·힙합 등), 소셜 로그인, BM(arena로 후보 비교 후 결정).</p></div>
+          </div>
+          <div class="branch">
+            <span class="blabel n">아직</span>
+            <div class="node op"><span class="who">운영자</span><b>MVP 개선 계속</b></div>
+            <span class="back">다음 주 리뷰</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<aside class="design" id="design" aria-label="앱 디자인 예시">
+  <div class="design-head">
+    <h2>앱 디자인 예시</h2>
+    <button class="close" id="closeDesign" type="button">닫기</button>
+  </div>
+  <p class="note">화면을 눌러 직접 써 볼 수 있습니다. 아티스트·공연·사용자는 모두 디자인 확인용 가상 데이터입니다.</p>
+  <div class="screens" role="group" aria-label="화면 선택">
+    <button type="button" data-go="onboard" aria-pressed="false">아티스트 선택</button>
+    <button type="button" data-go="calendar" aria-pressed="true">캘린더</button>
+    <button type="button" data-go="detail" aria-pressed="false">공연 상세</button>
+    <button type="button" data-go="match" aria-pressed="false">매칭</button>
+    <button type="button" data-go="chat" aria-pressed="false">채팅</button>
+  </div>
+
+  <div class="phone">
+    <div class="screen">
+      <div class="status"><span>9:41</span><span>덕친소</span><span>5G</span></div>
+
+      <!-- 온보딩 -->
+      <div class="view" data-view="onboard" hidden>
+        <span class="muted small">1 / 1 · 장르: J-pop</span>
+        <div class="app-title">좋아하는 아티스트를 골라 주세요</div>
+        <p class="muted small">고른 아티스트로 공연을 모아 보고, 취향이 겹치는 사람을 추천해 드려요.</p>
+        <input class="search" id="artistSearch" type="search" placeholder="아티스트 검색" aria-label="아티스트 검색">
+        <div class="chips" id="artistChips">
+          <button class="chip on" type="button">LUMINA</button>
+          <button class="chip on" type="button">Yoru Signal</button>
+          <button class="chip" type="button">Natsuiro Band</button>
+          <button class="chip on" type="button">Hoshi no Oto</button>
+          <button class="chip" type="button">Kaze to Ame</button>
+          <button class="chip" type="button">MIDORI STAR</button>
+          <button class="chip" type="button">Tsuki Echo</button>
+          <button class="chip" type="button">Sakamichi Lights</button>
+        </div>
+        <button class="ghost small" type="button">찾는 아티스트가 없어요 · 추가 요청</button>
+        <button class="primary" id="startBtn" type="button">3명 선택 · 시작하기</button>
+      </div>
+
+      <!-- 캘린더 -->
+      <div class="view" data-view="calendar">
+        <div class="cal-head"><div class="app-title">2026년 11월</div><span class="muted small">J-pop</span></div>
+        <div class="chips">
+          <button class="chip on" type="button" data-toggle>내 아티스트</button>
+          <button class="chip" type="button" data-toggle>서울</button>
+          <button class="chip" type="button" data-toggle>예매 중</button>
+        </div>
+        <div class="cal" id="cal" aria-label="11월 달력"></div>
+        <div style="display:grid;gap:8px">
+          <span class="muted small" id="dayLabel">11월 22일 (일) · 공연 2개</span>
+          <button class="concert" type="button" data-go="detail">
+            <span class="poster" aria-hidden="true"></span>
+            <span style="display:grid;gap:2px"><b>LUMINA Live Tour 2026 in Seoul</b><span class="muted small">18:00 · 올림픽공원</span><span><span class="badge open">예매 중</span></span></span>
+          </button>
+          <button class="concert" type="button" data-go="detail">
+            <span class="poster b" aria-hidden="true"></span>
+            <span style="display:grid;gap:2px"><b>Yoru Signal 첫 내한 공연</b><span class="muted small">19:30 · 홍대 공연장</span><span><span class="badge soon">예매 오픈 D-3</span></span></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 공연 상세 -->
+      <div class="view" data-view="detail" hidden>
+        <button class="ghost small" type="button" data-go="calendar" style="justify-self:start;width:auto;padding:4px 10px">← 캘린더</button>
+        <div class="poster hero-poster" aria-hidden="true"></div>
+        <div style="display:grid;gap:2px"><span class="badge open" style="justify-self:start">예매 중</span><div class="app-title">LUMINA Live Tour 2026 in Seoul</div><span class="muted small">LUMINA · J-pop</span></div>
+        <dl class="kv">
+          <dt>일시</dt><dd>2026.11.22 (일) 18:00 KST</dd>
+          <dt>장소</dt><dd>올림픽공원 (서울 송파구)</dd>
+          <dt>가격</dt><dd>스탠딩 132,000원 · 지정석 143,000원</dd>
+          <dt>관람</dt><dd>약 120분 · 만 7세 이상</dd>
+        </dl>
+        <div style="display:grid;gap:6px">
+          <button class="primary vendor" type="button" data-vendor="NOL티켓"><span>NOL티켓에서 예매</span><span>↗</span></button>
+          <button class="ghost vendor" type="button" data-vendor="멜론티켓"><span>멜론티켓에서 예매</span><span>↗</span></button>
+        </div>
+        <button class="ghost" type="button" data-go="match">이 공연에 관심 있는 12명 보기</button>
+        <button class="ghost small" type="button" data-toast="내 기기 캘린더에 저장했어요 (예시)">내 캘린더에 저장</button>
+      </div>
+
+      <!-- 매칭 -->
+      <div class="view" data-view="match" hidden>
+        <div class="cal-head"><div class="app-title">취향 매칭</div><span class="muted small">받은 요청 1</span></div>
+        <div class="mcard" id="mcard">
+          <div class="mrow"><span class="avatar" aria-hidden="true"></span><div style="display:grid"><b>별빛러버</b><span class="muted small">서울 · 최근 접속 10분 전</span></div><span class="score">겹침 75%</span></div>
+          <p>LUMINA 투어 같이 가실 분! 공연 끝나고 굿즈 얘기하는 거 좋아해요.</p>
+          <div style="display:grid;gap:4px"><span class="muted small">겹치는 아티스트</span><div class="chips"><span class="chip on">LUMINA</span><span class="chip on">Yoru Signal</span><span class="chip on">Hoshi no Oto</span></div></div>
+          <div style="display:grid;gap:4px"><span class="muted small">관심 공연</span><span class="small">LUMINA Live Tour 2026 in Seoul · 11.22</span></div>
+          <div class="btn-row" id="matchBtns">
+            <button class="ghost" type="button" id="skipBtn">넘기기</button>
+            <button class="primary" type="button" id="reqBtn">대화 요청</button>
+          </div>
+          <div class="sheet" id="reqSheet" hidden>
+            <label class="small" for="hello">인사말 (선택)</label>
+            <textarea id="hello" rows="2" maxlength="50">안녕하세요! 11월 LUMINA 공연 가세요?</textarea>
+            <span class="muted small" id="helloCount">0 / 50</span>
+            <button class="primary" type="button" id="sendReq">요청 보내기</button>
+          </div>
+          <div class="sent" id="sentMsg" hidden>요청을 보냈어요. 상대가 수락하면 채팅방이 열리고 알림을 보내 드려요. 거절해도 알림은 가지 않아요.</div>
+        </div>
+        <button class="ghost small" type="button" data-go="chat">수락된 대화 보기 →</button>
+      </div>
+
+      <!-- 채팅 -->
+      <div class="view" data-view="chat" hidden>
+        <div class="chat-head"><span class="avatar" aria-hidden="true"></span><div style="display:grid"><b>하늘색응원봉</b><span class="muted small">겹치는 아티스트 2명</span></div><button class="kebab" type="button" id="kebab" aria-label="대화 메뉴" aria-expanded="false">⋮</button></div>
+        <div class="menu" id="menu" hidden>
+          <button type="button" data-toast="대화방을 나갔어요 (예시)">대화방 나가기</button>
+          <button type="button" data-toast="차단했어요. 서로 추천·대화가 되지 않아요 (예시)">차단하기</button>
+          <button type="button" data-toast="신고가 접수됐어요. 운영자가 확인 후 결과를 알려 드려요 (예시)">신고하기</button>
+        </div>
+        <div class="msgs" id="msgs">
+          <span class="sys-msg">서로 수락해서 대화가 시작됐어요 · 첫 만남은 공연장 같은 공개 장소에서</span>
+          <div class="msg">안녕하세요! 저도 Yoru Signal 내한 기다리고 있었어요</div>
+          <div class="msg me">반가워요 :) 예매 오픈이 목요일이죠?</div>
+          <div class="msg">네 20시요! 같이 광클해요 ㅎㅎ</div>
+        </div>
+        <form class="compose" id="compose">
+          <input id="msgInput" type="text" placeholder="메시지 입력" aria-label="메시지 입력" autocomplete="off">
+          <button type="submit">보내기</button>
+        </form>
+      </div>
+
+      <nav class="tabbar" aria-label="앱 하단 탭">
+        <button type="button" data-tab="calendar" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>캘린더</button>
+        <button type="button" data-tab="match"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6M15 20c0-2.2 1-4 3-4.6"/></svg>매칭</button>
+        <button type="button" data-tab="chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg>채팅</button>
+        <button type="button" data-tab="onboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg>설정</button>
+      </nav>
+      <div class="toast" id="toast" role="status" hidden></div>
+    </div>
+  </div>
+</aside>
+</div>
+
+<script>
+(function () {
+  var body = document.body;
+  var openBtn = document.getElementById('openDesign');
+  var closeBtn = document.getElementById('closeDesign');
+
+  function setOpen(open) {
+    body.classList.toggle('design-open', open);
+    openBtn.setAttribute('aria-expanded', String(open));
+    openBtn.querySelector('span').textContent = open ? '앱 디자인 예시 닫기' : '앱 디자인 예시 보기';
+    try { localStorage.setItem('dck-design-open', open ? '1' : '0'); } catch (e) {}
+  }
+  openBtn.addEventListener('click', function () { setOpen(!body.classList.contains('design-open')); });
+  closeBtn.addEventListener('click', function () { setOpen(false); });
+  var initial = location.hash === '#design';
+  try { if (localStorage.getItem('dck-design-open') === '1') initial = true; } catch (e) {}
+  setOpen(initial);
+
+  // 화면 전환
+  var views = document.querySelectorAll('.view');
+  var pills = document.querySelectorAll('.screens button');
+  var tabs = document.querySelectorAll('.tabbar button');
+  var tabFor = { onboard: 'onboard', calendar: 'calendar', detail: 'calendar', match: 'match', chat: 'chat' };
+  function go(name) {
+    views.forEach(function (v) { v.hidden = v.dataset.view !== name; });
+    pills.forEach(function (p) { p.setAttribute('aria-pressed', String(p.dataset.go === name)); });
+    tabs.forEach(function (t) { if (t.dataset.tab === tabFor[name]) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current'); });
+    hideToast();
+  }
+  document.querySelectorAll('[data-go]').forEach(function (el) { el.addEventListener('click', function () { go(el.dataset.go); }); });
+  tabs.forEach(function (t) { t.addEventListener('click', function () { go(t.dataset.tab); }); });
+
+  // 토스트
+  var toast = document.getElementById('toast'); var tTimer;
+  function showToast(text) { toast.textContent = text; toast.hidden = false; clearTimeout(tTimer); tTimer = setTimeout(hideToast, 2600); }
+  function hideToast() { toast.hidden = true; }
+  document.querySelectorAll('[data-toast]').forEach(function (el) { el.addEventListener('click', function () { showToast(el.dataset.toast); var m = document.getElementById('menu'); if (m.contains(el)) { m.hidden = true; document.getElementById('kebab').setAttribute('aria-expanded', 'false'); } }); });
+  document.querySelectorAll('[data-vendor]').forEach(function (el) { el.addEventListener('click', function () { showToast(el.dataset.vendor + ' 예매 페이지를 인앱 브라우저로 엽니다 (예시)'); }); });
+
+  // 필터 칩
+  document.querySelectorAll('[data-toggle]').forEach(function (el) { el.addEventListener('click', function () { el.classList.toggle('on'); }); });
+
+  // 온보딩 아티스트 선택
+  var chipsWrap = document.getElementById('artistChips');
+  var startBtn = document.getElementById('startBtn');
+  function countSel() { var n = chipsWrap.querySelectorAll('.chip.on').length; startBtn.textContent = n ? n + '명 선택 · 시작하기' : '아티스트를 1명 이상 골라 주세요'; startBtn.disabled = n === 0; }
+  chipsWrap.querySelectorAll('.chip').forEach(function (c) { c.setAttribute('aria-pressed', String(c.classList.contains('on'))); c.addEventListener('click', function () { c.classList.toggle('on'); c.setAttribute('aria-pressed', String(c.classList.contains('on'))); countSel(); }); });
+  document.getElementById('artistSearch').addEventListener('input', function (e) { var q = e.target.value.trim().toLowerCase(); chipsWrap.querySelectorAll('.chip').forEach(function (c) { c.hidden = q && c.textContent.toLowerCase().indexOf(q) === -1; }); });
+  startBtn.addEventListener('click', function () { go('calendar'); });
+  countSel();
+
+  // 달력 (2026년 11월: 1일은 일요일)
+  var cal = document.getElementById('cal');
+  var shows = { 7: 1, 14: 1, 15: 2, 22: 2, 28: 1 };
+  var mine = { 15: 1, 22: 2 };
+  ['일','월','화','수','목','금','토'].forEach(function (d) { var s = document.createElement('span'); s.className = 'dow'; s.textContent = d; cal.appendChild(s); });
+  var dayNames = ['일','월','화','수','목','금','토'];
+  for (var d = 1; d <= 35; d++) {
+    var b = document.createElement('button'); b.type = 'button';
+    var day = d <= 30 ? d : d - 30;
+    var dot = document.createElement('i');
+    dot.className = 'dot ' + (d <= 30 && mine[day] ? '' : (d <= 30 && shows[day] ? 'dim' : 'none'));
+    b.appendChild(document.createTextNode(day)); b.appendChild(dot);
+    if (d > 30) b.className = 'off';
+    if (d === 22) b.className = 'sel';
+    b.setAttribute('aria-label', (d > 30 ? '12월 ' : '11월 ') + day + '일' + (d <= 30 && shows[day] ? ', 공연 ' + shows[day] + '개' : ''));
+    (function (btn, dd, inMonth) {
+      btn.addEventListener('click', function () {
+        if (!inMonth) return;
+        cal.querySelectorAll('button.sel').forEach(function (x) { x.classList.remove('sel'); });
+        btn.classList.add('sel');
+        var n = shows[dd] || 0;
+        document.getElementById('dayLabel').textContent = '11월 ' + dd + '일 (' + dayNames[(dd - 1) % 7] + ') · 공연 ' + n + '개' + (dd === 22 ? '' : ' · 예시 목록은 22일만 채워져 있어요');
+      });
+    })(b, day, d <= 30);
+    cal.appendChild(b);
+  }
+
+  // 매칭
+  var reqBtn = document.getElementById('reqBtn'), sheet = document.getElementById('reqSheet'), sent = document.getElementById('sentMsg');
+  var hello = document.getElementById('hello'), helloCount = document.getElementById('helloCount');
+  function updCount() { helloCount.textContent = hello.value.length + ' / 50'; }
+  hello.addEventListener('input', updCount); updCount();
+  reqBtn.addEventListener('click', function () { sheet.hidden = false; hello.focus(); });
+  document.getElementById('sendReq').addEventListener('click', function () { sheet.hidden = true; document.getElementById('matchBtns').hidden = true; sent.hidden = false; });
+  document.getElementById('skipBtn').addEventListener('click', function () { showToast('넘겼어요. 다음 추천을 보여 드려요 (예시)'); });
+
+  // 채팅
+  var kebab = document.getElementById('kebab'), menu = document.getElementById('menu');
+  kebab.addEventListener('click', function () { menu.hidden = !menu.hidden; kebab.setAttribute('aria-expanded', String(!menu.hidden)); });
+  var msgs = document.getElementById('msgs'), input = document.getElementById('msgInput');
+  document.getElementById('compose').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var text = input.value.trim(); if (!text) return;
+    var m = document.createElement('div'); m.className = 'msg me'; m.textContent = text; msgs.appendChild(m);
+    if (/01[0-9][- ]?\d{3,4}[- ]?\d{4}|https?:\/\/|open\.kakao/i.test(text)) {
+      var w = document.createElement('span'); w.className = 'warn-msg'; w.textContent = '연락처·외부 링크는 사기 위험이 있어 주의가 필요해요'; msgs.appendChild(w);
+    }
+    input.value = ''; msgs.parentElement.scrollTop = msgs.parentElement.scrollHeight;
+  });
+})();
+</script>
