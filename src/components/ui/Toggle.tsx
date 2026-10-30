@@ -7,9 +7,13 @@ export function Toggle({ checked, onChange, label }: Props) {
       aria-checked={checked}
       aria-label={label}
       onClick={() => onChange(!checked)}
-      className={`relative h-6 w-11 shrink-0 rounded-full transition ${checked ? 'bg-accent' : 'bg-line'}`}
+      className={`relative h-[31px] w-[51px] shrink-0 rounded-full transition-colors ${checked ? 'bg-ink' : 'bg-hairline'}`}
     >
-      <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${checked ? 'left-[22px]' : 'left-0.5'}`} />
+      <span
+        className={`absolute top-[2px] h-[27px] w-[27px] rounded-full bg-paper shadow-[0_2px_6px_rgba(0,0,0,0.18)] transition-[left] ${
+          checked ? 'left-[22px]' : 'left-[2px]'
+        }`}
+      />
     </button>
   )
 }

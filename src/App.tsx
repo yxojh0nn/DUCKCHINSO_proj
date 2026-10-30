@@ -36,8 +36,8 @@ function TabLayout() {
 export default function App() {
   return (
     // 데스크톱에서는 휴대폰 폭으로 가운데 표시
-    <div className="flex h-full justify-center md:items-center md:py-6">
-      <div className="relative h-full w-full max-w-[430px] overflow-hidden bg-bg md:h-[min(880px,100%)] md:rounded-[28px] md:border md:border-line md:shadow-2xl">
+    <div className="flex h-full justify-center md:items-center md:bg-mist md:py-8">
+      <div className="relative h-full w-full max-w-[430px] overflow-hidden bg-paper md:h-[min(880px,100%)] md:rounded-[44px] md:shadow-[0_0_0_10px_var(--ink),0_30px_60px_-20px_rgba(0,0,0,0.35)]">
         <div className="h-full overflow-y-auto">
           <Routes>
             <Route path="/consent" element={<Consent />} />

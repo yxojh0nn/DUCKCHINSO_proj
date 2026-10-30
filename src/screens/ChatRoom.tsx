@@ -5,7 +5,6 @@ import { useAppStore } from '@/store/useAppStore'
 import { AppHeader } from '@/components/AppHeader'
 import { MessageBubble } from '@/components/MessageBubble'
 import { Sheet } from '@/components/ui/Sheet'
-import { Button } from '@/components/ui/Button'
 
 const REPORT_REASONS = ['티켓 사기·암표 거래', '욕설·괴롭힘', '성적 불쾌감', '스팸·광고', '기타']
 
@@ -21,7 +20,7 @@ export default function ChatRoom() {
 
   useEffect(() => { endRef.current?.scrollIntoView({ block: 'end' }) }, [room?.messages.length])
 
-  if (!room) return <><AppHeader title="채팅" back /><p className="p-8 text-center text-sm text-muted">대화방이 없어요</p></>
+  if (!room) return <><AppHeader title="채팅" back /><p className="px-5 py-10 t-body text-graphite">대화방이 없어요.</p></>
 
   const nick = MOCK_USERS.find((u) => u.id === room.partnerId)?.nickname ?? '알 수 없음'
   const left = !!room.partnerLeftAt
@@ -38,52 +37,70 @@ export default function ChatRoom() {
         title={nick}
         back
         right={
-          <button aria-label="메뉴" onClick={() => setSheet('menu')} className="rounded-lg p-1.5 text-muted hover:bg-chip">
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor"><circle cx="12" cy="5" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="12" cy="19" r="1.8" /></svg>
+          <button aria-label="대화방 메뉴" onClick={() => setSheet('menu')} className="flex h-11 w-11 items-center justify-center text-ink active:opacity-50">
+            <svg aria-hidden viewBox="0 0 24 24" className="h-[22px] w-[22px]" fill="currentColor"><circle cx="5" cy="12" r="1.7" /><circle cx="12" cy="12" r="1.7" /><circle cx="19" cy="12" r="1.7" /></svg>
           </button>
         }
       />
-      <div className="flex-1 overflow-y-auto bg-bg px-3 py-3">
+      <div className="flex-1 overflow-y-auto px-3 py-2">
         {room.messages.map((m) => <MessageBubble key={m.id} m={m} />)}
-        {left && <p className="mx-auto my-3 w-fit rounded-full bg-crit/10 px-3 py-1.5 text-xs font-semibold text-crit">상대방이 대화방을 나갔습니다</p>}
+        {left && <p className="my-5 text-center t-sub font-medium text-graphite">상대방이 대화방을 나갔습니다</p>}
         <div ref={endRef} />
       </div>
       <form
         onSubmit={(e) => { e.preventDefault(); submit() }}
-        className="flex gap-2 border-t border-line bg-surface p-2.5"
+        className="flex items-center gap-2 border-t border-hairline/60 bg-paper/90 px-3 py-2 backdrop-blur-xl"
       >
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
           disabled={left}
-          placeholder={left ? '상대방이 나가서 메시지를 보낼 수 없어요' : '메시지 입력'}
-          className="min-w-0 flex-1 rounded-xl bg-chip px-3 py-2 text-sm outline-none disabled:opacity-60"
+          aria-label="메시지"
+          placeholder={left ? '상대방이 나가서 메시지를 보낼 수 없어요' : '메시지'}
+          className="h-9 min-w-0 flex-1 rounded-full border border-hairline px-4 t-body outline-none focus:border-graphite disabled:bg-mist disabled:text-graphite"
         />
-        <Button type="submit" disabled={left || !text.trim()} className="!px-3">전송</Button>
+        <button
+          type="submit"
+          aria-label="보내기"
+          disabled={left || !text.trim()}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink text-paper transition-opacity disabled:bg-hairline"
+        >
+          <svg aria-hidden viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" /></svg>
+        </button>
       </form>
 
-      <Sheet open={sheet === 'menu'} onClose={() => setSheet(null)} title="대화방 메뉴">
-        <div className="flex flex-col gap-2">
-          <Button variant="secondary" block onClick={() => setSheet('report')}>신고하기</Button>
-          <Button variant="secondary" block onClick={() => setSheet('block')}>차단하기</Button>
-          <Button variant="danger" block onClick={() => setSheet('leave')}>대화방 나가기</Button>
-        </div>
-      </Sheet>
-      <Sheet open={sheet === 'report'} onClose={() => setSheet(null)} title="신고 사유를 골라 주세요">
-        <div className="flex flex-col gap-2">
-          {REPORT_REASONS.map((r) => (
-            <Button key={r} variant="secondary" block onClick={() => { report(room.partnerId, r); setSheet(null); showToast('신고가 접수됐어요. 운영자가 확인할게요') }}>{r}</Button>
-          ))}
-        </div>
-      </Sheet>
-      <Sheet open={sheet === 'block'} onClose={() => setSheet(null)} title={`${nick} 님을 차단할까요?`}>
-        <p className="mb-4 text-sm text-muted">차단하면 이 대화방이 내 목록에서 사라지고 서로 추천되지 않아요. 상대에게는 차단 사실을 알리지 않아요. 해제는 내 정보 › 차단 목록에서 할 수 있어요.</p>
-        <Button variant="danger" block onClick={() => { block(room.partnerId); showToast('차단했어요'); nav('/chats', { replace: true }) }}>차단하기</Button>
-      </Sheet>
-      <Sheet open={sheet === 'leave'} onClose={() => setSheet(null)} title="대화방을 나갈까요?">
-        <p className="mb-4 text-sm text-muted">나가면 대화 내용이 내 목록에서 사라지고, 상대에게는 "상대방이 대화방을 나갔습니다"가 표시돼요.</p>
-        <Button variant="danger" block onClick={() => { leaveRoom(room.id); nav('/chats', { replace: true }) }}>나가기</Button>
-      </Sheet>
+      <Sheet
+        open={sheet === 'menu'}
+        onClose={() => setSheet(null)}
+        actions={[
+          { label: '신고하기', onClick: () => setSheet('report') },
+          { label: '차단하기', destructive: true, onClick: () => setSheet('block') },
+          { label: '대화방 나가기', destructive: true, onClick: () => setSheet('leave') },
+        ]}
+      />
+      <Sheet
+        open={sheet === 'report'}
+        onClose={() => setSheet(null)}
+        title="신고 사유"
+        actions={REPORT_REASONS.map((r) => ({
+          label: r,
+          onClick: () => { report(room.partnerId, r); setSheet(null); showToast('신고를 접수했어요') },
+        }))}
+      />
+      <Sheet
+        open={sheet === 'block'}
+        onClose={() => setSheet(null)}
+        title={`${nick} 님을 차단할까요?`}
+        message="대화방이 내 목록에서 사라지고 서로 추천되지 않아요. 상대에게는 알리지 않아요. 내 정보에서 언제든 해제할 수 있어요."
+        actions={[{ label: '차단하기', destructive: true, onClick: () => { block(room.partnerId); showToast('차단했어요'); nav('/chats', { replace: true }) } }]}
+      />
+      <Sheet
+        open={sheet === 'leave'}
+        onClose={() => setSheet(null)}
+        title="대화방을 나갈까요?"
+        message={'대화 내용이 내 목록에서 사라지고, 상대에게는 "상대방이 대화방을 나갔습니다"가 표시돼요.'}
+        actions={[{ label: '나가기', destructive: true, onClick: () => { leaveRoom(room.id); nav('/chats', { replace: true }) } }]}
+      />
     </div>
   )
 }

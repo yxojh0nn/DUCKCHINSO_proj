@@ -1,132 +1,132 @@
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ARTISTS, MOCK_USERS, REGIONS } from '@/data/mock'
 import { kstDayKey } from '@/lib/date'
 import { useAppStore } from '@/store/useAppStore'
 import { AppHeader } from '@/components/AppHeader'
+import { Avatar } from '@/components/MatchCard'
+import { Chevron, List, Row } from '@/components/List'
 import { Button } from '@/components/ui/Button'
-import { Tag } from '@/components/ui/Chip'
+import { Sheet } from '@/components/ui/Sheet'
 import { Toggle } from '@/components/ui/Toggle'
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="mb-4">
-      <h2 className="mb-1.5 px-1 text-xs font-semibold text-muted">{title}</h2>
-      <div className="rounded-2xl border border-line bg-surface px-4">{children}</div>
-    </section>
-  )
-}
-
-function Row({ children }: { children: React.ReactNode }) {
-  return <div className="flex items-center gap-3 border-b border-line py-3 text-sm last:border-0">{children}</div>
-}
 
 // 내 정보·설정 (기획서 5.5, 10장)
 export default function Me() {
   const nav = useNavigate()
   const s = useAppStore()
   const now = s.now()
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const nick = (id: string) => MOCK_USERS.find((u) => u.id === id)?.nickname ?? '알 수 없음'
   const openRooms = s.rooms.filter((r) => !r.partnerLeftAt)
+  const artistNames = s.myArtists.map((id) => ARTISTS.find((a) => a.id === id)?.name).join(', ')
 
   return (
     <>
-      <AppHeader title="내 정보" />
-      <div className="flex-1 px-4 py-4">
-        <div className="mb-4 flex items-center gap-3 rounded-2xl bg-accent-soft p-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-lg font-bold text-white">{s.nickname[0] ?? '덕'}</div>
-          <div className="min-w-0 flex-1">
-            <p className="font-bold">{s.nickname}</p>
-            <p className="text-xs text-muted">임시 계정 · 기기를 바꾸면 복구할 수 없어요</p>
+      <AppHeader title="내 정보" large />
+      <div className="flex-1 pb-10">
+        <div className="flex items-center gap-4 px-5 pb-2 pt-3">
+          <Avatar name={s.nickname} size={60} />
+          <div className="min-w-0">
+            <p className="t-title">{s.nickname}</p>
+            <p className="t-sub text-graphite">임시 계정. 앱을 지우거나 기기를 바꾸면 복구할 수 없어요.</p>
           </div>
         </div>
 
-        <Section title="취향">
-          <Link to="/me/artists" className="flex items-center gap-3 py-3 text-sm">
-            <span className="w-20 shrink-0">관심 아티스트</span>
-            <span className="flex min-w-0 flex-1 flex-wrap gap-1">
-              {s.myArtists.length
-                ? s.myArtists.map((id) => <Tag key={id} tone="accent">{ARTISTS.find((a) => a.id === id)?.name}</Tag>)
-                : <span className="text-muted">지정 안 함</span>}
-            </span>
-            <span className="text-muted">›</span>
-          </Link>
-        </Section>
+        <List header="취향">
+          <li>
+            <Link to="/me/artists" className="flex min-h-11 items-center gap-3 px-5 py-2.5 active:bg-mist">
+              <span className="shrink-0 t-body">관심 아티스트</span>
+              <span className="min-w-0 flex-1 truncate text-right t-body text-graphite">{artistNames || '고르지 않음'}</span>
+              <Chevron />
+            </Link>
+          </li>
+        </List>
 
-        <Section title="지역·공개 범위">
+        <List header="공개 범위" footer="켜면 다른 사람에게 내 지역이 보이지 않아요. 지역은 시·도까지만 저장해요.">
           <Row>
-            <span className="flex-1">지역 (시·도)</span>
+            <label htmlFor="region" className="flex-1 t-body">지역</label>
             <select
+              id="region"
               value={s.region ?? ''}
               onChange={(e) => s.setRegion(e.target.value || null)}
-              className="rounded-lg border border-line bg-chip px-2 py-1.5 text-sm"
+              className="-mr-1 bg-transparent text-right t-body text-graphite outline-none"
             >
               <option value="">선택 안 함</option>
               {REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
           </Row>
           <Row>
-            <span className="flex-1">
-              내 정보 비공개
-              <span className="block text-xs text-muted">켜면 다른 사람에게 지역이 "비공개"로 보여요</span>
-            </span>
+            <span className="flex-1 t-body">내 정보 비공개</span>
             <Toggle label="내 정보 비공개" checked={!s.regionPublic} onChange={(v) => s.setRegionPublic(!v)} />
           </Row>
-          <Row>
-            <span className="text-xs text-muted">다른 사람에게 보이는 모습: <b className="text-ink">{s.nickname} · {s.regionPublic ? (s.region ?? '지역 미설정') : '지역 비공개'}</b></span>
-          </Row>
-        </Section>
+        </List>
+        <p className="px-5 pt-2 t-sub text-graphite">
+          다른 사람에게는 <span className="text-ink">{s.nickname}, {s.regionPublic ? (s.region ?? '지역 미설정') : '지역 비공개'}</span>(으)로 보여요.
+        </p>
 
-        <Section title="차단 목록">
-          {s.blocks.length === 0 && <Row><span className="text-muted">차단한 사람이 없어요</span></Row>}
+        <List header="차단한 사람" footer={s.blocks.length ? '해제해도 상대에게 알리지 않아요.' : undefined}>
+          {s.blocks.length === 0 && <Row><span className="t-body text-graphite">차단한 사람이 없어요</span></Row>}
           {s.blocks.map((b) => (
             <Row key={b.userId}>
-              <span className="flex-1">{nick(b.userId)} <span className="text-xs text-muted">{kstDayKey(b.at)}</span></span>
-              <Button variant="secondary" className="!px-3 !py-1.5 !text-xs" onClick={() => { s.unblock(b.userId); s.showToast('차단을 해제했어요') }}>해제</Button>
+              <span className="flex-1 t-body">{nick(b.userId)}</span>
+              <span className="t-sub text-graphite num">{kstDayKey(b.at)}</span>
+              <Button variant="secondary" size="sm" onClick={() => { s.unblock(b.userId); s.showToast('차단을 해제했어요') }}>해제</Button>
             </Row>
           ))}
-        </Section>
+        </List>
 
-        <Section title="계정">
+        <List header="계정" footer="이메일, 구글, 카카오, 애플 가입은 다음 버전에서 제공해요. 가입하면 지금 기록이 그대로 이어져요.">
           <Row>
-            <span className="flex-1">회원가입 <span className="text-xs text-muted">(이메일·구글·카카오·애플)</span></span>
-            <Tag>2차 개발</Tag>
+            <span className="flex-1 t-body">회원가입</span>
+            <span className="t-body text-graphite">준비 중</span>
           </Row>
           <Row>
-            <span className="flex-1">동의 내역</span>
-            <span className="text-xs text-muted">버전 {s.consentVersion}</span>
+            <span className="flex-1 t-body">동의 내역</span>
+            <span className="t-body text-graphite num">{s.consentVersion} 버전</span>
           </Row>
-          <Row>
-            <button className="text-crit" onClick={() => { if (confirm('임시 계정과 모든 기록을 삭제할까요? 복구할 수 없어요.')) { s.reset(); nav('/consent', { replace: true }) } }}>
+          <li>
+            <button onClick={() => setConfirmDelete(true)} className="flex min-h-11 w-full items-center px-5 py-2.5 t-body text-danger active:bg-mist">
               계정 삭제
             </button>
-          </Row>
-        </Section>
+          </li>
+        </List>
 
-        <Section title="데모 도구 (프로토타입 전용)">
+        <List header="데모 도구" footer="프로토타입 확인용이에요. 수락하는 상대는 요청 후 2~3초 뒤 대화방이 열려요.">
           <Row>
-            <span className="flex-1">대화 요청 받기</span>
-            <Button variant="secondary" className="!px-3 !py-1.5 !text-xs" onClick={s.demoIncoming}>받기</Button>
+            <span className="flex-1 t-body">대화 요청 받기</span>
+            <Button variant="secondary" size="sm" onClick={s.demoIncoming}>받기</Button>
           </Row>
           <Row>
-            <span className="flex-1">하루 지나기 <span className="block text-xs text-muted">요청 한도 초기화·3일 만료 확인용 (현재 {kstDayKey(now)})</span></span>
-            <Button variant="secondary" className="!px-3 !py-1.5 !text-xs" onClick={() => { s.demoAdvanceDay(); s.showToast('하루가 지났어요') }}>+1일</Button>
+            <span className="flex-1">
+              <span className="block t-body">하루 지나기</span>
+              <span className="block t-sub text-graphite num">지금 {kstDayKey(now)}</span>
+            </span>
+            <Button variant="secondary" size="sm" onClick={() => { s.demoAdvanceDay(); s.showToast('하루가 지났어요') }}>+1일</Button>
           </Row>
           <Row>
-            <span className="flex-1">상대가 대화방 나가기 <span className="block text-xs text-muted">열린 대화방 {openRooms.length}개 중 가장 최근 방</span></span>
+            <span className="flex-1">
+              <span className="block t-body">상대가 대화방 나가기</span>
+              <span className="block t-sub text-graphite">가장 최근 대화방에 적용</span>
+            </span>
             <Button
               variant="secondary"
-              className="!px-3 !py-1.5 !text-xs"
+              size="sm"
               disabled={!openRooms.length}
               onClick={() => { s.demoPartnerLeave(openRooms[0].id); s.showToast(`${nick(openRooms[0].partnerId)} 님이 나갔어요`) }}
             >
               실행
             </Button>
           </Row>
-          <Row>
-            <span className="text-xs text-muted">요청 수락 여부는 상대마다 정해져 있어요. 수락하는 상대는 2~3초 뒤 채팅방이 열려요.</span>
-          </Row>
-        </Section>
+        </List>
       </div>
+
+      <Sheet
+        open={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        title="계정을 삭제할까요?"
+        message="관심 아티스트, 대화, 차단 기록이 모두 지워지고 복구할 수 없어요."
+        actions={[{ label: '계정 삭제', destructive: true, onClick: () => { s.reset(); nav('/consent', { replace: true }) } }]}
+      />
     </>
   )
 }

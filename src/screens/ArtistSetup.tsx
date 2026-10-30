@@ -19,17 +19,20 @@ export default function ArtistSetup() {
   }
 
   return (
-    <div className="flex min-h-full flex-col bg-surface">
-      <div className="flex-1 overflow-y-auto px-5 pt-10">
-        <p className="text-sm font-semibold text-accent">관심 아티스트</p>
-        <h1 className="mb-1 mt-1 text-2xl font-bold leading-snug">좋아하는 아티스트를<br />골라 주세요</h1>
-        <p className="mb-6 text-sm text-muted">캘린더에 먼저 보여 주고, 취향이 겹치는 사람을 추천할 때 써요. 내 정보에서 언제든 바꿀 수 있어요.</p>
+    <div className="flex min-h-full flex-col">
+      <div className="flex justify-end px-3 pt-2">
+        <Button variant="plain" size="sm" onClick={() => done([])}>나중에 하기</Button>
+      </div>
+      <div className="flex-1">
+        <div className="px-5 pb-5 pt-6">
+          <h1 className="t-large">좋아하는 아티스트</h1>
+          <p className="mt-3 t-body text-graphite">고른 아티스트의 공연을 캘린더에 먼저 보여 주고, 취향이 겹치는 사람을 추천해요.</p>
+        </div>
         <ArtistPicker value={sel} onChange={setSel} />
       </div>
-      <div className="flex gap-2 p-5">
-        <Button variant="secondary" onClick={() => done([])}>나중에 하기</Button>
-        <Button className="flex-1" disabled={sel.length === 0} onClick={() => done(sel)}>
-          {sel.length ? `${sel.length}명 선택 완료` : '아티스트를 골라 주세요'}
+      <div className="sticky bottom-0 bg-paper/90 px-5 pb-6 pt-3 backdrop-blur-xl">
+        <Button block disabled={sel.length === 0} onClick={() => done(sel)}>
+          {sel.length ? `${sel.length}명으로 시작하기` : '아티스트를 골라 주세요'}
         </Button>
       </div>
     </div>

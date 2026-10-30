@@ -11,8 +11,10 @@ export function Toast() {
   }, [toast, showToast])
   if (!toast) return null
   return (
-    <div className="pointer-events-none absolute inset-x-4 top-14 z-50 flex justify-center">
-      <div className="rounded-xl bg-ink px-4 py-2.5 text-sm text-surface shadow-lg" role="status">{toast}</div>
+    <div className="pointer-events-none absolute inset-x-4 top-3 z-50 flex justify-center">
+      <div role="status" className="rounded-full bg-ink/90 px-4 py-2.5 t-sub font-medium text-paper backdrop-blur [animation:fade-in_160ms_ease-out]">
+        {toast}
+      </div>
     </div>
   )
 }

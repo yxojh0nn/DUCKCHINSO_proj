@@ -11,15 +11,21 @@ export default function EditArtists() {
   const setArtists = useAppStore((s) => s.setArtists)
   const showToast = useAppStore((s) => s.showToast)
   const [sel, setSel] = useState(myArtists)
+  const changed = sel.join() !== myArtists.join()
 
   return (
     <>
-      <AppHeader title="관심 아티스트" back />
-      <div className="flex-1 px-4 py-4">
+      <AppHeader
+        title="관심 아티스트"
+        back
+        right={
+          <Button variant="plain" size="sm" className="font-semibold" disabled={!changed} onClick={() => { setArtists(sel); showToast('저장했어요'); nav(-1) }}>
+            저장
+          </Button>
+        }
+      />
+      <div className="flex-1 pb-10 pt-4">
         <ArtistPicker value={sel} onChange={setSel} />
-      </div>
-      <div className="sticky bottom-0 border-t border-line bg-surface p-4">
-        <Button block onClick={() => { setArtists(sel); showToast('저장했어요'); nav(-1) }}>저장</Button>
       </div>
     </>
   )

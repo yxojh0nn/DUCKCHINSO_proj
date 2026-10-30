@@ -17,38 +17,46 @@ export default function Consent() {
   const setAll = (v: boolean) => setChecked(Object.fromEntries(CONSENT_ITEMS.map((i) => [i.key, v])))
 
   return (
-    <div className="flex min-h-full flex-col bg-surface">
-      <div className="flex-1 overflow-y-auto px-5 pt-10">
-        <p className="text-sm font-semibold text-accent">덕친소</p>
-        <h1 className="mb-1 mt-1 text-2xl font-bold leading-snug">J-pop 공연과 덕친을<br />한 곳에서</h1>
-        <p className="mb-6 text-sm text-muted">시작하려면 아래 내용에 동의해 주세요. 가입 없이 임시 계정으로 바로 이용할 수 있어요.</p>
+    <div className="flex min-h-full flex-col">
+      <div className="flex-1 px-5 pt-16">
+        <h1 className="t-large">
+          J-pop 공연과
+          <br />
+          같이 갈 사람을 찾아요
+        </h1>
+        <p className="mt-3 t-body text-graphite">가입 없이 바로 시작해요. 아래 내용을 확인하고 동의해 주세요.</p>
 
-        <div className="mb-2 rounded-2xl bg-chip px-4">
-          <Checkbox checked={all} onChange={setAll} strong>전체 동의 (선택 항목 포함)</Checkbox>
+        <div className="mt-8 border-b border-hairline/70 pb-1">
+          <Checkbox checked={all} onChange={setAll} strong>모두 동의</Checkbox>
         </div>
-        <ul className="px-1">
+        <ul>
           {CONSENT_ITEMS.map((i) => (
-            <li key={i.key} className="border-b border-line last:border-0">
+            <li key={i.key}>
               <div className="flex items-center">
                 <Checkbox checked={!!checked[i.key]} onChange={(v) => setChecked({ ...checked, [i.key]: v })}>
                   <span>
-                    <span className={i.required ? 'text-accent' : 'text-muted'}>[{i.required ? '필수' : '선택'}]</span>{' '}
                     {i.label.replace(' (선택)', '')}
+                    <span className="ml-1.5 t-sub text-graphite">{i.required ? '필수' : '선택'}</span>
                   </span>
                 </Checkbox>
-                <button className="px-2 py-1 text-xs text-muted underline" onClick={() => setOpen(open === i.key ? null : i.key)}>
-                  {open === i.key ? '닫기' : '보기'}
+                <button
+                  aria-expanded={open === i.key}
+                  aria-label={`${i.label} 내용 보기`}
+                  className="flex h-11 w-11 items-center justify-center text-graphite"
+                  onClick={() => setOpen(open === i.key ? null : i.key)}
+                >
+                  <svg aria-hidden viewBox="0 0 14 8" className={`h-2 w-3.5 transition-transform ${open === i.key ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M1 1l6 6 6-6" /></svg>
                 </button>
               </div>
-              {open === i.key && <p className="mb-3 rounded-xl bg-chip p-3 text-xs leading-relaxed text-muted">{i.body}</p>}
+              {open === i.key && <p className="mb-3 ml-[34px] t-sub text-graphite">{i.body}</p>}
             </li>
           ))}
         </ul>
-        <p className="mt-4 rounded-xl border border-warn/40 bg-warn/10 p-3 text-xs leading-relaxed text-warn">
-          대화 중 티켓 사기·암표 거래·괴롭힘 등 법률이나 운영정책을 위반하면 계정이 정지될 수 있어요.
+        <p className="mt-6 t-sub text-graphite">
+          대화 중 티켓 사기, 암표 거래, 괴롭힘처럼 법률이나 운영정책을 어기면 계정이 정지될 수 있어요.
         </p>
       </div>
-      <div className="p-5">
+      <div className="sticky bottom-0 bg-paper/90 px-5 pb-6 pt-3 backdrop-blur-xl">
         <Button
           block
           disabled={!requiredOk}

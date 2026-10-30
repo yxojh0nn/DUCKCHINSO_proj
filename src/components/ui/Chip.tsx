@@ -1,25 +1,9 @@
-import type { ButtonHTMLAttributes } from 'react'
-
-type Props = ButtonHTMLAttributes<HTMLButtonElement> & { selected?: boolean }
-
-export function Chip({ selected, className = '', ...rest }: Props) {
-  return (
-    <button
-      aria-pressed={selected}
-      className={`rounded-full border px-3 py-1.5 text-sm transition disabled:opacity-40 ${
-        selected ? 'border-accent bg-accent-soft text-accent font-semibold' : 'border-line bg-surface text-ink hover:bg-chip'
-      } ${className}`}
-      {...rest}
-    />
-  )
-}
-
-export function Tag({ children, tone = 'muted' }: { children: React.ReactNode; tone?: 'muted' | 'accent' | 'user' | 'sys' }) {
+// 작은 상태 표시. 색보다 글자로 상태를 말한다 (디자인 기획안 원칙 2)
+export function Tag({ children, tone = 'plain' }: { children: React.ReactNode; tone?: 'plain' | 'rose' | 'azure' }) {
   const t = {
-    muted: 'bg-chip text-muted',
-    accent: 'bg-accent-soft text-accent',
-    user: 'bg-user-soft text-user',
-    sys: 'bg-sys-soft text-sys',
+    plain: 'text-graphite',
+    rose: 'text-rose',
+    azure: 'text-azure',
   }[tone]
-  return <span className={`inline-block rounded-md px-1.5 py-0.5 text-[11px] font-medium ${t}`}>{children}</span>
+  return <span className={`t-cap ${t}`}>{children}</span>
 }

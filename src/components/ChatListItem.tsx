@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { ChatRoom } from '@/store/useAppStore'
 import { fmtTime } from '@/lib/date'
+import { Avatar } from './MatchCard'
 
 type Props = { room: ChatRoom; nickname: string; onHide: () => void; onLongPress: () => void }
 
@@ -40,8 +41,8 @@ export function ChatListItem({ room, nickname, onHide, onLongPress }: Props) {
   }
 
   return (
-    <div className="relative overflow-hidden border-b border-line bg-chip select-none">
-      <button onClick={onHide} className="absolute inset-y-0 right-0 bg-ink text-sm font-semibold text-surface" style={{ width: REVEAL }}>
+    <li className="group relative overflow-hidden bg-graphite select-none">
+      <button onClick={onHide} className="absolute inset-y-0 right-0 t-sub font-semibold text-paper" style={{ width: REVEAL }}>
         숨기기
       </button>
       <Link
@@ -53,18 +54,19 @@ export function ChatListItem({ room, nickname, onHide, onLongPress }: Props) {
         onPointerUp={onUp}
         onPointerCancel={onUp}
         onContextMenu={(e) => e.preventDefault()}
-        className="relative flex items-center gap-3 bg-surface px-4 py-3 transition-transform touch-pan-y"
+        className="relative flex items-center gap-3 bg-paper px-5 py-2.5 transition-transform touch-pan-y active:bg-mist"
         style={{ transform: `translateX(${dx}px)`, transitionDuration: start.current ? '0ms' : '150ms' }}
       >
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-user-soft font-bold text-user">{nickname[0]}</div>
+        <Avatar name={nickname} size={50} />
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-2">
-            <p className="truncate text-sm font-bold">{nickname}</p>
-            {last && <span className="shrink-0 text-[11px] text-muted">{fmtTime(last.at)}</span>}
+            <p className="truncate t-head">{nickname}</p>
+            {last && <span className="shrink-0 t-sub text-graphite num">{fmtTime(last.at)}</span>}
           </div>
-          <p className={`truncate text-xs ${room.partnerLeftAt ? 'text-crit' : 'text-muted'}`}>{preview}</p>
+          <p className={`line-clamp-2 t-sub ${room.partnerLeftAt ? 'text-danger' : 'text-graphite'}`}>{preview}</p>
         </div>
       </Link>
-    </div>
+      <span aria-hidden className="pointer-events-none absolute bottom-0 left-[82px] right-0 h-px bg-hairline/70 group-last:hidden" />
+    </li>
   )
 }
