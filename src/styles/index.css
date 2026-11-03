@@ -1,0 +1,76 @@
+@import "tailwindcss";
+@import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
+
+/* 1단계: 디자인 토큰 (docs/디자인_기획안.md). 화면 색·글꼴은 이 값만 바꾼다 */
+:root {
+  --paper: #FFFFFF;
+  --mist: #F5F5F7;
+  --ink: #1D1D1F;
+  --graphite: #6E6E73;
+  --hairline: #D2D2D7;
+  --rose: #E5245E;
+  --azure: #0071E3;
+  --danger: #D70015;
+  --success: #248A3D;
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-mist: var(--mist);
+  --color-ink: var(--ink);
+  --color-graphite: var(--graphite);
+  --color-hairline: var(--hairline);
+  --color-rose: var(--rose);
+  --color-azure: var(--azure);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+}
+
+@layer base {
+  html, body, #root { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.47;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    font-feature-settings: "tnum" 0;
+  }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 6px; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; }
+  }
+}
+
+/* 글자 크기 단계 (기획안 표와 같음) */
+@utility t-large { font-size: 32px; line-height: 38px; font-weight: 700; letter-spacing: -0.025em; }
+@utility t-title { font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: -0.02em; }
+@utility t-head { font-size: 17px; line-height: 22px; font-weight: 600; letter-spacing: -0.01em; }
+@utility t-body { font-size: 15px; line-height: 22px; }
+@utility t-sub { font-size: 13px; line-height: 18px; }
+@utility t-cap { font-size: 11px; line-height: 14px; font-weight: 500; }
+@utility num { font-variant-numeric: tabular-nums; }
+
+@keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* FullCalendar: 칸 테두리를 지우고 숫자와 점만 남긴다 (iOS 캘린더 월 보기) */
+.fc {
+  --fc-border-color: transparent;
+  --fc-page-bg-color: transparent;
+  --fc-today-bg-color: transparent;
+  font-family: var(--font-sans);
+}
+.fc .fc-scrollgrid, .fc td, .fc th { border: 0 !important; }
+.fc .fc-col-header-cell { padding-bottom: 6px; }
+.fc .fc-col-header-cell-cushion { color: var(--graphite); font-size: 11px; font-weight: 500; text-decoration: none; padding: 0; }
+.fc .fc-daygrid-day-frame { min-height: 0 !important; display: flex; justify-content: center; padding: 2px 0 6px; cursor: pointer; }
+.fc .fc-daygrid-day-top { display: flex; justify-content: center; }
+.fc .fc-daygrid-day-number { display: block; padding: 0; }
+.fc .fc-daygrid-day-events, .fc .fc-daygrid-day-bg { display: none; }
+.fc .fc-day-other { visibility: hidden; }
