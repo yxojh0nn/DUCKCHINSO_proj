@@ -1,29 +1,39 @@
 import { useNavigate } from 'react-router-dom'
+import { IconBack } from './icons'
 
-type Props = { title: string; back?: boolean; right?: React.ReactNode; large?: boolean }
+type Props = { title?: React.ReactNode; back?: boolean | (() => void); right?: React.ReactNode; large?: boolean }
 
 // large: 탭 첫 화면의 큰 제목. 아니면 뒤로 가기가 있는 얇은 상단 바
 export function AppHeader({ title, back, right, large }: Props) {
   const nav = useNavigate()
   if (large) {
     return (
-      <header className="flex items-end justify-between gap-3 px-5 pb-2 pt-12">
+      <header className="flex items-end justify-between gap-3 px-5 pb-2 pt-[max(44px,calc(env(safe-area-inset-top)+20px))]">
         <h1 className="t-large">{title}</h1>
-        {right}
+        <div className="flex items-center">{right}</div>
       </header>
     )
   }
   return (
-    <header className="sticky top-0 z-20 grid h-11 grid-cols-[1fr_auto_1fr] items-center border-b border-hairline/60 bg-paper/85 px-2 backdrop-blur-xl">
+    <header className="sticky top-0 z-20 grid grid-cols-[minmax(44px,1fr)_auto_minmax(44px,1fr)] items-center bg-paper/90 px-1 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
       <div>
         {back && (
-          <button onClick={() => nav(-1)} aria-label="뒤로" className="flex h-11 items-center pl-1 pr-3 text-ink active:opacity-50">
-            <svg viewBox="0 0 12 20" className="h-[18px] w-[11px]" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M10 2L2 10l8 8" /></svg>
+          <button onClick={() => (typeof back === 'function' ? back() : nav(-1))} aria-label="뒤로" className="flex h-11 w-11 items-center justify-center active:opacity-50">
+            <IconBack />
           </button>
         )}
       </div>
       <h1 className="truncate t-head">{title}</h1>
       <div className="flex justify-end">{right}</div>
     </header>
+  )
+}
+
+// 상단 바 오른쪽 아이콘 버튼 (44px 터치 영역)
+export function HeaderButton({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button aria-label={label} onClick={onClick} className="relative flex h-11 w-11 items-center justify-center active:opacity-50">
+      {children}
+    </button>
   )
 }
