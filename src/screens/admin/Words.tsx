@@ -11,6 +11,9 @@ import { toast } from '@/store/ui'
 import { adminKeys } from './AdminGate'
 
 const CATEGORY: Record<WordCategory, string> = { abuse: '욕설', sexual: '성적', hate: '혐오', scam: '사기' }
+// DB 는 NFKC 로 저장해 ㅅㅂ 가 첫소리 자모(ᄉᄇ)로 바뀐다. 화면에는 보통 자모로 보여 준다
+const LEAD = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ'
+const showWord = (w: string) => w.replace(/[ᄀ-ᄒᄡ]/g, (c) => c === 'ᄡ' ? 'ㅄ' : LEAD[c.charCodeAt(0) - 0x1100])
 
 // 비속어: 금칙어(글·댓글·프로필은 저장 거절, 채팅은 가림) · 허용어(금칙어를 품은 정상 단어) · 문장 시험
 export default function Words() {
@@ -53,7 +56,7 @@ export default function Words() {
         <Button variant="secondary" onClick={test} disabled={!sample.trim()}>시험하기</Button>
         {result && (
           <p className="t-sub text-graphite" role="status">
-            {result.word ? <>걸림: <b className="text-ink">{result.word}</b> · 채팅에서는 "{result.masked}"</> : '통과해요'}
+            {result.word ? <>걸림: <b className="text-ink">{showWord(result.word)}</b> · 채팅에서는 "{result.masked}"</> : '통과해요'}
           </p>
         )}
       </section>
@@ -80,7 +83,7 @@ export default function Words() {
         <ul className="pb-8">
           {rows.map((r) => (
             <li key={r.word} className="flex min-h-[52px] items-center gap-3 border-t border-hairline px-5">
-              <span className="min-w-0 flex-1 truncate t-body">{r.word}{r.meta && <span className="ml-2 t-cap text-graphite">{r.meta}</span>}</span>
+              <span className="min-w-0 flex-1 truncate t-body">{showWord(r.word)}{r.meta && <span className="ml-2 t-cap text-graphite">{r.meta}</span>}</span>
               <button onClick={() => remove(r.word)} disabled={busy} className="h-11 px-2 t-sub text-graphite">삭제</button>
             </li>
           ))}
