@@ -150,6 +150,10 @@ export const IconWithdraw = (p: P) => (
 export const IconFlag = (p: P) => (
   <Svg {...p}><path d="M5.5 20.5v-16M5.5 4.5h11l-2.5 4 2.5 4h-11" /></Svg>
 )
+// 운영자: 방패 안 체크
+export const IconAdmin = (p: P) => (
+  <Svg {...p}><path d="M12 3.5l7 2.6v5.6c0 4.3-3 7.6-7 8.8-4-1.2-7-4.5-7-8.8V6.1z" /><path d="M8.8 12.2l2.2 2.2 4.2-4.4" /></Svg>
+)
 export const IconBlock = (p: P) => (
   <Svg {...p}><circle cx="12" cy="12" r="8" /><path d="M6.5 6.5l11 11" /></Svg>
 )

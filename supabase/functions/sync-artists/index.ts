@@ -5,13 +5,13 @@ import { admin, isServiceCall, json } from '../_shared/supabase.ts'
 type MbAlias = { name: string; locale?: string | null; primary?: boolean | null }
 type MbArtist = { id: string; name: string; score: number; country?: string; aliases?: MbAlias[] }
 
-const UA = Deno.env.get('MUSICBRAINZ_USER_AGENT') ?? 'Duckchinso/0.1 ( contact@duckchinso.app )'
+const UA = Deno.env.get('MUSICBRAINZ_USER_AGENT') ?? 'Duckchinso/0.1 ( https://github.com/Yeojh3261/DUCKCHINSO_proj )'
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const pick = (aliases: MbAlias[] = [], locale: string) =>
   aliases.find((a) => a.locale === locale && a.primary)?.name ?? aliases.find((a) => a.locale === locale)?.name ?? null
 
 Deno.serve(async (req) => {
-  if (!isServiceCall(req)) return json({ error: 'forbidden' }, 403)
+  if (!(await isServiceCall(req))) return json({ error: 'forbidden' }, 403)
   const db = admin()
   const pages = Number(new URL(req.url).searchParams.get('pages') ?? 5)
   let saved = 0
@@ -19,9 +19,12 @@ Deno.serve(async (req) => {
   for (const tagName of ['j-pop', 'j-rock']) {
     for (let page = 0; page < pages; page++) {
       const q = encodeURIComponent(`tag:"${tagName}" AND country:JP`)
-      const res = await fetch(`https://musicbrainz.org/ws/2/artist?query=${q}&fmt=json&limit=100&offset=${page * 100}`, {
+      const get = () => fetch(`https://musicbrainz.org/ws/2/artist?query=${q}&fmt=json&limit=100&offset=${page * 100}`, {
         headers: { 'User-Agent': UA, Accept: 'application/json' },
       })
+      let res = await get()
+      // 요청이 몰리면 MusicBrainz 가 503 으로 잠깐 막는다: 쉬었다가 두 번까지 다시
+      for (let i = 0; i < 2 && res.status === 503; i++) { await sleep(3000); res = await get() }
       if (!res.ok) break
       const { artists = [] } = (await res.json()) as { artists: MbArtist[] }
       const rows = artists.map((a) => {

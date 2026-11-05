@@ -1,0 +1,363 @@
+{
+ "fetchedAt": "2026-11-04T04:08:36.271Z",
+ "artists": [
+  {
+   "id": "a1",
+   "name": "요아소비",
+   "nameJa": null,
+   "nameEn": "YOASOBI"
+  },
+  {
+   "id": "a2",
+   "name": "아이묭",
+   "nameJa": "あいみょん",
+   "nameEn": "Aimyon"
+  },
+  {
+   "id": "a3",
+   "name": "요네즈 켄시",
+   "nameJa": "米津玄師",
+   "nameEn": "Kenshi Yonezu"
+  },
+  {
+   "id": "a4",
+   "name": "킹누",
+   "nameJa": null,
+   "nameEn": "King Gnu"
+  },
+  {
+   "id": "a5",
+   "name": "오피셜히게단디즘",
+   "nameJa": "Official髭男dism",
+   "nameEn": "Official HIGE DANdism"
+  },
+  {
+   "id": "a6",
+   "name": "아도",
+   "nameJa": null,
+   "nameEn": "Ado"
+  },
+  {
+   "id": "a7",
+   "name": "래드윔프스",
+   "nameJa": null,
+   "nameEn": "RADWIMPS"
+  },
+  {
+   "id": "a8",
+   "name": "미세스 그린 애플",
+   "nameJa": null,
+   "nameEn": "Mrs. GREEN APPLE"
+  },
+  {
+   "id": "a9",
+   "name": "바운디",
+   "nameJa": null,
+   "nameEn": "Vaundy"
+  },
+  {
+   "id": "a10",
+   "name": "즛토마요",
+   "nameJa": "ずっと真夜中でいいのに。",
+   "nameEn": "ZUTOMAYO"
+  },
+  {
+   "id": "a11",
+   "name": "원 오크 록",
+   "nameJa": null,
+   "nameEn": "ONE OK ROCK"
+  },
+  {
+   "id": "a12",
+   "name": "유우리",
+   "nameJa": "優里",
+   "nameEn": "Yuuri"
+  },
+  {
+   "id": "mb:6d280ceb-11c1-48c9-80d8-293ad442a991",
+   "name": "ナナヲアカリ",
+   "nameJa": "ナナヲアカリ",
+   "nameEn": "NANAOAKARI"
+  },
+  {
+   "id": "mb:33ff8a92-2f3b-4cac-8ea0-5eebfa995626",
+   "name": "KANA-BOON",
+   "nameJa": "KANA-BOON",
+   "nameEn": "KANA-BOON"
+  },
+  {
+   "id": "mb:7b9e3651-f9b1-4c62-8679-3fd7bdab307c",
+   "name": "コレサワ",
+   "nameJa": "是澤寿美",
+   "nameEn": "Koresawa"
+  },
+  {
+   "id": "mb:90ba650a-a920-4d19-a35e-d7f1d998e140",
+   "name": "リーガルリリー",
+   "nameJa": "リーガルリリー",
+   "nameEn": "regallily"
+  },
+  {
+   "id": "mb:3d2cd44b-9e77-4249-9d37-d8028e756693",
+   "name": "ZAZEN BOYS",
+   "nameJa": null,
+   "nameEn": "ZAZEN BOYS"
+  },
+  {
+   "id": "mb:923158cf-9d21-4bce-8040-41e7a497c1c9",
+   "name": "ELLEGARDEN",
+   "nameJa": null,
+   "nameEn": "ELLEGARDEN"
+  },
+  {
+   "id": "mb:1a19b0cd-fa9d-4363-b130-b3eb394cf373",
+   "name": "MASS OF THE FERMENTING DREGS",
+   "nameJa": null,
+   "nameEn": "Masu Dore"
+  },
+  {
+   "id": "mb:1262ab85-308b-46e7-b0b5-91fef8e46b62",
+   "name": "ネクライトーキー",
+   "nameJa": "ネクライトーキー",
+   "nameEn": "Necry Talkie"
+  }
+ ],
+ "concerts": [
+  {
+   "id": "kopis:PF304541",
+   "title": "네크라이토키 (Necry Talkie) 첫 내한공연",
+   "posterUrl": "https://www.kopis.or.kr/upload/pfmPoster/PF_PF304541_261027_101242.gif",
+   "venue": "롤링홀",
+   "venueQuery": "롤링홀",
+   "region": "서울",
+   "priceText": "전석 88,000원",
+   "priceMin": 88000,
+   "priceMax": 88000,
+   "ticketOpenAt": null,
+   "genreId": null,
+   "artistIds": [
+    "mb:1262ab85-308b-46e7-b0b5-91fef8e46b62"
+   ],
+   "schedules": [
+    "2027-03-27T08:00:00.000Z"
+   ],
+   "links": [
+    {
+     "vendor": "놀유니버스",
+     "url": "http://ticket.interpark.com/Ticket/Goods/GoodsInfo.asp?GoodsCode=26015072"
+    }
+   ]
+  },
+  {
+   "id": "kopis:PF304273",
+   "title": "I AM KORESAWA vol.1",
+   "posterUrl": "https://www.kopis.or.kr/upload/pfmPoster/PF_PF304273_261023_114312.jpg",
+   "venue": "예스24 원더로크홀",
+   "venueQuery": "예스24 원더로크홀",
+   "region": "서울",
+   "priceText": "VIP석 110,000원, 일반석  99,000원",
+   "priceMin": 99000,
+   "priceMax": 110000,
+   "ticketOpenAt": null,
+   "genreId": null,
+   "artistIds": [
+    "mb:7b9e3651-f9b1-4c62-8679-3fd7bdab307c"
+   ],
+   "schedules": [
+    "2027-02-27T09:00:00.000Z"
+   ],
+   "links": [
+    {
+     "vendor": "멜론티켓",
+     "url": "https://ticket.melon.com/performance/index.htm?prodId=214074"
+    },
+    {
+     "vendor": "예스24",
+     "url": "https://ticket.yes24.com/Perf/60647"
+    }
+   ]
+  },
+  {
+   "id": "kopis:PF304185",
+   "title": "요네즈 켄시 내한공연",
+   "posterUrl": "https://www.kopis.or.kr/upload/pfmPoster/PF_PF304185_261022_135940.gif",
+   "venue": "인스파이어 엔터테인먼트 리조트 (아레나)",
+   "venueQuery": "인스파이어 엔터테인먼트 리조트 (아레나)",
+   "region": "인천",
+   "priceText": "플로어석 172,000원, 지정석 P 165,000원, 지정석 R 154,000원, 지정석 S 143,000원",
+   "priceMin": 143000,
+   "priceMax": 172000,
+   "ticketOpenAt": null,
+   "genreId": null,
+   "artistIds": [
+    "a3"
+   ],
+   "schedules": [
+    "2027-01-14T10:30:00.000Z",
+    "2027-01-16T10:00:00.000Z",
+    "2027-01-17T10:00:00.000Z"
+   ],
+   "links": [
+    {
+     "vendor": "놀유니버스",
+     "url": "http://ticket.interpark.com/Ticket/Goods/GoodsInfo.asp?GoodsCode=26015024"
+    }
+   ]
+  },
+  {
+   "id": "kopis:PF302829",
+   "title": "NANAOAKARI, ALL EYES in Seoul",
+   "posterUrl": "https://www.kopis.or.kr/upload/pfmPoster/PF_PF302829_261008_140205.jpg",
+   "venue": "예스24 라이브홀 (구. 악스코리아)",
+   "venueQuery": "예스24 라이브홀 (구. 악스코리아)",
+   "region": "서울",
+   "priceText": "전석 121,000원",
+   "priceMin": 121000,
+   "priceMax": 121000,
+   "ticketOpenAt": null,
+   "genreId": null,
+   "artistIds": [
+    "mb:6d280ceb-11c1-48c9-80d8-293ad442a991"
+   ],
+   "schedules": [
+    "2027-01-30T09:00:00.000Z"
+   ],
+   "links": [
+    {
+     "vendor": "예스24",
+     "url": "https://ticket.yes24.com/Perf/60411"
+    }
+   ]
+  },
+  {
+   "id": "kopis:PF300875",
+   "title": "Mass Of The Fermenting Dregs World Tour: Iwaou with Dabda [서울]",
+   "posterUrl": "https://www.kopis.or.kr/upload/pfmPoster/PF_PF300875_260914_154630.jpg",
+   "venue": "KT&G 상상마당 라이브홀 [마포]",
+   "venueQuery": "KT&G 상상마당 라이브홀 [마포]",
+   "region": "서울",
+   "priceText": "현장판매 88,000원, 사전예약 77,000원",
+   "priceMin": 77000,
+   "priceMax": 88000,
+   "ticketOpenAt": null,
+   "genreId": null,
+   "artistIds": [
+    "mb:1a19b0cd-fa9d-4363-b130-b3eb394cf373"
+   ],
+   "schedules": [
+    "2026-12-04T10:30:00.000Z"
+   ],
+   "links": [
+    {
+     "vendor": "멜론티켓",
+     "url": "https://ticket.melon.com/performance/index.htm?prodId=213843"
+    }
+   ]
+  },
+  {
+   "id": "kopis:PF300590",
+   "title": "ZAZEN BOYS MATSURI SESSION [서울]",
+   "posterUrl": "https://www.kopis.or.kr/upload/pfmPoster/PF_PF300590_260910_124229.jpg",
+   "venue": "무신사 개러지 (구. 왓챠홀)",
+   "venueQuery": "무신사 개러지 (구. 왓챠홀)",
+   "region": "서울",
+   "priceText": "스탠딩 99,000원",
+   "priceMin": 99000,
+   "priceMax": 99000,
+   "ticketOpenAt": null,
+   "genreId": null,
+   "artistIds": [
+    "mb:3d2cd44b-9e77-4249-9d37-d8028e756693"
+   ],
+   "schedules": [
+    "2026-12-06T08:00:00.000Z"
+   ],
+   "links": [
+    {
+     "vendor": "29CM",
+     "url": "https://ticket.29cm.co.kr/catalog/4190403"
+    },
+    {
+     "vendor": "예스24",
+     "url": "https://ticket.yes24.com/Perf/59963"
+    }
+   ]
+  },
+  {
+   "id": "kopis:PF299935",
+   "title": "ELLEGARDEN, Bad For Education Tour Ⅱ",
+   "posterUrl": "https://www.kopis.or.kr/upload/pfmPoster/PF_PF299935_260902_151618.jpg",
+   "venue": "예스24 라이브홀 (구. 악스코리아)",
+   "venueQuery": "예스24 라이브홀 (구. 악스코리아)",
+   "region": "서울",
+   "priceText": "스탠딩 88,000원, 지정석 88,000원",
+   "priceMin": 88000,
+   "priceMax": 88000,
+   "ticketOpenAt": null,
+   "genreId": null,
+   "artistIds": [
+    "mb:923158cf-9d21-4bce-8040-41e7a497c1c9"
+   ],
+   "schedules": [
+    "2026-11-28T09:00:00.000Z",
+    "2026-11-29T09:00:00.000Z"
+   ],
+   "links": [
+    {
+     "vendor": "예스24",
+     "url": "https://ticket.yes24.com/Perf/59771"
+    }
+   ]
+  },
+  {
+   "id": "kopis:PF298220",
+   "title": "KANA-BOON, CRITICAL HIT PARADE: Asian Adventure",
+   "posterUrl": "https://www.kopis.or.kr/upload/pfmPoster/PF_PF298220_260811_131418.jpg",
+   "venue": "예스24 라이브홀 (구. 악스코리아)",
+   "venueQuery": "예스24 라이브홀 (구. 악스코리아)",
+   "region": "서울",
+   "priceText": "스탠딩 138,000원, 지정석 138,000원",
+   "priceMin": 138000,
+   "priceMax": 138000,
+   "ticketOpenAt": null,
+   "genreId": null,
+   "artistIds": [
+    "mb:33ff8a92-2f3b-4cac-8ea0-5eebfa995626"
+   ],
+   "schedules": [
+    "2026-12-05T09:00:00.000Z"
+   ],
+   "links": [
+    {
+     "vendor": "예스24",
+     "url": "https://ticket.yes24.com/Perf/59553"
+    }
+   ]
+  },
+  {
+   "id": "kopis:PF294990",
+   "title": "Regallily Asia Tour: Dawn [서울]",
+   "posterUrl": "https://www.kopis.or.kr/upload/pfmPoster/PF_PF294990_260701_103938.jpg",
+   "venue": "KT&G 상상마당 라이브홀 [마포]",
+   "venueQuery": "KT&G 상상마당 라이브홀 [마포]",
+   "region": "서울",
+   "priceText": "전석 88,000원",
+   "priceMin": 88000,
+   "priceMax": 88000,
+   "ticketOpenAt": null,
+   "genreId": null,
+   "artistIds": [
+    "mb:90ba650a-a920-4d19-a35e-d7f1d998e140"
+   ],
+   "schedules": [
+    "2026-11-07T10:00:00.000Z"
+   ],
+   "links": [
+    {
+     "vendor": "예스24",
+     "url": "https://ticket.yes24.com/Perf/59001"
+    }
+   ]
+  }
+ ]
+}

@@ -330,8 +330,8 @@ begin
   return rid;
 end $$;
 
--- 클라이언트에서 직접 부를 함수만 열어 둔다
-revoke execute on all functions in schema public from public, anon;
+-- 클라이언트에서 직접 부를 함수만 열어 둔다 (Supabase 는 기본으로 authenticated 에게도 모든 함수 실행 권한을 주므로 함께 회수)
+revoke execute on all functions in schema public from public, anon, authenticated;
 grant execute on function
   public.is_admin(), public.is_room_member(uuid), public.can_send(uuid), public.is_blocked_between(uuid, uuid), public.setting_int(text),
   public.send_friend_request(uuid), public.respond_friend_request(uuid, boolean), public.remove_friend(uuid),

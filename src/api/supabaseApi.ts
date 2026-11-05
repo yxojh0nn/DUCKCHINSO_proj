@@ -3,7 +3,7 @@ import { Capacitor } from '@capacitor/core'
 import { Browser } from '@capacitor/browser'
 import { authRedirect } from '@/lib/supabase'
 import { CONSENT_ITEMS, CONSENT_VERSION, REQUIRED_KEYS } from '@/data/consent'
-import type { Api, Concert, Message, Post, UserCard } from './types'
+import type { AdminArtist, AdminConcert, Api, Concert, Message, Post, UserCard } from './types'
 
 type Row = Record<string, any>
 
@@ -12,6 +12,16 @@ const card = (p: Row | null): UserCard => ({
 })
 
 const ext = (b: Blob) => (b.type.split('/')[1] ?? 'jpg').replace('jpeg', 'jpg')
+
+const ADMIN_CONCERT = 'id, kopis_id, title, poster_url, venue_name, region, status, review_score, review_reasons, visit, cast_text, promoter, ticket_open_at, concert_schedules(starts_at), concert_artists(artist_id)'
+const adminConcert = (r: Row): AdminConcert => ({
+  id: r.id, kopisId: r.kopis_id, title: r.title, posterUrl: r.poster_url, venue: r.venue_name, region: r.region,
+  schedules: (r.concert_schedules ?? []).map((s: Row) => new Date(s.starts_at).toISOString()).sort(),
+  status: r.status, score: r.review_score, reasons: r.review_reasons ?? [], visit: r.visit, cast: r.cast_text, promoter: r.promoter,
+  artistIds: (r.concert_artists ?? []).map((a: Row) => a.artist_id), ticketOpenAt: r.ticket_open_at,
+})
+
+const adminArtist = (r: Row): AdminArtist => ({ id: r.id, name: r.name, nameJa: r.name_ja, nameEn: r.name_en, aliases: r.aliases ?? [], source: r.source })
 
 export function createSupabaseApi(sb: SupabaseClient): Api {
   const uid = async () => {
@@ -85,13 +95,14 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
 
     async getMe() {
       const id = await uid()
-      const [{ data: s }, p, a, g, f, c] = await Promise.all([
+      const [{ data: s }, p, a, g, f, c, adm] = await Promise.all([
         sb.auth.getSession(),
         sb.from('profiles').select('*').eq('id', id).single(),
         sb.from('user_artists').select('artist_id').eq('user_id', id),
         sb.from('user_genres').select('genre_id').eq('user_id', id),
         sb.from('favorites').select('concert_id').eq('user_id', id),
         sb.from('consents').select('item, agreed, version').eq('user_id', id).order('created_at', { ascending: false }),
+        sb.rpc('is_admin'),
       ])
       const prof = ok(p) as Row
       // 항목별 가장 최근 기록만 본다
@@ -108,6 +119,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
         consents,
         consentsOk: REQUIRED_KEYS.every((k) => latest.get(k)?.agreed && latest.get(k)?.version === CONSENT_VERSION),
         email: s.session?.user.email ?? null,
+        isAdmin: adm.data === true,
       }
     },
     async updateMe(patch) {
@@ -169,6 +181,10 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
         schedules: r.concert_schedules.map((s: Row) => new Date(s.starts_at).toISOString()).sort(),
         links: r.ticket_links,
       })).filter((c) => c.schedules.length)
+    },
+    async openDataUpdatedAt() {
+      const rows = ok(await sb.from('concerts').select('updated_at').eq('source', 'kopis').order('updated_at', { ascending: false }).limit(1)) as Row[]
+      return rows[0]?.updated_at ?? null
     },
     async setFavorite(concertId, on) {
       const id = await uid()
@@ -334,6 +350,66 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       const me = await uid()
       ok(await sb.rpc('ensure_support_room'))
       ok(await sb.from('inquiries').insert({ user_id: me, category: input.category, answers: input.answers, body: input.body }))
+    },
+
+    // ─── 운영자 (RLS 가 is_admin() 으로 막으므로 여기서는 권한을 따로 확인하지 않는다) ───
+    async adminReviewConcerts() {
+      const rows = ok(await sb.from('concerts').select(ADMIN_CONCERT).eq('status', 'review')
+        .order('review_score', { ascending: false, nullsFirst: false }).order('last_date')) as Row[]
+      return rows.map(adminConcert)
+    },
+    async adminGetConcert(id) {
+      return adminConcert(ok(await sb.from('concerts').select(ADMIN_CONCERT).eq('id', id).single()) as Row)
+    },
+    async adminPublishConcert(id, input) {
+      const c = ok(await sb.from('concerts').update({ status: 'published', source: 'admin', ticket_open_at: input.ticketOpenAt })
+        .eq('id', id).select('promoter').single()) as Row
+      ok(await sb.from('concert_artists').delete().eq('concert_id', id))
+      if (input.artistIds.length) ok(await sb.from('concert_artists').insert(input.artistIds.map((a) => ({ concert_id: id, artist_id: a }))))
+      // 게시한 공연의 기획사를 J-pop 기획사로 쌓는다 → 다음 수집부터 판별 근거(+1)
+      const names = String(c.promoter ?? '').split(',').map((s) => s.trim()).filter((s) => s.length >= 2 && s.length <= 60)
+      if (names.length) ok(await sb.from('jpop_promoters').upsert(names.map((name) => ({ name })), { onConflict: 'name', ignoreDuplicates: true }))
+    },
+    async adminHideConcert(id) {
+      ok(await sb.from('concerts').update({ status: 'hidden' }).eq('id', id))
+    },
+    async adminSearchInbox(q) {
+      const term = q.trim().replace(/[%_\\]/g, '')
+      if (!term) return []
+      const rows = ok(await sb.from('kopis_inbox').select('kopis_id, title, venue, start_date, end_date')
+        .ilike('title', `%${term}%`).order('start_date').limit(50)) as Row[]
+      const ids = rows.map((r) => r.kopis_id)
+      const known = ids.length ? ok(await sb.from('concerts').select('id, kopis_id, status').in('kopis_id', ids)) as Row[] : []
+      return rows.map((r) => {
+        const c = known.find((k) => k.kopis_id === r.kopis_id)
+        return { kopisId: r.kopis_id, title: r.title, venue: r.venue, startDate: r.start_date, endDate: r.end_date, concert: c ? { id: c.id, status: c.status } : null }
+      })
+    },
+    async adminImportConcert(kopisId) {
+      const { data, error } = await sb.functions.invoke('import-concert', { body: { kopisId } })
+      if (error) {
+        const body = await (error as { context?: Response }).context?.json?.().catch(() => null)
+        throw new Error(body?.error ?? error.message)
+      }
+      return (data as { id: string }).id
+    },
+    async adminSearchArtists(q) {
+      // or() 필터 문법을 깨는 문자(쉼표·괄호)와 와일드카드는 뺀다
+      const term = q.trim().replace(/[,()%_*\\]/g, '')
+      let req = sb.from('artists').select('id, name, name_ja, name_en, aliases, source').order('source').order('name').limit(40)
+      if (term) req = req.or(`name.ilike.%${term}%,name_en.ilike.%${term}%,name_ja.ilike.%${term}%`)
+      return (ok(await req) as Row[]).map(adminArtist)
+    },
+    async adminGetArtist(id) {
+      return adminArtist(ok(await sb.from('artists').select('id, name, name_ja, name_en, aliases, source').eq('id', id).single()) as Row)
+    },
+    async adminSaveArtist(input) {
+      const row = { name: input.name.trim(), name_ja: input.nameJa?.trim() || null, name_en: input.nameEn?.trim() || null,
+        aliases: [...new Set(input.aliases.map((a) => a.trim()).filter(Boolean))].slice(0, 30), source: 'admin' }
+      const saved = input.id
+        ? ok(await sb.from('artists').update(row).eq('id', input.id).select('id').single()) as Row
+        : ok(await sb.from('artists').insert(row).select('id').single()) as Row
+      return saved.id
     },
   }
   return api

@@ -24,5 +24,13 @@ export async function callerOf(req: Request) {
 }
 
 // Cron 호출 확인: service role 키로 부른 경우만 허용
-export const isServiceCall = (req: Request) =>
-  req.headers.get('Authorization') === `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+// 새 키 체계 프로젝트는 함수 환경의 키(sb_secret_…)와 Vault 에 넣은 legacy service_role 키가 문자열로 다를 수 있다.
+// 그래서 같은 문자열이 아니면 그 키로 관리자 API 를 한 번 불러 Supabase 가 서버 키로 인정하는지 확인한다
+export async function isServiceCall(req: Request) {
+  const token = req.headers.get('Authorization')?.replace('Bearer ', '')
+  if (!token) return false
+  if (token === Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) return true
+  const { error } = await createClient(Deno.env.get('SUPABASE_URL')!, token, { auth: { persistSession: false } })
+    .auth.admin.listUsers({ page: 1, perPage: 1 })
+  return !error
+}

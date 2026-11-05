@@ -31,6 +31,7 @@ import ChatRoom from '@/screens/chat/ChatRoom'
 import My from '@/screens/my/My'
 import Settings from '@/screens/my/Settings'
 import ConsentHistory from '@/screens/my/ConsentHistory'
+import OpenApiInfo from '@/screens/my/OpenApiInfo'
 import Friends from '@/screens/my/Friends'
 import MyInfo from '@/screens/my/MyInfo'
 import ProfileEdit from '@/screens/my/ProfileEdit'
@@ -39,6 +40,13 @@ import Favorites from '@/screens/my/Favorites'
 import Reviews from '@/screens/my/Reviews'
 import Inquiry from '@/screens/my/Inquiry'
 import Withdraw from '@/screens/my/Withdraw'
+import AdminGate from '@/screens/admin/AdminGate'
+import AdminHome from '@/screens/admin/AdminHome'
+import ReviewList from '@/screens/admin/ReviewList'
+import ConcertReview from '@/screens/admin/ConcertReview'
+import InboxSearch from '@/screens/admin/InboxSearch'
+import Artists from '@/screens/admin/Artists'
+import ArtistEdit from '@/screens/admin/ArtistEdit'
 
 // 로그인·동의가 끝나야 들어갈 수 있는 화면 묶음
 function Gate() {
@@ -185,6 +193,7 @@ export default function App() {
               <Route path="/chats/:id" element={<ChatRoom />} />
               <Route path="/my/settings" element={<Settings />} />
               <Route path="/my/settings/consents" element={<ConsentHistory />} />
+              <Route path="/my/settings/api" element={<OpenApiInfo />} />
               <Route path="/my/friends" element={<Friends />} />
               <Route path="/my/info" element={<MyInfo />} />
               <Route path="/my/info/profile" element={<ProfileEdit />} />
@@ -193,6 +202,14 @@ export default function App() {
               <Route path="/my/info/reviews" element={<Reviews />} />
               <Route path="/my/inquiry" element={<Inquiry />} />
               <Route path="/my/withdraw" element={<Withdraw />} />
+              <Route element={<AdminGate />}>
+                <Route path="/admin" element={<AdminHome />} />
+                <Route path="/admin/review" element={<ReviewList />} />
+                <Route path="/admin/concerts/:id" element={<ConcertReview />} />
+                <Route path="/admin/inbox" element={<InboxSearch />} />
+                <Route path="/admin/artists" element={<Artists />} />
+                <Route path="/admin/artists/:id" element={<ArtistEdit />} />
+              </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

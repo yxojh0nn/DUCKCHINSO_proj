@@ -2,7 +2,15 @@
 // 다른 사용자는 DEMO_USERS(가상)이고, 친구 수락·채팅 답장은 잠시 뒤 자동으로 온다.
 import { CONSENT_VERSION, REQUIRED_KEYS } from '@/data/consent'
 import { ARTISTS, AUTO_REPLIES, DEMO_POSTS, DEMO_USERS, GENRES, buildConcerts } from './demoData'
-import type { Api, Message, Post, Profile, RealtimeEvent, UserCard } from './types'
+import type { Api, Artist, Concert, Message, Post, Profile, RealtimeEvent, UserCard } from './types'
+
+// pnpm fetch:opendata 로 받은 실제 공연·아티스트(KOPIS·MusicBrainz). 파일이 없거나 공연이 0건이면 샘플을 쓴다
+type OpenData = { fetchedAt: string; artists: Artist[]; concerts: Concert[] }
+const openData = (Object.values(import.meta.glob('./openData.json', { eager: true, import: 'default' }))[0] ?? null) as OpenData | null
+const real = openData?.concerts.length ? openData : null
+const allArtists = () => real?.artists ?? ARTISTS
+const allConcerts = () => real?.concerts ?? buildConcerts(Date.now())
+const noAdmin = async (): Promise<never> => { throw new Error('demo_admin') }
 
 type Acc = Profile & {
   artistIds: string[]; genreIds: number[]; favoriteIds: string[]
@@ -70,7 +78,7 @@ export function createDemoApi(): Api {
     const a = db.accounts[uid]
     if (a) return { artistIds: a.artistIds, genreIds: a.genreIds, favoriteIds: a.favoriteIds }
     const u = demoUser(uid)!
-    const concerts = buildConcerts(Date.now())
+    const concerts = allConcerts()
     return { artistIds: u.artistIds, genreIds: u.genreIds, favoriteIds: u.favoriteIdx.map((i) => concerts[i]?.id).filter(Boolean) }
   }
   const blockedBetween = (a: string, b: string) => db.blocks.some((x) => (x.blocker === a && x.blocked === b) || (x.blocker === b && x.blocked === a))
@@ -171,6 +179,7 @@ export function createDemoApi(): Api {
         ...rest,
         consents: Object.fromEntries([...latest].map(([k, v]) => [k, v.agreed])),
         consentsOk: REQUIRED_KEYS.every((k) => latest.get(k)?.agreed && latest.get(k)?.version === CONSENT_VERSION),
+        isAdmin: false,
       }
     },
     async updateMe(patch) {
@@ -201,8 +210,9 @@ export function createDemoApi(): Api {
     },
 
     async listGenres() { return GENRES },
-    async listArtists() { return ARTISTS },
-    async listConcerts() { return buildConcerts(Date.now()) },
+    async listArtists() { return allArtists() },
+    async listConcerts() { return allConcerts() },
+    async openDataUpdatedAt() { return real?.fetchedAt ?? null },
     async setFavorite(concertId, on) {
       const a = me()
       a.favoriteIds = on ? [...new Set([...a.favoriteIds, concertId])] : a.favoriteIds.filter((x) => x !== concertId)
@@ -416,6 +426,10 @@ export function createDemoApi(): Api {
       setTimeout(() => pushMsg(rid, null, 'text', '문의 주셔서 감사합니다. 데모 모드라 자동 답변이 왔어요. 실제 서비스에서는 운영자가 확인 후 답변하고 메일로도 알려 드려요.'), 2000)
       save()
     },
+
+    // 데모에는 운영자가 없다 (메뉴도 보이지 않음)
+    adminReviewConcerts: noAdmin, adminGetConcert: noAdmin, adminPublishConcert: noAdmin, adminHideConcert: noAdmin,
+    adminSearchInbox: noAdmin, adminImportConcert: noAdmin, adminSearchArtists: noAdmin, adminGetArtist: noAdmin, adminSaveArtist: noAdmin,
   }
   return api
 }

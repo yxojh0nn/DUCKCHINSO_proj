@@ -38,7 +38,37 @@ export type Me = Profile & {
   consents: Record<string, boolean> // 항목별 최신 동의 값 (현재 약관 버전 기준)
   consentsOk: boolean // 필수 항목 모두 현재 버전으로 동의했는가
   email: string | null
+  isAdmin: boolean // 운영자 메뉴 표시용. 실제 권한은 DB(RLS·is_admin())가 확인한다
 }
+
+// 운영자 화면
+export type AdminConcert = {
+  id: string
+  kopisId: string | null
+  title: string
+  posterUrl: string | null
+  venue: string
+  region: string | null
+  schedules: string[]
+  status: 'published' | 'review' | 'hidden'
+  score: number | null
+  reasons: string[] // 자동 판별 근거 ("내한 +2" 등)
+  visit: boolean | null
+  cast: string | null
+  promoter: string | null
+  artistIds: string[]
+  ticketOpenAt: string | null
+}
+export type InboxItem = {
+  kopisId: string
+  title: string
+  venue: string
+  startDate: string | null
+  endDate: string | null
+  concert: { id: string; status: AdminConcert['status'] } | null // 이미 가져온 공연
+}
+export type AdminArtist = Artist & { aliases: string[]; source: 'admin' | 'musicbrainz' }
+export type ArtistInput = { id?: string; name: string; nameJa: string | null; nameEn: string | null; aliases: string[] }
 
 export type PublicProfile = Profile & {
   artistIds: string[]
@@ -134,6 +164,7 @@ export interface Api {
   listGenres(): Promise<Genre[]>
   listArtists(): Promise<Artist[]>
   listConcerts(): Promise<Concert[]>
+  openDataUpdatedAt(): Promise<string | null> // KOPIS 공연 정보를 마지막으로 받은 시각 (출처 표시의 최종집계일)
   setFavorite(concertId: string, on: boolean): Promise<void>
 
   // 사람·친구
@@ -169,6 +200,17 @@ export interface Api {
 
   // 문의
   submitInquiry(input: InquiryInput): Promise<void>
+
+  // 운영자 (is_admin() 계정만. 그 밖의 계정은 DB 가 막는다)
+  adminReviewConcerts(): Promise<AdminConcert[]>
+  adminGetConcert(id: string): Promise<AdminConcert>
+  adminPublishConcert(id: string, input: { artistIds: string[]; ticketOpenAt: string | null }): Promise<void>
+  adminHideConcert(id: string): Promise<void>
+  adminSearchInbox(q: string): Promise<InboxItem[]>
+  adminImportConcert(kopisId: string): Promise<string> // 가져온 공연 id (검수 대기)
+  adminSearchArtists(q: string): Promise<AdminArtist[]>
+  adminGetArtist(id: string): Promise<AdminArtist>
+  adminSaveArtist(input: ArtistInput): Promise<string>
 }
 
 // 서버 오류 코드 → 사용자 문구
@@ -182,6 +224,9 @@ export const errorText = (e: unknown) => {
     limit_reached: '선택할 수 있는 개수를 넘었어요.',
     account_restricted: '이용이 제한된 계정이에요. 문의하기로 연락해 주세요.',
     not_found: '이미 처리됐거나 사라진 항목이에요.',
+    forbidden: '운영자만 할 수 있어요.',
+    kopis_unavailable: 'KOPIS에서 공연 정보를 받지 못했어요. 잠시 후 다시 시도해 주세요.',
+    demo_admin: '운영자 기능은 Supabase에 연결했을 때만 쓸 수 있어요.',
     'Invalid login credentials': '이메일 또는 비밀번호가 맞지 않아요.',
     'User already registered': '이미 가입된 이메일이에요. 로그인해 주세요.',
   }

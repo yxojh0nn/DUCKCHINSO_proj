@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 const repo = fileURLToPath(new URL('../..', import.meta.url))
 const db = new PGlite()
 const stub = `
-create role anon; create role authenticated; create role supabase_auth_admin;
+create role anon; create role authenticated; create role service_role; create role supabase_auth_admin;
 create schema auth; create schema storage;
 create table auth.users (id uuid primary key default gen_random_uuid(), email text, is_anonymous boolean default false, raw_user_meta_data jsonb default '{}');
 create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.uid', true), '')::uuid $$;
@@ -20,11 +20,9 @@ create publication supabase_realtime;
 grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql'])
+// 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
-await db.exec(`grant select, insert, update, delete on all tables in schema public to authenticated;`)
-await db.exec(`grant update (nickname, bio, avatar_url, banner_url, profile_setup_done, community_agreed_at, notify_enabled, last_seen_at) on public.profiles to authenticated;`)
-await db.exec(`revoke update on public.profiles from authenticated; grant update (nickname, bio, avatar_url, banner_url, profile_setup_done, community_agreed_at, notify_enabled, last_seen_at) on public.profiles to authenticated;`)
 
 const ids = {}
 for (const [k, anon] of [['a', false], ['b', false], ['c', true]]) {
@@ -92,6 +90,22 @@ await as('b', `insert into public.reports (reporter, post_id, reason) values ($1
 // support room
 const sr = (await as('a', `select public.ensure_support_room() as r`)).rows[0].r
 await as('a', `insert into public.messages (room_id, sender_id, body) values ($1, $2, 'help')`, [sr, ids.a])
+
+// 운영자 화면: 일반 사용자는 검수 대기 공연·수집 목록을 보거나 바꿀 수 없고, 운영자(b)는 가능하다
+const con = (await db.query(`insert into public.concerts (title, venue_name, venue_query, status, promoter) values ('검수 공연', 'v', 'v', 'review', '테스트기획') returning id`)).rows[0].id
+await db.query(`insert into public.kopis_inbox (kopis_id, title) values ('PF1', 'Regallily Asia Tour')`)
+assert.equal((await as('c', `select * from public.concerts where id = $1`, [con])).rows.length, 0)
+assert.equal((await as('c', `select * from public.kopis_inbox`)).rows.length, 0)
+assert.equal((await as('c', `update public.concerts set status = 'published' where id = $1`, [con])).affectedRows, 0)
+await assert.rejects(as('c', `insert into public.jpop_promoters (name) values ('가짜기획')`))
+await assert.rejects(as('c', `insert into public.artists (name, source) values ('가짜', 'admin')`))
+await db.query(`insert into public.admins (user_id) values ($1)`, [ids.b])
+assert.equal((await as('b', `select * from public.kopis_inbox`)).rows.length, 1)
+assert.equal((await as('b', `update public.concerts set status = 'published', source = 'admin' where id = $1`, [con])).affectedRows, 1)
+await as('b', `insert into public.concert_artists (concert_id, artist_id) values ($1, $2)`, [con, art.rows[0].id])
+await as('b', `insert into public.jpop_promoters (name) values ('테스트기획')`)
+await as('b', `update public.artists set aliases = '{레갈릴리}', source = 'admin' where id = $1`, [art.rows[1].id])
+assert.equal((await as('c', `select * from public.concerts where id = $1`, [con])).rows.length, 1) // 게시 후에는 모두에게 보인다
 
 // account deletion: delete a only; b, c data untouched
 const before = (await db.query(`select count(*)::int n from public.profiles`)).rows[0].n

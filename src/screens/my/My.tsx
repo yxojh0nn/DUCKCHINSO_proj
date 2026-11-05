@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { api } from '@/api'
 import { MenuGroup, MenuRow } from '@/components/MenuRow'
-import { IconFriends, IconGear, IconInfo, IconInquiry, IconLogout, IconWithdraw } from '@/components/icons'
+import { IconAdmin, IconFriends, IconGear, IconInfo, IconInquiry, IconLogout, IconWithdraw } from '@/components/icons'
 import { Button } from '@/components/ui/Button'
 import { Confirm } from '@/components/ui/Confirm'
 import { keys, useArtists, useMe } from '@/lib/queries'
@@ -29,6 +29,11 @@ export default function My() {
         <MenuRow icon={<IconInfo />} label="내 정보" to="/my/info" />
         <MenuRow icon={<IconInquiry />} label="문의" to="/my/inquiry" />
       </MenuGroup>
+      {me.isAdmin && (
+        <MenuGroup>
+          <MenuRow icon={<IconAdmin />} label="운영자" to="/admin" />
+        </MenuGroup>
+      )}
       <MenuGroup>
         <MenuRow icon={<IconLogout />} label="로그아웃" onClick={() => setLogout(true)} />
         {!me.isGuest && <MenuRow icon={<IconWithdraw />} label="회원탈퇴" to="/my/withdraw" danger />}

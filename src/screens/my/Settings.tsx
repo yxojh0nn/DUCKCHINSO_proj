@@ -52,6 +52,10 @@ export default function Settings() {
       <MenuGroup title="약관">
         <MenuRow label="동의 내역" to="/my/settings/consents" />
       </MenuGroup>
+
+      <MenuGroup title="앱 정보">
+        <MenuRow label="오픈 API" to="/my/settings/api" />
+      </MenuGroup>
     </>
   )
 }
