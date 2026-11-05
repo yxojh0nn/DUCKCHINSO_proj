@@ -1,15 +1,25 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { Capacitor } from '@capacitor/core'
 import { Browser } from '@capacitor/browser'
-import { authRedirect } from '@/lib/supabase'
+import { authRedirect, socialLoginUrl } from '@/lib/supabase'
 import { CONSENT_ITEMS, CONSENT_VERSION, REQUIRED_KEYS } from '@/data/consent'
-import type { AdminArtist, AdminConcert, Api, BannedWord, Concert, Message, Post, UserCard } from './types'
+import type { AdminArtist, AdminConcert, Api, LoginMethod, BannedWord, Concert, Message, Post, UserCard } from './types'
 
 type Row = Record<string, any>
 
 const card = (p: Row | null): UserCard => ({
   id: p?.id ?? '', nickname: p?.nickname ?? '알 수 없음', bio: p?.bio ?? '', avatarUrl: p?.avatar_url ?? null,
 })
+
+// 서버 함수 호출. 실패하면 함수가 돌려준 오류 코드(예: invalid_login)를 메시지로 던진다 → errorText 가 문구로 바꾼다
+async function fnCall<T>(sb: SupabaseClient, name: string, body: object): Promise<T> {
+  const { data, error } = await sb.functions.invoke(name, { body })
+  if (error) {
+    const b = await (error as { context?: Response }).context?.json?.().catch(() => null)
+    throw new Error(b?.error ?? error.message)
+  }
+  return data as T
+}
 
 const ext = (b: Blob) => (b.type.split('/')[1] ?? 'jpg').replace('jpeg', 'jpg')
 
@@ -24,6 +34,7 @@ const adminConcert = (r: Row): AdminConcert => ({
 const adminArtist = (r: Row): AdminArtist => ({ id: r.id, name: r.name, nameJa: r.name_ja, nameEn: r.name_en, aliases: r.aliases ?? [], source: r.source })
 
 export function createSupabaseApi(sb: SupabaseClient): Api {
+  const fn = <T = unknown>(name: string, body: object) => fnCall<T>(sb, name, body)
   const uid = async () => {
     const { data } = await sb.auth.getSession()
     const id = data.session?.user.id
@@ -64,6 +75,13 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     },
     async signInOAuth(provider) {
       const native = Capacitor.isNativePlatform()
+      // 네이버·카카오: Supabase 기본 제공자가 아니라 서버 함수 social-login 이 직접 처리한다 (돌아오면 completeSocialLogin)
+      if (provider === 'naver' || provider === 'kakao') {
+        const url = socialLoginUrl(provider)
+        if (native) await Browser.open({ url })
+        else window.location.assign(url)
+        return
+      }
       const { data, error } = await sb.auth.signInWithOAuth({
         provider, options: { redirectTo: authRedirect(), skipBrowserRedirect: native },
       })
@@ -80,8 +98,29 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       const { error } = await sb.auth.signInWithPassword({ email, password })
       if (error) throw error
     },
+    async signInLoginId(loginId, password) {
+      const { tokenHash } = await fn<{ tokenHash: string }>('login-id', { action: 'login', loginId, password })
+      await api.completeSocialLogin(tokenHash)
+    },
+    async completeSocialLogin(tokenHash) {
+      const { error } = await sb.auth.verifyOtp({ token_hash: tokenHash, type: 'email' })
+      if (error) throw error
+    },
+    async setLoginId(loginId) {
+      await fn('login-id', { action: 'set', loginId })
+    },
+    async myLoginId() {
+      return (await fn<{ loginId: string | null }>('login-id', { action: 'me' })).loginId
+    },
+    async findLoginId(email) {
+      return fn<{ mailReady: boolean }>('login-id', { action: 'find', email })
+    },
     async resetPassword(email) {
-      const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: authRedirect() })
+      const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: `${authRedirect()}?next=password` })
+      if (error) throw error
+    },
+    async updatePassword(password) {
+      const { error } = await sb.auth.updateUser({ password })
       if (error) throw error
     },
     async signOut() {
@@ -95,7 +134,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
 
     async getMe() {
       const id = await uid()
-      const [{ data: s }, p, a, g, f, c, adm] = await Promise.all([
+      const [{ data: s }, p, a, g, f, c, adm, login] = await Promise.all([
         sb.auth.getSession(),
         sb.from('profiles').select('*').eq('id', id).single(),
         sb.from('user_artists').select('artist_id').eq('user_id', id),
@@ -103,6 +142,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
         sb.from('favorites').select('concert_id').eq('user_id', id),
         sb.from('consents').select('item, agreed, version').eq('user_id', id).order('created_at', { ascending: false }),
         sb.rpc('is_admin'),
+        sb.rpc('my_login').maybeSingle<{ social: 'naver' | 'kakao' | null; needs_login_id: boolean }>(),
       ])
       const prof = ok(p) as Row
       // 항목별 가장 최근 기록만 본다
@@ -118,7 +158,10 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
         favoriteIds: (ok(f) as Row[]).map((r) => r.concert_id),
         consents,
         consentsOk: REQUIRED_KEYS.every((k) => latest.get(k)?.agreed && latest.get(k)?.version === CONSENT_VERSION),
-        email: s.session?.user.email ?? null,
+        // 네이버·카카오는 social-login 이 만든 계정이라 auth 의 제공자가 email 로 보인다 → my_login 의 social 이 우선
+        loginMethod: prof.is_guest ? 'guest' : login.data?.social ?? (s.session?.user.app_metadata.provider as LoginMethod | undefined) ?? 'email',
+        email: login.data?.social === 'kakao' ? null : s.session?.user.email ?? null,
+        needsLoginId: login.data?.needs_login_id === true,
         isAdmin: adm.data === true,
       }
     },

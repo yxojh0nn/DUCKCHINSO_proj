@@ -17,6 +17,9 @@ import MemberLogin from '@/screens/auth/MemberLogin'
 import EmailAuth from '@/screens/auth/EmailAuth'
 import Consent from '@/screens/auth/Consent'
 import AuthCallback from '@/screens/auth/AuthCallback'
+import LoginIdSetup from '@/screens/auth/LoginIdSetup'
+import FindAccount from '@/screens/auth/FindAccount'
+import PasswordChange from '@/screens/my/PasswordChange'
 import LegalPage from '@/screens/legal/LegalPage'
 import CalendarScreen from '@/screens/calendar/CalendarScreen'
 import Search from '@/screens/calendar/Search'
@@ -81,6 +84,8 @@ function Gate({ children }: { children?: React.ReactNode }) {
   if (me.isLoading || (me.data && !me.data.consentsOk && pending)) return null
   if (me.isError) return <Navigate to="/login" replace />
   if (me.data && !me.data.consentsOk && pathname !== '/consent') return <Navigate to="/consent" replace />
+  // 이메일로 가입한 사람은 아이디를 만들어야 다음으로 (docs/로그인_계정_암호화_설계.md 5장)
+  if (me.data?.consentsOk && me.data.needsLoginId && pathname !== '/login-id') return <Navigate to="/login-id" replace />
   return children ?? <Outlet />
 }
 
@@ -133,17 +138,20 @@ function Tabs() {
   )
 }
 
-// 앱: 소셜 로그인 후 커스텀 스킴(com.duckchinso.app://auth/callback?code=…)으로 돌아오면 세션으로 교환
+// 앱: 로그인 후 커스텀 스킴으로 돌아온다. 구글·애플·메일은 ?code=… → 세션으로 교환,
+// 네이버·카카오는 #token_hash=…(또는 #error=…) → AuthCallback 이 처리
 function useNativeAuthReturn() {
   const nav = useNavigate()
   useEffect(() => {
     if (!Capacitor.isNativePlatform() || !supabase) return
     const sub = CapApp.addListener('appUrlOpen', async ({ url }) => {
-      const code = new URL(url).searchParams.get('code')
-      if (!code) return
+      const u = new URL(url)
+      const code = u.searchParams.get('code')
+      if (!code && !/token_hash=|error=/.test(u.hash)) return
       await Browser.close().catch(() => {})
-      await supabase!.auth.exchangeCodeForSession(code)
-      nav('/auth/callback', { replace: true })
+      if (code) await supabase!.auth.exchangeCodeForSession(code)
+      const next = u.searchParams.get('next')
+      nav({ pathname: '/auth/callback', search: next ? `?next=${next}` : '', hash: code ? '' : u.hash }, { replace: true })
     })
     return () => { sub.then((s) => s.remove()) }
   }, [nav])
@@ -201,6 +209,7 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/login/member" element={<MemberLogin />} />
             <Route path="/login/email" element={<EmailAuth />} />
+            <Route path="/login/find" element={<FindAccount />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/consent" element={<Consent />} />
             <Route path="/legal/:doc" element={<LegalPage />} />
@@ -211,6 +220,7 @@ export default function App() {
                 <Route path="/chats" element={<ChatList />} />
                 <Route path="/my" element={<My />} />
               </Route>
+              <Route path="/login-id" element={<LoginIdSetup />} />
               <Route path="/search" element={<Search />} />
               <Route path="/concert/:id" element={<ConcertDetail />} />
               <Route path="/community/rules" element={<CommunityRules />} />
@@ -229,6 +239,7 @@ export default function App() {
               <Route path="/my/info/prefs" element={<Prefs />} />
               <Route path="/my/info/favorites" element={<Favorites />} />
               <Route path="/my/info/reviews" element={<Reviews />} />
+              <Route path="/my/password" element={<PasswordChange />} />
               <Route path="/my/inquiry" element={<Inquiry />} />
               <Route path="/my/withdraw" element={<Withdraw />} />
               <Route element={<AdminGate />}>

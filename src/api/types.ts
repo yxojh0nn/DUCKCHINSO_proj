@@ -37,7 +37,9 @@ export type Me = Profile & {
   favoriteIds: string[]
   consents: Record<string, boolean> // 항목별 최신 동의 값 (현재 약관 버전 기준)
   consentsOk: boolean // 필수 항목 모두 현재 버전으로 동의했는가
-  email: string | null
+  email: string | null // 카카오 계정은 이메일을 받지 않아 null
+  loginMethod: LoginMethod
+  needsLoginId: boolean // 이메일로 가입했는데 아직 로그인 아이디를 안 만들었다 → 아이디 만들기 화면으로
   isAdmin: boolean // 운영자 메뉴 표시용. 실제 권한은 DB(RLS·is_admin())가 확인한다
 }
 
@@ -157,7 +159,8 @@ export type InquiryInput = {
   body: string
 }
 
-export type OAuthProvider = 'google' | 'apple' | 'kakao'
+export type OAuthProvider = 'google' | 'apple' | 'kakao' | 'naver'
+export type LoginMethod = 'guest' | 'email' | OAuthProvider
 export type ImageKind = 'avatar' | 'banner' | 'posts'
 
 export type RealtimeEvent = { type: 'message'; roomId: string } | { type: 'request' }
@@ -176,7 +179,13 @@ export interface Api {
   signInOAuth(provider: OAuthProvider): Promise<void>
   signUpEmail(email: string, password: string): Promise<{ needsConfirm: boolean }>
   signInEmail(email: string, password: string): Promise<void>
+  signInLoginId(loginId: string, password: string): Promise<void>
+  completeSocialLogin(tokenHash: string): Promise<void> // 네이버·카카오: 서버 함수가 준 일회용 토큰으로 세션 받기
+  setLoginId(loginId: string): Promise<void>
+  myLoginId(): Promise<string | null>
+  findLoginId(email: string): Promise<{ mailReady: boolean }>
   resetPassword(email: string): Promise<void>
+  updatePassword(password: string): Promise<void>
   signOut(): Promise<void>
   deleteAccount(): Promise<void>
 
@@ -265,6 +274,16 @@ export const errorText = (e: unknown) => {
     kopis_unavailable: 'KOPIS에서 공연 정보를 받지 못했어요. 잠시 후 다시 시도해 주세요.',
     word_exists: '이미 목록에 있는 단어예요.',
     blocked_word:'사용할 수 없는 표현이 들어 있어요. 고쳐서 다시 올려 주세요.',
+    invalid_login: '아이디 또는 비밀번호가 올바르지 않습니다.',
+    too_many_attempts: '시도가 너무 많아요. 10분 뒤에 다시 해 주세요.',
+    login_id_taken: '이미 쓰고 있는 아이디예요.',
+    login_id_exists: '이미 아이디를 만들었어요.',
+    login_id_format: '아이디는 영문 소문자로 시작하고, 영문 소문자·숫자·밑줄로 4~20자여야 해요.',
+    email_taken: '이미 다른 방법으로 가입한 이메일이에요. 처음 가입한 방법으로 로그인해 주세요.',
+    naver_email: '네이버 로그인에는 이메일 제공 동의가 필요해요.',
+    state_expired: '로그인 요청이 만료됐어요. 다시 시도해 주세요.',
+    social_cancelled: '로그인을 취소했어요.',
+    social_failed: '로그인하지 못했어요. 잠시 후 다시 시도해 주세요.',
     demo_admin:'운영자 기능은 Supabase에 연결했을 때만 쓸 수 있어요.',
     'Invalid login credentials': '이메일 또는 비밀번호가 맞지 않아요.',
     'User already registered': '이미 가입된 이메일이에요. 로그인해 주세요.',

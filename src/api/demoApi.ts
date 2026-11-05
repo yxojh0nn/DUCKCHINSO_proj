@@ -2,7 +2,7 @@
 // 다른 사용자는 DEMO_USERS(가상)이고, 친구 수락·채팅 답장은 잠시 뒤 자동으로 온다.
 import { CONSENT_VERSION, REQUIRED_KEYS } from '@/data/consent'
 import { ARTISTS, AUTO_REPLIES, DEMO_POSTS, DEMO_USERS, GENRES, buildConcerts } from './demoData'
-import type { Api, Artist, Concert, Message, Post, Profile, RealtimeEvent, UserCard } from './types'
+import type { Api, Artist, Concert, LoginMethod, Message, Post, Profile, RealtimeEvent, UserCard } from './types'
 
 // pnpm fetch:opendata 로 받은 실제 공연·아티스트(KOPIS·MusicBrainz). 파일이 없거나 공연이 0건이면 샘플을 쓴다
 type OpenData = { fetchedAt: string; artists: Artist[]; concerts: Concert[] }
@@ -16,6 +16,7 @@ type Acc = Profile & {
   artistIds: string[]; genreIds: number[]; favoriteIds: string[]
   consents: { item: string; agreed: boolean; version: string }[]
   email: string | null; password: string | null
+  method: LoginMethod; loginId: string | null
 }
 type Req = { id: string; from: string; to: string; status: 'pending' | 'accepted' | 'declined'; createdAt: number; expiresAt: number }
 type RoomRow = { id: string; kind: 'dm' | 'support'; members: string[]; lastRead: Record<string, number>; createdAt: number }
@@ -110,7 +111,7 @@ export function createDemoApi(): Api {
     db.accounts[aid] = {
       id: aid, nickname: `${guest ? '익명의 팬' : '덕친'}${Math.floor(1000 + Math.random() * 9000)}`, bio: '', avatarUrl: null, bannerUrl: null,
       isGuest: guest, profileSetupDone: false, communityAgreedAt: null, notifyEnabled: true,
-      artistIds: [], genreIds: [], favoriteIds: [], consents: [], email: null, password: null, ...fields,
+      artistIds: [], genreIds: [], favoriteIds: [], consents: [], email: null, password: null, method: 'email', loginId: null, ...fields,
     }
     // 처음 들어온 계정에 받은 친구 요청 2건을 넣어 둔다
     const t = Date.now()
@@ -137,7 +138,7 @@ export function createDemoApi(): Api {
       await wait(400)
       const aid = `demo_${provider}`
       if (db.accounts[aid]) setSession(aid)
-      else createAccount({ id: aid, isGuest: false, email: `${provider}@demo.duckchinso` })
+      else createAccount({ id: aid, isGuest: false, method: provider, email: provider === 'kakao' ? null : `${provider}@demo.duckchinso` })
     },
     async signUpEmail(email, password) {
       await wait()
@@ -151,7 +152,25 @@ export function createDemoApi(): Api {
       if (!a) throw new Error('Invalid login credentials')
       setSession(a.id)
     },
+    async signInLoginId(loginId, password) {
+      await wait()
+      const a = Object.values(db.accounts).find((x) => x.loginId === loginId.trim().toLowerCase() && x.password === password)
+      if (!a) throw new Error('invalid_login')
+      setSession(a.id)
+    },
+    async completeSocialLogin() { await wait() },
+    async setLoginId(loginId) {
+      await wait()
+      const id = loginId.trim().toLowerCase()
+      if (!/^[a-z][a-z0-9_]{3,19}$/.test(id)) throw new Error('login_id_format')
+      if (Object.values(db.accounts).some((a) => a.loginId === id)) throw new Error('login_id_taken')
+      me().loginId = id
+      save()
+    },
+    async myLoginId() { return me().loginId },
+    async findLoginId() { await wait(); return { mailReady: false } },
     async resetPassword() { await wait() },
+    async updatePassword(password) { await wait(); me().password = password; save() },
     async signOut() { setSession(null) },
     async deleteAccount() {
       const uid = me().id
@@ -174,11 +193,13 @@ export function createDemoApi(): Api {
       const a = me()
       const latest = new Map<string, Acc['consents'][number]>()
       ;[...a.consents].reverse().forEach((c) => !latest.has(c.item) && latest.set(c.item, c))
-      const { password: _p, consents: _c, ...rest } = a
+      const { password: _p, consents: _c, method, loginId, ...rest } = a
       return {
         ...rest,
         consents: Object.fromEntries([...latest].map(([k, v]) => [k, v.agreed])),
         consentsOk: REQUIRED_KEYS.every((k) => latest.get(k)?.agreed && latest.get(k)?.version === CONSENT_VERSION),
+        loginMethod: a.isGuest ? 'guest' : method,
+        needsLoginId: !a.isGuest && method === 'email' && !loginId,
         isAdmin: false,
       }
     },

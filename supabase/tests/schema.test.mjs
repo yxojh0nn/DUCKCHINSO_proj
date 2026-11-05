@@ -10,7 +10,9 @@ const db = new PGlite()
 const stub = `
 create role anon; create role authenticated; create role service_role; create role supabase_auth_admin;
 create schema auth; create schema storage;
-create table auth.users (id uuid primary key default gen_random_uuid(), email text, is_anonymous boolean default false, raw_user_meta_data jsonb default '{}');
+create table auth.users (id uuid primary key default gen_random_uuid(), email text, is_anonymous boolean default false, raw_user_meta_data jsonb default '{}', encrypted_password text);
+create schema extensions; create function extensions.crypt(p text, s text) returns text language sql as $$ select 'h:' || p $$; -- bcrypt 흉내
+create table auth.identities (id uuid primary key default gen_random_uuid(), user_id uuid references auth.users on delete cascade, provider text);
 create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.uid', true), '')::uuid $$;
 create table storage.buckets (id text primary key, name text, public boolean, file_size_limit bigint, allowed_mime_types text[]);
 create table storage.objects (id uuid default gen_random_uuid(), bucket_id text, name text);
@@ -21,7 +23,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -165,6 +167,29 @@ assert.equal((await as('b', `select * from public.admin_test_text('7시 발표')
 await as('b', `update public.posts set status = 'hidden' where id = $1`, [okPost])
 await db.query(`delete from public.reports where message_id = $1`, [masked[0].id])
 
+// 로그인 아이디: 이메일 가입자만 아이디 만들기 대상. 네이버·카카오(external_ids)·아이디 있음은 제외
+assert.ok(prof.rows.find((p) => p.id === ids.a).nickname.startsWith('덕친'), '닉네임 기본값에 이메일이 들어가지 않는다')
+await db.query(`insert into auth.identities (user_id, provider) values ($1, 'email'), ($2, 'email')`, [ids.a, ids.b])
+assert.deepEqual((await as('a', `select * from public.my_login()`)).rows[0], { social: null, has_login_id: false, needs_login_id: true })
+assert.equal((await as('c', `select * from public.my_login()`)).rows[0].needs_login_id, false) // 비회원
+await db.query(`insert into public.login_ids (user_id, id_hmac, id_enc) values ($1, 'h-a', 'v1:x:y')`, [ids.a])
+assert.deepEqual((await as('a', `select * from public.my_login()`)).rows[0], { social: null, has_login_id: true, needs_login_id: false })
+await db.query(`insert into public.external_ids (provider, subject_hmac, subject_enc, user_id) values ('kakao', 'k-b', 'v1:x:y', $1)`, [ids.b])
+assert.deepEqual((await as('b', `select * from public.my_login()`)).rows[0], { social: 'kakao', has_login_id: false, needs_login_id: false })
+await assert.rejects(db.query(`insert into public.login_ids (user_id, id_hmac, id_enc) values ($1, 'h-a', 'v1:x:y')`, [ids.b]), /duplicate/)
+// 아이디 로그인: 맞는 비밀번호만 사용자 id. 앱은 이 함수를 부를 수 없다
+await db.query(`update auth.users set encrypted_password = 'h:pw1' where id = $1`, [ids.a])
+assert.equal((await db.query(`select public.check_login('h-a', 'pw1') as u`)).rows[0].u, ids.a)
+assert.equal((await db.query(`select public.check_login('h-a', 'pw2') as u`)).rows[0].u, null)
+assert.equal((await db.query(`select public.check_login('nope', 'pw1') as u`)).rows[0].u, null)
+assert.equal((await db.query(`select * from public.login_id_by_email('A@X.COM')`)).rows[0].user_id, ids.a)
+await assert.rejects(as('a', `select public.check_login('h-a', 'pw1')`), /permission denied/)
+await assert.rejects(as('a', `select * from public.login_id_by_email('a@x.com')`), /permission denied/)
+// 앱(anon·authenticated)은 아이디·외부 식별값·토큰·실패 기록 표를 읽지도 쓰지도 못한다
+for (const t of ['login_ids', 'external_ids', 'provider_tokens', 'login_attempts'])
+  await assert.rejects(as('a', `select * from public.${t}`), /permission denied/)
+await assert.rejects(as('a', `insert into public.login_attempts (key) values ('x')`), /permission denied/)
+
 // account deletion: delete a only; b, c data untouched
 await as('a', `insert into public.reports (reporter, target_user, reason) values ($1, $2, 'spam')`, [ids.a, ids.c]) // 신고자는 자기 신고를 읽을 수 없다(returning 불가)
 const repByA = (await db.query(`select id from public.reports where reporter = $1`, [ids.a])).rows[0].id
@@ -176,4 +201,5 @@ assert.equal((await db.query(`select count(*)::int n from public.posts`)).rows[0
 // 탈퇴한 a 가 낸 신고는 남고 신고자 연결만 끊긴다
 assert.equal((await db.query(`select reporter from public.reports where id = $1`, [repByA])).rows[0].reporter, null)
 assert.equal((await db.query(`select count(*)::int n from public.user_artists where user_id = $1`, [ids.b])).rows[0].n, 1)
+assert.equal((await db.query(`select count(*)::int n from public.login_ids`)).rows[0].n, 0) // 탈퇴하면 아이디도 지워진다
 console.log('ALL OK')

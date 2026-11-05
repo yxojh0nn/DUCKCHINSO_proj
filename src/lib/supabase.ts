@@ -16,3 +16,7 @@ export const APP_SCHEME = 'com.duckchinso.app'
 // 소셜 로그인·메일 인증 후 돌아올 주소. 앱은 커스텀 스킴, 웹은 현재 도메인
 export const authRedirect = () =>
   Capacitor.isNativePlatform() ? `${APP_SCHEME}://auth/callback` : `${window.location.origin}/auth/callback`
+
+// 네이버·카카오 로그인 시작 주소 (서버 함수 social-login). 끝나면 authRedirect() 로 #token_hash 를 들고 돌아온다
+export const socialLoginUrl = (provider: 'naver' | 'kakao') =>
+  `${url}/functions/v1/social-login?provider=${provider}&to=${Capacitor.isNativePlatform() ? 'app' : encodeURIComponent(window.location.origin)}`
