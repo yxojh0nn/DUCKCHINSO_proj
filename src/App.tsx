@@ -16,6 +16,7 @@ import MemberLogin from '@/screens/auth/MemberLogin'
 import EmailAuth from '@/screens/auth/EmailAuth'
 import Consent from '@/screens/auth/Consent'
 import AuthCallback from '@/screens/auth/AuthCallback'
+import LegalPage from '@/screens/legal/LegalPage'
 import CalendarScreen from '@/screens/calendar/CalendarScreen'
 import Search from '@/screens/calendar/Search'
 import ConcertDetail from '@/screens/calendar/ConcertDetail'
@@ -47,6 +48,10 @@ import ConcertReview from '@/screens/admin/ConcertReview'
 import InboxSearch from '@/screens/admin/InboxSearch'
 import Artists from '@/screens/admin/Artists'
 import ArtistEdit from '@/screens/admin/ArtistEdit'
+import Reports from '@/screens/admin/Reports'
+import ReportDetail from '@/screens/admin/ReportDetail'
+import Inquiries from '@/screens/admin/Inquiries'
+import InquiryDetail from '@/screens/admin/InquiryDetail'
 
 // 로그인·동의가 끝나야 들어갈 수 있는 화면 묶음
 function Gate() {
@@ -175,6 +180,7 @@ export default function App() {
             <Route path="/login/email" element={<EmailAuth />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/consent" element={<Consent />} />
+            <Route path="/legal/:doc" element={<LegalPage />} />
             <Route element={<Gate />}>
               <Route element={<Tabs />}>
                 <Route path="/calendar" element={<CalendarScreen />} />
@@ -209,6 +215,10 @@ export default function App() {
                 <Route path="/admin/inbox" element={<InboxSearch />} />
                 <Route path="/admin/artists" element={<Artists />} />
                 <Route path="/admin/artists/:id" element={<ArtistEdit />} />
+                <Route path="/admin/reports" element={<Reports />} />
+                <Route path="/admin/reports/:id" element={<ReportDetail />} />
+                <Route path="/admin/inquiries" element={<Inquiries />} />
+                <Route path="/admin/inquiries/:id" element={<InquiryDetail />} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

@@ -3,7 +3,7 @@ import { api, errorText, type ReportReason, type ReportTarget } from '@/api'
 import { toast } from '@/store/ui'
 import { Sheet } from './ui/Sheet'
 
-const REASONS: { value: ReportReason; label: string }[] = [
+export const REPORT_REASONS: { value: ReportReason; label: string }[] = [
   { value: 'abuse', label: '욕설·괴롭힘' },
   { value: 'sexual', label: '성희롱·불건전한 내용' },
   { value: 'scam', label: '사기·암표 거래' },
@@ -31,6 +31,6 @@ export function ReportSheet({ target, open, onClose, onDone }: { target: ReportT
   }
   return (
     <Sheet open={open} onClose={onClose} title="신고 사유를 골라 주세요" message="신고한 사실은 상대에게 알리지 않아요."
-      actions={REASONS.map((r) => ({ label: r.label, onClick: () => submit(r.value), danger: true }))} />
+      actions={REPORT_REASONS.map((r) => ({ label: r.label, onClick: () => submit(r.value), danger: true }))} />
   )
 }

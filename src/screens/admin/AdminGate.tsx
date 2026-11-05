@@ -6,6 +6,8 @@ export const adminKeys = {
   concert: (id: string) => ['admin', 'concert', id] as const,
   inbox: (q: string) => ['admin', 'inbox', q] as const,
   artists: (q: string) => ['admin', 'artists', q] as const,
+  reports: ['admin', 'reports'] as const,
+  inquiries: ['admin', 'inquiries'] as const,
 }
 
 // 운영자 화면 묶음. 화면만 막는 것이고, 실제 권한은 DB(RLS·is_admin())가 확인한다

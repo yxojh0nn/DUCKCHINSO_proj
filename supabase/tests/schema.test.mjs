@@ -21,7 +21,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -107,12 +107,47 @@ await as('b', `insert into public.jpop_promoters (name) values ('테스트기획
 await as('b', `update public.artists set aliases = '{레갈릴리}', source = 'admin' where id = $1`, [art.rows[1].id])
 assert.equal((await as('c', `select * from public.concerts where id = $1`, [con])).rows.length, 1) // 게시 후에는 모두에게 보인다
 
+// 신고·제재: 운영자 함수는 일반 사용자가 부르면 거절된다
+await assert.rejects(as('c', `select * from public.admin_reports()`), /forbidden/)
+await assert.rejects(as('c', `select * from public.admin_inquiries()`), /forbidden/)
+await assert.rejects(as('a', `select public.admin_sanction($1, 'ban', 'x')`, [ids.c]), /forbidden/)
+const reps = (await as('b', `select * from public.admin_reports()`)).rows
+assert.equal(reps.length, 1)
+assert.equal(reps[0].kind, 'post')
+assert.equal(reps[0].target_id, ids.c) // 글 신고의 대상은 글쓴이
+await as('b', `select public.admin_resolve_report($1, 'resolved', true)`, [reps[0].id])
+assert.equal((await db.query(`select status from public.posts where id = $1`, [pid])).rows[0].status, 'hidden')
+assert.equal((await db.query(`select status from public.reports where id = $1`, [reps[0].id])).rows[0].status, 'resolved')
+// 7일 이용 제한 → 글을 못 쓰고, 운영팀 대화방으로 알림을 받는다
+await as('b', `select public.admin_sanction($1, 'suspend', '욕설', 7)`, [ids.c])
+assert.equal((await db.query(`select status from public.profiles where id = $1`, [ids.c])).rows[0].status, 'suspended')
+await assert.rejects(as('c', `insert into public.posts (author_id, title, body) values ($1, 't', 'b')`, [ids.c]))
+assert.ok((await db.query(`select 1 from public.messages m join public.chat_members cm on cm.room_id = m.room_id where cm.user_id = $1 and m.body like '%7일%'`, [ids.c])).rows.length)
+await assert.rejects(as('b', `select public.admin_sanction($1, 'warning', 'x')`, [ids.b]), /forbidden/) // 운영자는 제재 대상이 아니다
+await assert.rejects(as('b', `select public.admin_sanction($1, 'suspend', 'x', 0)`, [ids.c]), /bad_request/)
+// 기간이 끝나면 정기 작업이 제한을 푼다
+await db.query(`update public.sanctions set ends_at = now() - interval '1 minute' where user_id = $1`, [ids.c])
+await db.query(`select public.run_maintenance()`)
+assert.equal((await db.query(`select status from public.profiles where id = $1`, [ids.c])).rows[0].status, 'active')
+assert.equal((await as('b', `select * from public.admin_inquiries()`)).rows.length, 0)
+// 보관 기간: 처리한 지 1년 지난 신고·제재는 지우고, 영구 제한 기록은 남긴다
+await db.query(`insert into public.sanctions (user_id, level, reason, starts_at) values ($1, 'ban', '테스트', now() - interval '2 years')`, [ids.c])
+await db.query(`update public.sanctions set ends_at = now() - interval '2 years' where level = 'suspend'`)
+await db.query(`update public.reports set resolved_at = now() - interval '2 years' where id = $1`, [reps[0].id])
+await db.query(`select public.run_maintenance()`)
+assert.deepEqual((await db.query(`select level from public.sanctions where user_id = $1`, [ids.c])).rows.map((r) => r.level), ['ban'])
+assert.equal((await db.query(`select count(*)::int n from public.reports`)).rows[0].n, 0)
+await db.query(`delete from public.sanctions where user_id = $1`, [ids.c])
+
 // account deletion: delete a only; b, c data untouched
+await as('a', `insert into public.reports (reporter, target_user, reason) values ($1, $2, 'spam')`, [ids.a, ids.c]) // 신고자는 자기 신고를 읽을 수 없다(returning 불가)
+const repByA = (await db.query(`select id from public.reports where reporter = $1`, [ids.a])).rows[0].id
 const before = (await db.query(`select count(*)::int n from public.profiles`)).rows[0].n
 await db.query(`delete from auth.users where id = $1`, [ids.a])
 assert.equal((await db.query(`select count(*)::int n from public.profiles`)).rows[0].n, before - 1)
 assert.equal((await db.query(`select count(*)::int n from public.comments`)).rows[0].n, 0)
 assert.equal((await db.query(`select count(*)::int n from public.posts`)).rows[0].n, 1)
-assert.equal((await db.query(`select count(*)::int n from public.reports`)).rows[0].n, 1)
+// 탈퇴한 a 가 낸 신고는 남고 신고자 연결만 끊긴다
+assert.equal((await db.query(`select reporter from public.reports where id = $1`, [repByA])).rows[0].reporter, null)
 assert.equal((await db.query(`select count(*)::int n from public.user_artists where user_id = $1`, [ids.b])).rows[0].n, 1)
 console.log('ALL OK')

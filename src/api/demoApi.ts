@@ -430,6 +430,7 @@ export function createDemoApi(): Api {
     // 데모에는 운영자가 없다 (메뉴도 보이지 않음)
     adminReviewConcerts: noAdmin, adminGetConcert: noAdmin, adminPublishConcert: noAdmin, adminHideConcert: noAdmin,
     adminSearchInbox: noAdmin, adminImportConcert: noAdmin, adminSearchArtists: noAdmin, adminGetArtist: noAdmin, adminSaveArtist: noAdmin,
+    adminReports: noAdmin, adminResolveReport: noAdmin, adminSanction: noAdmin, adminInquiries: noAdmin, adminAnswerInquiry: noAdmin,
   }
   return api
 }

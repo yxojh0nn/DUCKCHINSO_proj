@@ -10,7 +10,7 @@ import { toast } from '@/store/ui'
 
 type Q = { key: string; title: string; options: { value: string; label: string }[] }
 
-const QUESTIONS: Q[] = [
+export const INQUIRY_QUESTIONS: Q[] = [
   { key: 'category', title: '어떤 점이 불편했나요?', options: [
     { value: 'bug', label: '오류·버그' }, { value: 'concert_info', label: '공연 정보가 틀리거나 없음' },
     { value: 'account', label: '로그인·계정' }, { value: 'report', label: '다른 이용자 신고' },
@@ -50,7 +50,7 @@ export default function Inquiry() {
     <div className="flex min-h-full flex-col">
       <AppHeader back title="문의" />
       <div className="flex-1 px-5 pb-6">
-        {QUESTIONS.map((q) => (
+        {INQUIRY_QUESTIONS.map((q) => (
           <fieldset key={q.key} className="mt-5 first:mt-2">
             <legend className="t-head">{q.title}</legend>
             <div className="mt-2.5 flex flex-wrap gap-2">

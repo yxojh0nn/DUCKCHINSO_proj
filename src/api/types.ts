@@ -68,6 +68,32 @@ export type InboxItem = {
   concert: { id: string; status: AdminConcert['status'] } | null // 이미 가져온 공연
 }
 export type AdminArtist = Artist & { aliases: string[]; source: 'admin' | 'musicbrainz' }
+export type SanctionLevel = 'warning' | 'suspend' | 'ban'
+export type AdminReport = {
+  id: string
+  reason: ReportReason
+  detail: string | null
+  snapshot: string | null // 신고 시점 원문 (내용이 지워져도 남는다)
+  status: 'open' | 'resolved' | 'dismissed'
+  createdAt: string
+  resolvedAt: string | null
+  kind: 'post' | 'comment' | 'message' | 'profile'
+  postId: string | null
+  reporter: { id: string; nickname: string } | null
+  target: { id: string; nickname: string; status: 'active' | 'suspended' | 'banned' } | null
+  priorSanctions: number
+}
+export type AdminInquiry = {
+  id: string
+  user: { id: string; nickname: string; isGuest: boolean }
+  category: InquiryInput['category']
+  answers: Record<string, string>
+  body: string
+  status: 'open' | 'answered'
+  answer: string | null
+  answeredAt: string | null
+  createdAt: string
+}
 export type ArtistInput = { id?: string; name: string; nameJa: string | null; nameEn: string | null; aliases: string[] }
 
 export type PublicProfile = Profile & {
@@ -211,6 +237,11 @@ export interface Api {
   adminSearchArtists(q: string): Promise<AdminArtist[]>
   adminGetArtist(id: string): Promise<AdminArtist>
   adminSaveArtist(input: ArtistInput): Promise<string>
+  adminReports(): Promise<AdminReport[]> // 처리 대기 전체 + 최근 처리분
+  adminResolveReport(id: string, resolution: 'resolved' | 'dismissed', hideContent: boolean): Promise<void>
+  adminSanction(userId: string, level: SanctionLevel, reason: string, days?: number): Promise<void>
+  adminInquiries(): Promise<AdminInquiry[]> // 답변 대기 전체 + 최근 답변분
+  adminAnswerInquiry(id: string, answer: string): Promise<{ mailed: boolean }>
 }
 
 // 서버 오류 코드 → 사용자 문구

@@ -403,6 +403,36 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     async adminGetArtist(id) {
       return adminArtist(ok(await sb.from('artists').select('id, name, name_ja, name_en, aliases, source').eq('id', id).single()) as Row)
     },
+    async adminReports() {
+      const rows = ok(await sb.rpc('admin_reports')) as Row[]
+      return rows.map((r) => ({
+        id: r.id, reason: r.reason, detail: r.detail, snapshot: r.snapshot, status: r.status, createdAt: r.created_at, resolvedAt: r.resolved_at,
+        kind: r.kind, postId: r.post_id, priorSanctions: r.prior_sanctions,
+        reporter: r.reporter_id ? { id: r.reporter_id, nickname: r.reporter_nickname } : null,
+        target: r.target_id ? { id: r.target_id, nickname: r.target_nickname, status: r.target_status } : null,
+      }))
+    },
+    async adminResolveReport(id, resolution, hideContent) {
+      ok(await sb.rpc('admin_resolve_report', { r: id, resolution, hide_content: hideContent }))
+    },
+    async adminSanction(userId, level, reason, days) {
+      ok(await sb.rpc('admin_sanction', { target: userId, level, reason, days: days ?? null }))
+    },
+    async adminInquiries() {
+      const rows = ok(await sb.rpc('admin_inquiries')) as Row[]
+      return rows.map((r) => ({
+        id: r.id, user: { id: r.user_id, nickname: r.nickname ?? '탈퇴한 사용자', isGuest: !!r.is_guest }, category: r.category,
+        answers: r.answers ?? {}, body: r.body, status: r.status, answer: r.answer, answeredAt: r.answered_at, createdAt: r.created_at,
+      }))
+    },
+    async adminAnswerInquiry(id, answer) {
+      const { data, error } = await sb.functions.invoke('answer-inquiry', { body: { inquiryId: id, answer } })
+      if (error) {
+        const body = await (error as { context?: Response }).context?.json?.().catch(() => null)
+        throw new Error(body?.error ?? error.message)
+      }
+      return { mailed: !!(data as { mailed?: boolean })?.mailed }
+    },
     async adminSaveArtist(input) {
       const row = { name: input.name.trim(), name_ja: input.nameJa?.trim() || null, name_en: input.nameEn?.trim() || null,
         aliases: [...new Set(input.aliases.map((a) => a.trim()).filter(Boolean))].slice(0, 30), source: 'admin' }
