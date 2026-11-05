@@ -49,7 +49,9 @@
     -webkit-font-smoothing: antialiased;
     -webkit-tap-highlight-color: transparent;
   }
-  :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 6px; }
+  /* 입력창은 테두리 대신 밑줄을 굵게 해서 초점을 보인다 (둥근 초점 테두리가 밑줄 끝을 말아 올리지 않게) */
+  :focus-visible:not(input, textarea, select) { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 6px; }
+  input:focus-visible, textarea:focus-visible, select:focus-visible { outline: none; }
   input, textarea, select { font: inherit; color: inherit; background: transparent; }
   ::placeholder { color: var(--graphite); opacity: 0.8; }
   @media (prefers-reduced-motion: reduce) {
