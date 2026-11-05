@@ -74,6 +74,7 @@ export const IconMore = (p: P) => (
   <Svg {...p}><circle cx="5.5" cy="12" r="1.3" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none" /><circle cx="18.5" cy="12" r="1.3" fill="currentColor" stroke="none" /></Svg>
 )
 export const IconBack = (p: P) => <Svg {...p}><path d="M15 4.5L7.5 12l7.5 7.5" /></Svg>
+export const IconMenu = (p: P) => <Svg {...p}><path d="M4 7h16M4 12h16M4 17h16" /></Svg>
 export const IconClose = (p: P) => <Svg {...p}><path d="M6 6l12 12M18 6L6 18" /></Svg>
 export const IconChevron = (p: P) => <Svg {...p}><path d="M9.5 5.5L16 12l-6.5 6.5" /></Svg>
 export const IconChevronDown = (p: P) => <Svg {...p}><path d="M5.5 9.5L12 16l6.5-6.5" /></Svg>

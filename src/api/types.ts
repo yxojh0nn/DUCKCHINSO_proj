@@ -69,6 +69,8 @@ export type InboxItem = {
 }
 export type AdminArtist = Artist & { aliases: string[]; source: 'admin' | 'musicbrainz' }
 export type SanctionLevel = 'warning' | 'suspend' | 'ban'
+export type WordCategory = 'abuse' | 'sexual' | 'hate' | 'scam'
+export type BannedWord = { word: string; match: 'contains' | 'exact'; category: WordCategory }
 export type AdminReport = {
   id: string
   reason: ReportReason
@@ -242,6 +244,10 @@ export interface Api {
   adminSanction(userId: string, level: SanctionLevel, reason: string, days?: number): Promise<void>
   adminInquiries(): Promise<AdminInquiry[]> // 답변 대기 전체 + 최근 답변분
   adminAnswerInquiry(id: string, answer: string): Promise<{ mailed: boolean }>
+  adminWords(): Promise<{ banned: BannedWord[]; allowed: string[] }>
+  adminAddWord(input: { allowed: true; word: string } | ({ allowed?: false } & BannedWord)): Promise<void>
+  adminDeleteWord(allowed: boolean, word: string): Promise<void>
+  adminTestText(text: string): Promise<{ word: string | null; masked: string }> // 걸린 단어, 채팅에서 가려지는 모습
 }
 
 // 서버 오류 코드 → 사용자 문구
@@ -257,7 +263,9 @@ export const errorText = (e: unknown) => {
     not_found: '이미 처리됐거나 사라진 항목이에요.',
     forbidden: '운영자만 할 수 있어요.',
     kopis_unavailable: 'KOPIS에서 공연 정보를 받지 못했어요. 잠시 후 다시 시도해 주세요.',
-    demo_admin: '운영자 기능은 Supabase에 연결했을 때만 쓸 수 있어요.',
+    word_exists: '이미 목록에 있는 단어예요.',
+    blocked_word:'사용할 수 없는 표현이 들어 있어요. 고쳐서 다시 올려 주세요.',
+    demo_admin:'운영자 기능은 Supabase에 연결했을 때만 쓸 수 있어요.',
     'Invalid login credentials': '이메일 또는 비밀번호가 맞지 않아요.',
     'User already registered': '이미 가입된 이메일이에요. 로그인해 주세요.',
   }

@@ -26,12 +26,13 @@ export function Sheet({ open, onClose, title, message, actions, children }: Prop
 
   if (!open) return null
   return (
-    <div className="absolute inset-0 z-40 flex items-end bg-black/35 [animation:fade-in_160ms_ease-out]" onClick={onClose}>
+    // 휴대폰: 아래에서 올라오는 시트 / 768px 이상: 화면 가운데 대화상자(최대 440px)
+    <div className="absolute inset-0 z-40 flex items-end bg-black/35 [animation:fade-in_160ms_ease-out] md:items-center" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title ?? '선택'}
-        className="w-full px-2 pb-[max(8px,env(safe-area-inset-bottom))] [animation:sheet-up_240ms_cubic-bezier(.2,.9,.25,1)]"
+        className="mx-auto w-full max-w-[640px] px-2 pb-[max(8px,env(safe-area-inset-bottom))] [animation:sheet-up_240ms_cubic-bezier(.2,.9,.25,1)] md:max-h-[85%] md:max-w-[440px] md:overflow-y-auto md:px-0 md:pb-0 md:[animation:pop-in_160ms_ease-out]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="overflow-hidden rounded-[16px] bg-paper">

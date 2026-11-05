@@ -48,3 +48,6 @@ Thumbs.db
 # 개인 도구 상태 파일
 .claude/.plugin_claude_mem_lite_state.json
 .claude/settings.local.json
+
+# archify 다이어그램 산출물
+.archify/

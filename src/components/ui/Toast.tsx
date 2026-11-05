@@ -11,7 +11,7 @@ export function Toast() {
   }, [toast, showToast])
   if (!toast) return null
   return (
-    <div className="pointer-events-none absolute inset-x-4 top-[max(12px,env(safe-area-inset-top))] z-[60] flex justify-center">
+    <div className="pointer-events-none absolute inset-x-4 top-[max(12px,env(safe-area-inset-top))] z-[60] md:bottom-8 md:top-auto flex justify-center">
       <div role="status" className="rounded-full bg-ink px-4 py-2.5 t-sub font-medium text-paper [animation:fade-in_160ms_ease-out]">
         {toast}
       </div>

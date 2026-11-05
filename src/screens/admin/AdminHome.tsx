@@ -2,11 +2,11 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { MenuGroup, MenuRow } from '@/components/MenuRow'
-import { IconCalendar, IconFlag, IconInquiry, IconMy, IconSearch } from '@/components/icons'
+import { IconBlock, IconCalendar, IconFlag, IconInquiry, IconMy, IconSearch } from '@/components/icons'
 import { Badge } from '@/components/ui/Badge'
 import { adminKeys } from './AdminGate'
 
-// MY > 운영자: 신고 · 문의 · 검수 대기 공연 · 공연 찾기 · 아티스트
+// MY > 운영자: 신고 · 문의 · 검수 대기 공연 · 공연 찾기 · 아티스트 · 비속어
 export default function AdminHome() {
   const review = useQuery({ queryKey: adminKeys.review, queryFn: () => api.adminReviewConcerts() })
   const reports = useQuery({ queryKey: adminKeys.reports, queryFn: () => api.adminReports() })
@@ -27,6 +27,7 @@ export default function AdminHome() {
       </MenuGroup>
       <MenuGroup title="데이터">
         <MenuRow icon={<IconMy />} label="아티스트" to="/admin/artists" />
+        <MenuRow icon={<IconBlock />} label="비속어" to="/admin/words" />
       </MenuGroup>
     </>
   )

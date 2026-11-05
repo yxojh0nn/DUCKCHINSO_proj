@@ -5,7 +5,8 @@ import { Capacitor } from '@capacitor/core'
 import { App as CapApp } from '@capacitor/app'
 import { Browser } from '@capacitor/browser'
 import { api } from '@/api'
-import { BottomNav } from '@/components/BottomNav'
+import { AppBar, BottomNav } from '@/components/BottomNav'
+import { SplitView, splitOf, useWide, type SplitGroup } from '@/components/Split'
 import { Toast } from '@/components/ui/Toast'
 import { supabase } from '@/lib/supabase'
 import { keys, useLiveSync, useMe, useSession } from '@/lib/queries'
@@ -52,9 +53,10 @@ import Reports from '@/screens/admin/Reports'
 import ReportDetail from '@/screens/admin/ReportDetail'
 import Inquiries from '@/screens/admin/Inquiries'
 import InquiryDetail from '@/screens/admin/InquiryDetail'
+import Words from '@/screens/admin/Words'
 
 // 로그인·동의가 끝나야 들어갈 수 있는 화면 묶음
-function Gate() {
+function Gate({ children }: { children?: React.ReactNode }) {
   const session = useSession()
   const me = useMe()
   const qc = useQueryClient()
@@ -79,7 +81,7 @@ function Gate() {
   if (me.isLoading || (me.data && !me.data.consentsOk && pending)) return null
   if (me.isError) return <Navigate to="/login" replace />
   if (me.data && !me.data.consentsOk && pathname !== '/consent') return <Navigate to="/consent" replace />
-  return <Outlet />
+  return children ?? <Outlet />
 }
 
 const TAB_PATHS = ['/calendar', '/community', '/chats', '/my']
@@ -105,7 +107,8 @@ function Tabs() {
   // 모바일: 좌우로 밀어 이전·다음 탭으로
   const onTouchStart = (e: React.TouchEvent) => {
     const t = e.touches[0]
-    start.current = e.touches.length === 1 && !inHorizontalScroller(e.target, e.currentTarget as HTMLElement) ? { x: t.clientX, y: t.clientY } : null
+    // 휴대폰 폭에서만 (768px 이상 터치 화면은 서랍 메뉴를 쓴다)
+    start.current = e.touches.length === 1 && !window.matchMedia('(min-width: 768px)').matches && !inHorizontalScroller(e.target, e.currentTarget as HTMLElement) ? { x: t.clientX, y: t.clientY } : null
   }
   const onTouchEnd = (e: React.TouchEvent) => {
     const s = start.current
@@ -148,15 +151,26 @@ function useNativeAuthReturn() {
 
 // 일반 화면 전환 방향: 뒤로 가기(POP)는 왼쪽에서, 나머지는 오른쪽에서 들어온다
 // 탭끼리 옮길 때는 하단 바를 고정한 채 Tabs 안에서만 움직이도록 같은 key 를 쓴다
-function usePageTransition() {
+// 두 칸(split)일 때는 목록이 그대로 있고 오른쪽 칸만 바뀌므로 묶음 전체에 같은 key 를 쓴다
+function usePageTransition(split?: SplitGroup) {
   const { pathname } = useLocation()
   const type = useNavigationType()
-  const key = TAB_PATHS.includes(pathname) ? 'tabs' : pathname
+  const key = split ? `split:${split.list}` : TAB_PATHS.includes(pathname) ? 'tabs' : pathname
   // 화면이 바뀔 때만 방향을 정한다 (탭끼리 옮길 때 class 가 바뀌면 하단 바까지 다시 움직임)
   const last = useRef({ key: '', cls: '' })
   if (last.current.key !== key) last.current = { key, cls: type === 'POP' ? 'slide-left' : 'slide-right' }
   return last.current
 }
+
+// 1024px 이상에서 목록·상세 두 칸으로 보여 줄 묶음. 주소는 휴대폰과 같다
+const SPLITS: SplitGroup[] = [
+  { list: '/chats', detail: '/chats/:id', List: ChatList, Detail: ChatRoom, empty: '대화방을 골라 주세요' },
+  { list: '/community', detail: '/community/post/:id', List: Community, Detail: PostDetail, empty: '글을 골라 주세요' },
+  { list: '/calendar', detail: '/concert/:id', List: CalendarScreen, Detail: ConcertDetail, empty: '공연을 골라 주세요' },
+  { list: '/admin/reports', detail: '/admin/reports/:id', List: Reports, Detail: ReportDetail, empty: '신고를 골라 주세요', admin: true },
+  { list: '/admin/inquiries', detail: '/admin/inquiries/:id', List: Inquiries, Detail: InquiryDetail, empty: '문의를 골라 주세요', admin: true },
+  { list: '/admin/review', detail: '/admin/concerts/:id', List: ReviewList, Detail: ConcertReview, empty: '검수할 공연을 골라 주세요', admin: true },
+]
 
 export default function App() {
   const theme = useUI((s) => s.theme)
@@ -165,14 +179,23 @@ export default function App() {
   useEffect(() => { applyTheme(theme, themed.current); themed.current = true }, [theme])
   useLiveSync(session.data)
   useNativeAuthReturn()
-  const page = usePageTransition()
+  const { pathname } = useLocation()
+  const wide = useWide()
+  const split = wide ? splitOf(SPLITS, pathname) : undefined
+  const page = usePageTransition(split)
+  // 앱 바(768px 이상)는 로그인한 화면에서만. 로그인·동의·공개 문서에는 없다
+  const auth = /^\/($|login|auth|consent)/.test(pathname) // 로그인·동의: 768px 이상에서 가운데 카드(최대 440px)
+  const showBar = !!session.data && !auth && !pathname.startsWith('/legal')
 
   return (
-    // 데스크톱 웹에서는 휴대폰 폭으로 가운데 표시
-    <div className="flex h-full justify-center md:items-center md:bg-mist md:py-8">
-      <div className="relative h-full w-full max-w-[430px] overflow-hidden bg-paper md:h-[min(900px,100%)] md:rounded-[40px] md:border md:border-hairline">
+    // 화면 폭: ~767px 한 줄(431px부터 최대 560px 가운데), 768px 이상 앱 바 + 햄버거 서랍 + 본문 최대 640px (docs/반응형_레이아웃_설계.md)
+    <div className="flex h-full flex-col bg-paper">
+      {showBar && <AppBar />}
+      <div className="relative min-h-0 flex-1 overflow-hidden">
         <div className="h-full overflow-y-auto overflow-x-hidden overscroll-contain">
-          <div key={page.key} className={`h-full ${page.cls}`}>
+          <div key={page.key} className={`mx-auto h-full w-full max-w-[560px] ${auth ? 'md:flex md:max-w-[440px] md:items-center md:py-8' : split ? 'max-w-[1100px]' : 'md:max-w-[640px]'} ${page.cls}`}>
+          <div className={`h-full w-full ${auth ? 'md:h-[min(760px,100%)] md:overflow-y-auto md:rounded-[20px] md:border md:border-hairline' : ''}`}>
+          {split ? <Gate>{split.admin ? <AdminGate><SplitView group={split} /></AdminGate> : <SplitView group={split} />}</Gate> : (
           <Routes>
             <Route path="/" element={<Splash />} />
             <Route path="/login" element={<Login />} />
@@ -219,10 +242,13 @@ export default function App() {
                 <Route path="/admin/reports/:id" element={<ReportDetail />} />
                 <Route path="/admin/inquiries" element={<Inquiries />} />
                 <Route path="/admin/inquiries/:id" element={<InquiryDetail />} />
+                <Route path="/admin/words" element={<Words />} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          )}
+          </div>
           </div>
         </div>
         <Toast />

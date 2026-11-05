@@ -8,12 +8,13 @@ export const adminKeys = {
   artists: (q: string) => ['admin', 'artists', q] as const,
   reports: ['admin', 'reports'] as const,
   inquiries: ['admin', 'inquiries'] as const,
+  words: ['admin', 'words'] as const,
 }
 
 // 운영자 화면 묶음. 화면만 막는 것이고, 실제 권한은 DB(RLS·is_admin())가 확인한다
-export default function AdminGate() {
+export default function AdminGate({ children }: { children?: React.ReactNode }) {
   const me = useMe()
   if (me.isLoading) return null
   if (!me.data?.isAdmin) return <Navigate to="/my" replace />
-  return <Outlet />
+  return children ?? <Outlet />
 }

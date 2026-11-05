@@ -431,6 +431,7 @@ export function createDemoApi(): Api {
     adminReviewConcerts: noAdmin, adminGetConcert: noAdmin, adminPublishConcert: noAdmin, adminHideConcert: noAdmin,
     adminSearchInbox: noAdmin, adminImportConcert: noAdmin, adminSearchArtists: noAdmin, adminGetArtist: noAdmin, adminSaveArtist: noAdmin,
     adminReports: noAdmin, adminResolveReport: noAdmin, adminSanction: noAdmin, adminInquiries: noAdmin, adminAnswerInquiry: noAdmin,
+    adminWords: noAdmin, adminAddWord: noAdmin, adminDeleteWord: noAdmin, adminTestText: noAdmin,
   }
   return api
 }

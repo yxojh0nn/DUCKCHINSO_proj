@@ -21,7 +21,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -138,6 +138,32 @@ await db.query(`select public.run_maintenance()`)
 assert.deepEqual((await db.query(`select level from public.sanctions where user_id = $1`, [ids.c])).rows.map((r) => r.level), ['ban'])
 assert.equal((await db.query(`select count(*)::int n from public.reports`)).rows[0].n, 0)
 await db.query(`delete from public.sanctions where user_id = $1`, [ids.c])
+
+// 금칙어: 글·댓글·프로필은 거절, 채팅은 가리고 원문은 운영자만
+const newPost = (body) => as('a', `insert into public.posts (author_id, title, body) values ($1, '제목', $2) returning id`, [ids.a, body])
+for (const bad of ['야 씨발 진짜', '씨.발', '씨 발 진짜', '씨1발', 'ㅅㅂ', 'ＦＵＣＫ'])
+  await assert.rejects(newPost(bad), /blocked_word/, bad)
+const okPost = (await newPost('7시 발표 예정, 시발점, 등신대 굿즈, 다시 발매')).rows[0].id // 오탐 없음
+await assert.rejects(as('a', `insert into public.comments (post_id, author_id, body) values ($1, $2, '병.신')`, [okPost, ids.a]), /blocked_word/)
+await assert.rejects(as('a', `update public.profiles set nickname = '보지' where id = $1`, [ids.a]), /blocked_word/)
+await as('a', `update public.profiles set bio = '보지 마세요' where id = $1`, [ids.a]) // exact 단어는 닉네임 전체일 때만
+await as('a', `insert into public.messages (room_id, sender_id, body) values ($1, $2, 'ㅋㅋ 씨발 뭐야')`, [sr, ids.a])
+await as('a', `insert into public.messages (room_id, sender_id, body) values ($1, $2, '씨 발')`, [sr, ids.a])
+const masked = (await db.query(`select m.id, m.body, o.body as orig from public.messages m left join public.message_originals o on o.message_id = m.id
+  where m.room_id = $1 and m.sender_id = $2 order by m.created_at, m.body`, [sr, ids.a])).rows.filter((r) => r.orig)
+assert.deepEqual(masked.map((r) => r.body).sort(), ['* *', 'ㅋㅋ ** 뭐야'])
+await assert.rejects(as('a', `select * from public.message_originals`)) // 당사자도 원문을 못 읽는다
+await as('a', `insert into public.reports (reporter, message_id, reason) values ($1, $2, 'abuse')`, [ids.a, masked[0].id])
+assert.equal((await db.query(`select content_snapshot from public.reports where message_id = $1`, [masked[0].id])).rows[0].content_snapshot, masked[0].orig)
+// 목록은 운영자만 읽고 고친다. 넣을 때 정규화된다
+assert.equal((await as('c', `select * from public.banned_words`)).rows.length, 0)
+await assert.rejects(as('c', `insert into public.banned_words (word) values ('x')`))
+await assert.rejects(as('c', `select * from public.admin_test_text('x')`), /forbidden/)
+await as('b', `insert into public.banned_words (word) values (' 발 표 ')`)
+assert.equal((await as('b', `select * from public.admin_test_text('7시 발표')`)).rows[0].word, '발표')
+// 단어가 늘어도 이미 있는 글을 운영자가 가릴 수 있다 (바뀐 칸만 검사)
+await as('b', `update public.posts set status = 'hidden' where id = $1`, [okPost])
+await db.query(`delete from public.reports where message_id = $1`, [masked[0].id])
 
 // account deletion: delete a only; b, c data untouched
 await as('a', `insert into public.reports (reporter, target_user, reason) values ($1, $2, 'spam')`, [ids.a, ids.c]) // 신고자는 자기 신고를 읽을 수 없다(returning 불가)

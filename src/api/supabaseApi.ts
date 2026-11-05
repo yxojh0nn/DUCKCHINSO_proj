@@ -3,7 +3,7 @@ import { Capacitor } from '@capacitor/core'
 import { Browser } from '@capacitor/browser'
 import { authRedirect } from '@/lib/supabase'
 import { CONSENT_ITEMS, CONSENT_VERSION, REQUIRED_KEYS } from '@/data/consent'
-import type { AdminArtist, AdminConcert, Api, Concert, Message, Post, UserCard } from './types'
+import type { AdminArtist, AdminConcert, Api, BannedWord, Concert, Message, Post, UserCard } from './types'
 
 type Row = Record<string, any>
 
@@ -440,6 +440,26 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
         ? ok(await sb.from('artists').update(row).eq('id', input.id).select('id').single()) as Row
         : ok(await sb.from('artists').insert(row).select('id').single()) as Row
       return saved.id
+    },
+    async adminWords() {
+      const [banned, allowed] = await Promise.all([
+        sb.from('banned_words').select('word, match, category').order('created_at', { ascending: false }),
+        sb.from('allowed_words').select('word').order('created_at', { ascending: false }),
+      ])
+      return { banned: ok(banned) as BannedWord[], allowed: (ok(allowed) as Row[]).map((r) => r.word) }
+    },
+    async adminAddWord(input) {
+      const { error } = input.allowed
+        ? await sb.from('allowed_words').insert({ word: input.word })
+        : await sb.from('banned_words').insert({ word: input.word, match: input.match, category: input.category })
+      if (error) throw new Error(error.code === '23505' ? 'word_exists' : error.message)
+    },
+    async adminDeleteWord(allowed, word) {
+      ok(await sb.from(allowed ? 'allowed_words' : 'banned_words').delete().eq('word', word))
+    },
+    async adminTestText(text) {
+      const r = (ok(await sb.rpc('admin_test_text', { t: text })) as Row[])[0]
+      return { word: r?.word ?? null, masked: r?.masked ?? text }
     },
   }
   return api

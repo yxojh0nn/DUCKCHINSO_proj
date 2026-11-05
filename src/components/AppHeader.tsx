@@ -1,11 +1,13 @@
 import { useNavigate } from 'react-router-dom'
 import { IconBack } from './icons'
+import { useInSplitDetail } from './Split'
 
 type Props = { title?: React.ReactNode; back?: boolean | (() => void); right?: React.ReactNode; large?: boolean }
 
 // large: 탭 첫 화면의 큰 제목. 아니면 뒤로 가기가 있는 얇은 상단 바
 export function AppHeader({ title, back, right, large }: Props) {
   const nav = useNavigate()
+  if (useInSplitDetail()) back = undefined
   if (large) {
     return (
       <header className="flex items-end justify-between gap-3 px-5 pb-2 pt-[max(44px,calc(env(safe-area-inset-top)+20px))]">
