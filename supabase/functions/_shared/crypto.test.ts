@@ -4,7 +4,7 @@ import { randomBytes } from 'node:crypto'
 
 // 테스트 전용 임의 키 (실제 키와 무관)
 for (const k of ['PII_ENC_KEY', 'PII_HMAC_KEY', 'LOGIN_STATE_KEY']) process.env[k] = randomBytes(32).toString('base64')
-const { encrypt, decrypt, blindIndex, signState, verifyState } = await import('./crypto.ts')
+const { encrypt, decrypt, blindIndex, emailCode, signState, verifyState } = await import('./crypto.ts')
 
 // 왕복, 매번 다른 암호문
 const a = await encrypt('u1', 'login_id', 'duck_fan01')
@@ -30,6 +30,11 @@ assert.equal((await verifyState(s))?.provider, 'naver')
 assert.equal(await verifyState(s.replace(/^./, (c) => (c === 'e' ? 'f' : 'e'))), null)
 assert.equal(await verifyState(await signState({ p: 1 }, -1)), null)
 assert.equal(await verifyState('garbage'), null)
+
+// 메일 인증 코드: 6자리, 정해진 글자만, 매번 다름
+const codes = Array.from({ length: 200 }, emailCode)
+assert.ok(codes.every((c) => /^[A-HJ-NP-Z2-9]{6}$/.test(c)))
+assert.ok(new Set(codes).size > 190)
 
 // 키가 없으면 분명한 오류 (키 값은 메시지에 없다)
 delete process.env.PII_ENC_KEY

@@ -1,17 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { api, errorText } from '@/api'
+import { api, errorText, LOGIN_ID } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { Button } from '@/components/ui/Button'
 import { TextField } from '@/components/ui/Field'
 import { keys } from '@/lib/queries'
 import { toast } from '@/store/ui'
 
-// 서버 함수 login-id 와 같은 규칙
-const LOGIN_ID = /^[a-z][a-z0-9_]{3,19}$/
-
-// 아이디 만들기: 이메일로 가입한 사람은 메일 인증 뒤 꼭 거친다 (Gate 가 보냄). 이후 로그인은 아이디 + 비밀번호
+// 아이디 만들기: 아이디 없이 가입한 예전 이메일 계정이 거친다 (Gate 가 보냄). 새 가입은 가입 화면에서 아이디를 받는다
 export default function LoginIdSetup() {
   const nav = useNavigate()
   const qc = useQueryClient()

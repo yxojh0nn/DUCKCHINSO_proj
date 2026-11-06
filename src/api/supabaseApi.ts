@@ -89,10 +89,18 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       // 앱: 구글은 웹뷰 로그인을 막으므로 시스템 브라우저로 열고 딥링크로 돌아온다 (기획서 3.4)
       if (native && data.url) await Browser.open({ url: data.url })
     },
-    async signUpEmail(email, password) {
-      const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: authRedirect() } })
-      if (error) throw error
-      return { needsConfirm: !data.session }
+    async checkLoginId(loginId) {
+      return (await fn<{ available: boolean }>('login-id', { action: 'check_id', loginId })).available
+    },
+    async sendEmailCode(email) {
+      return fn<{ expiresIn: number }>('login-id', { action: 'email_code', email })
+    },
+    async verifyEmailCode(email, code) {
+      return (await fn<{ ticket: string }>('login-id', { action: 'email_verify', email, code })).ticket
+    },
+    async signUpEmail(ticket, loginId, password) {
+      const { tokenHash } = await fn<{ tokenHash: string }>('login-id', { action: 'signup', ticket, loginId, password })
+      await api.completeSocialLogin(tokenHash)
     },
     async signInEmail(email, password) {
       const { error } = await sb.auth.signInWithPassword({ email, password })

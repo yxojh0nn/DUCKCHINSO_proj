@@ -40,6 +40,12 @@ export async function blindIndex(scope: string, text: string) {
   return b64(await crypto.subtle.sign('HMAC', await hmacKey('PII_HMAC_KEY'), enc.encode(`${scope}:${text}`)))
 }
 
+// 메일 인증 코드: 영문 대문자·숫자 6자리. 헷갈리는 0·O·1·I 는 뺀 32글자 (32 = 2^5 라 치우침이 없다)
+export function emailCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  return Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => chars[b & 31]).join('')
+}
+
 // 로그인 state: 서명한 JSON + 만료. 서명이 틀리거나 만료되면 null
 export async function signState(payload: Record<string, unknown>, ttlSec = 600) {
   const body = enc.encode(JSON.stringify({ ...payload, exp: Math.floor(Date.now() / 1000) + ttlSec }))

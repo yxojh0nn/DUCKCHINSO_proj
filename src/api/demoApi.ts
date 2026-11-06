@@ -1,6 +1,7 @@
 // Supabase 미연결 시 쓰는 데모 백엔드. 같은 Api 계약을 브라우저 localStorage 로 흉내 낸다.
 // 다른 사용자는 DEMO_USERS(가상)이고, 친구 수락·채팅 답장은 잠시 뒤 자동으로 온다.
 import { CONSENT_VERSION, REQUIRED_KEYS } from '@/data/consent'
+import { LOGIN_ID } from './types'
 import { ARTISTS, AUTO_REPLIES, DEMO_POSTS, DEMO_USERS, GENRES, buildConcerts } from './demoData'
 import type { Api, Artist, Concert, LoginMethod, Message, Post, Profile, RealtimeEvent, UserCard } from './types'
 
@@ -140,11 +141,21 @@ export function createDemoApi(): Api {
       if (db.accounts[aid]) setSession(aid)
       else createAccount({ id: aid, isGuest: false, method: provider, email: provider === 'kakao' ? null : `${provider}@demo.duckchinso` })
     },
-    async signUpEmail(email, password) {
+    async checkLoginId(loginId) {
       await wait()
-      if (Object.values(db.accounts).some((a) => a.email === email)) throw new Error('User already registered')
-      createAccount({ isGuest: false, email, password })
-      return { needsConfirm: false }
+      return !Object.values(db.accounts).some((a) => a.loginId === loginId)
+    },
+    async sendEmailCode() { await wait(); return { expiresIn: 300 } },
+    async verifyEmailCode(email, code) {
+      await wait()
+      if (code !== 'DEMO12') throw new Error('email_code_invalid')
+      return email
+    },
+    async signUpEmail(ticket, loginId, password) {
+      await wait()
+      if (Object.values(db.accounts).some((a) => a.email === ticket)) throw new Error('email_taken')
+      if (Object.values(db.accounts).some((a) => a.loginId === loginId)) throw new Error('login_id_taken')
+      createAccount({ isGuest: false, email: ticket, password, loginId })
     },
     async signInEmail(email, password) {
       await wait()
@@ -162,7 +173,7 @@ export function createDemoApi(): Api {
     async setLoginId(loginId) {
       await wait()
       const id = loginId.trim().toLowerCase()
-      if (!/^[a-z][a-z0-9_]{3,19}$/.test(id)) throw new Error('login_id_format')
+      if (!LOGIN_ID.test(id)) throw new Error('login_id_format')
       if (Object.values(db.accounts).some((a) => a.loginId === id)) throw new Error('login_id_taken')
       me().loginId = id
       save()

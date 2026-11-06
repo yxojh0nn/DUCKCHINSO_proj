@@ -159,6 +159,9 @@ export type InquiryInput = {
   body: string
 }
 
+// 서버 함수 login-id 와 같은 규칙
+export const LOGIN_ID = /^[a-z][a-z0-9_]{3,19}$/
+
 export type OAuthProvider = 'google' | 'apple' | 'kakao' | 'naver'
 export type LoginMethod = 'guest' | 'email' | OAuthProvider
 export type ImageKind = 'avatar' | 'banner' | 'posts'
@@ -177,7 +180,10 @@ export interface Api {
   onAuthChange(cb: (userId: string | null) => void): () => void
   signInGuest(): Promise<void>
   signInOAuth(provider: OAuthProvider): Promise<void>
-  signUpEmail(email: string, password: string): Promise<{ needsConfirm: boolean }>
+  checkLoginId(loginId: string): Promise<boolean> // 쓸 수 있으면 true
+  sendEmailCode(email: string): Promise<{ expiresIn: number }>
+  verifyEmailCode(email: string, code: string): Promise<string> // 인증 완료 표
+  signUpEmail(ticket: string, loginId: string, password: string): Promise<void>
   signInEmail(email: string, password: string): Promise<void>
   signInLoginId(loginId: string, password: string): Promise<void>
   completeSocialLogin(tokenHash: string): Promise<void> // 네이버·카카오: 서버 함수가 준 일회용 토큰으로 세션 받기
@@ -274,6 +280,10 @@ export const errorText = (e: unknown) => {
     kopis_unavailable: 'KOPIS에서 공연 정보를 받지 못했어요. 잠시 후 다시 시도해 주세요.',
     word_exists: '이미 목록에 있는 단어예요.',
     blocked_word:'사용할 수 없는 표현이 들어 있어요. 고쳐서 다시 올려 주세요.',
+    email_code_invalid: '인증 코드가 맞지 않아요.',
+    email_code_expired: '인증 코드가 만료됐어요. 인증 메일을 다시 받아 주세요.',
+    email_ticket_expired: '메일 인증 시간이 지났어요. 다시 인증해 주세요.',
+    mail_not_ready: '인증 메일을 보내지 못했어요. 잠시 후 다시 시도해 주세요.',
     invalid_login: '아이디 또는 비밀번호가 올바르지 않습니다.',
     too_many_attempts: '시도가 너무 많아요. 10분 뒤에 다시 해 주세요.',
     login_id_taken: '이미 쓰고 있는 아이디예요.',

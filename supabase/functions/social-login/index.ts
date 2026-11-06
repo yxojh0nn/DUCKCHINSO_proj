@@ -5,15 +5,7 @@
 // 계정은 이메일이 아니라 제공자 회원 식별값(HMAC)으로 찾는다. 카카오는 이메일을 받지 않는다
 import { admin } from '../_shared/supabase.ts'
 import { blindIndex, encrypt, signState, verifyState } from '../_shared/crypto.ts'
-import { NO_MAIL_DOMAIN, authorizeUrl, fetchIdentity, type Provider } from '../_shared/providers.ts'
-
-const APP_RETURN = 'com.duckchinso.app://auth/callback'
-// 웹으로 돌려보내도 되는 주소. 비밀값 SITE_ORIGINS="https://<도메인>,http://localhost:5173"
-const returnUrl = (to: string) => {
-  if (to === 'app') return APP_RETURN
-  const allowed = (Deno.env.get('SITE_ORIGINS') ?? '').split(',').map((s) => s.trim()).filter(Boolean)
-  return allowed.includes(to) ? `${to}/auth/callback` : null
-}
+import { NO_MAIL_DOMAIN, authorizeUrl, fetchIdentity, returnUrl, type Provider } from '../_shared/providers.ts'
 
 // 로그인 CSRF 방지: 시작한 브라우저에만 nonce 쿠키를 심고, 돌아왔을 때 state 안의 nonce 와 맞춘다
 const COOKIE = 'sl_nonce'

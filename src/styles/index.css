@@ -10,6 +10,7 @@
   --graphite: #6B6B72;
   --hairline: #E4E4E7;
   --danger: #C8423B;
+  --success: #1F8A4C;
   --notice: #EE6B3B;
   color-scheme: light;
 }
@@ -18,12 +19,12 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --paper: #121214; --mist: #1E1E21; --ink: #F2F2F3; --graphite: #9B9BA3; --hairline: #2C2C30;
-    --danger: #F2766E; --notice: #FF8C5E; color-scheme: dark;
+    --danger: #F2766E; --success: #4CC47F; --notice: #FF8C5E; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --paper: #121214; --mist: #1E1E21; --ink: #F2F2F3; --graphite: #9B9BA3; --hairline: #2C2C30;
-  --danger: #F2766E; --notice: #FF8C5E; color-scheme: dark;
+  --danger: #F2766E; --success: #4CC47F; --notice: #FF8C5E; color-scheme: dark;
 }
 
 @theme inline {
@@ -33,6 +34,7 @@
   --color-graphite: var(--graphite);
   --color-hairline: var(--hairline);
   --color-danger: var(--danger);
+  --color-success: var(--success);
   --color-notice: var(--notice);
   --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
 }

@@ -10,7 +10,7 @@ const db = new PGlite()
 const stub = `
 create role anon; create role authenticated; create role service_role; create role supabase_auth_admin;
 create schema auth; create schema storage;
-create table auth.users (id uuid primary key default gen_random_uuid(), email text, is_anonymous boolean default false, raw_user_meta_data jsonb default '{}', encrypted_password text);
+create table auth.users (id uuid primary key default gen_random_uuid(), email text, is_anonymous boolean default false, raw_user_meta_data jsonb default '{}', encrypted_password text, email_confirmed_at timestamptz);
 create schema extensions; create function extensions.crypt(p text, s text) returns text language sql as $$ select 'h:' || p $$; -- bcrypt 흉내
 create table auth.identities (id uuid primary key default gen_random_uuid(), user_id uuid references auth.users on delete cascade, provider text);
 create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.uid', true), '')::uuid $$;
@@ -23,7 +23,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -179,6 +179,9 @@ assert.deepEqual((await as('b', `select * from public.my_login()`)).rows[0], { s
 await assert.rejects(db.query(`insert into public.login_ids (user_id, id_hmac, id_enc) values ($1, 'h-a', 'v1:x:y')`, [ids.b]), /duplicate/)
 // 아이디 로그인: 맞는 비밀번호만 사용자 id. 앱은 이 함수를 부를 수 없다
 await db.query(`update auth.users set encrypted_password = 'h:pw1' where id = $1`, [ids.a])
+// 메일 인증 전에는 비밀번호가 맞아도 로그인되지 않는다 (남의 이메일로 가입해 로그인하는 것을 막는다)
+assert.equal((await db.query(`select public.check_login('h-a', 'pw1') as u`)).rows[0].u, null)
+await db.query(`update auth.users set email_confirmed_at = now() where id = $1`, [ids.a])
 assert.equal((await db.query(`select public.check_login('h-a', 'pw1') as u`)).rows[0].u, ids.a)
 assert.equal((await db.query(`select public.check_login('h-a', 'pw2') as u`)).rows[0].u, null)
 assert.equal((await db.query(`select public.check_login('nope', 'pw1') as u`)).rows[0].u, null)
@@ -186,7 +189,10 @@ assert.equal((await db.query(`select * from public.login_id_by_email('A@X.COM')`
 await assert.rejects(as('a', `select public.check_login('h-a', 'pw1')`), /permission denied/)
 await assert.rejects(as('a', `select * from public.login_id_by_email('a@x.com')`), /permission denied/)
 // 앱(anon·authenticated)은 아이디·외부 식별값·토큰·실패 기록 표를 읽지도 쓰지도 못한다
-for (const t of ['login_ids', 'external_ids', 'provider_tokens', 'login_attempts'])
+assert.equal((await db.query(`select public.email_registered('A@X.com') as r`)).rows[0].r, true)
+assert.equal((await db.query(`select public.email_registered('nobody@x.com') as r`)).rows[0].r, false)
+await assert.rejects(as('a', `select public.email_registered('a@x.com')`), /permission denied/)
+for (const t of ['login_ids', 'external_ids', 'provider_tokens', 'login_attempts', 'email_codes'])
   await assert.rejects(as('a', `select * from public.${t}`), /permission denied/)
 await assert.rejects(as('a', `insert into public.login_attempts (key) values ('x')`), /permission denied/)
 

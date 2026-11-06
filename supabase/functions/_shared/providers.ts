@@ -12,6 +12,13 @@ const env = (n: string) => Deno.env.get(n) ?? ''
 const qs = (o: Record<string, string>) => new URLSearchParams(o).toString()
 export const callbackUrl = () => `${env('SUPABASE_URL')}/functions/v1/social-login`
 
+// 로그인·메일 인증 후 돌아갈 주소. 'app' 또는 비밀값 SITE_ORIGINS="https://<도메인>,http://localhost:5173" 에 있는 웹 주소만
+export const returnUrl = (to: string) => {
+  if (to === 'app') return 'com.duckchinso.app://auth/callback'
+  const allowed = env('SITE_ORIGINS').split(',').map((s) => s.trim()).filter(Boolean)
+  return allowed.includes(to) ? `${to}/auth/callback` : null
+}
+
 export function authorizeUrl(p: Provider, state: string) {
   const id = p === 'naver' ? 'NAVER_CLIENT_ID' : 'KAKAO_REST_KEY'
   if (!env(id)) throw new Error(`missing_secret:${id}`) // 키가 없으면 제공자 오류 화면 대신 우리 안내 화면

@@ -22,7 +22,8 @@ export default function Consent() {
     try {
       if (!(await api.sessionUserId())) await api.signInGuest()
       await api.saveConsents(value)
-      await qc.invalidateQueries({ queryKey: keys.me })
+      // 이 화면에는 me 를 보는 곳이 없어 'all' 이 아니면 다시 받지 않는다. 옛 값으로 이동하면 Gate 가 이 화면으로 되돌린다
+      await qc.invalidateQueries({ queryKey: keys.me, refetchType: 'all' })
       nav('/calendar', { replace: true })
     } catch (e) {
       toast(errorText(e))

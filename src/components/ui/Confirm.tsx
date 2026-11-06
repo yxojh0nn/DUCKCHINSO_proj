@@ -37,3 +37,25 @@ export function Confirm({ open, title, message, confirmLabel, danger, onConfirm,
     </div>
   )
 }
+
+// 가운데 뜨는 알림 창: 제목 색으로 결과를 보이고 확인 버튼 하나
+export function Alert({ open, title, tone, onClose }: { open: boolean; title: string; tone: 'danger' | 'success'; onClose: () => void }) {
+  const ok = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (!open) return
+    ok.current?.focus({ preventScroll: true })
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, onClose])
+  if (!open) return null
+  return (
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/35 px-10 [animation:fade-in_140ms_ease-out]" onClick={onClose}>
+      <div role="alertdialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-[300px] rounded-[18px] bg-paper [animation:pop-in_160ms_ease-out]">
+        <p className={`px-5 py-6 text-center t-head ${tone === 'danger' ? 'text-danger' : 'text-success'}`}>{title}</p>
+        <button ref={ok} onClick={onClose} className="h-12 w-full border-t border-hairline t-body font-semibold active:bg-mist">확인</button>
+      </div>
+    </div>
+  )
+}
