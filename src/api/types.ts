@@ -92,6 +92,8 @@ export type AdminUser = {
   lastSeenAt: string
   sanctions: number
 }
+export type AdminUserDetail = Omit<AdminUser, 'sanctions'> & { bio: string; posts: number; comments: number; reportsAgainst: number }
+export type AdminSanctionRecord = { level: SanctionLevel; reason: string; startsAt: string; endsAt: string | null }
 export type AdminUserStats = { members: number; guests: number; active7d: number; suspended: number; banned: number }
 export type AdminArtist = Artist & { aliases: string[]; source: 'admin' | 'musicbrainz' }
 export type SanctionLevel = 'warning' | 'suspend' | 'ban'
@@ -291,6 +293,8 @@ export interface Api {
   adminResolveTicketTip(id: string, approve: boolean): Promise<void>
   adminUsers(q: string, page: number): Promise<{ users: AdminUser[]; total: number }> // 50명씩
   adminUserStats(): Promise<AdminUserStats>
+  adminUser(id: string): Promise<{ user: AdminUserDetail | null; sanctions: AdminSanctionRecord[] }>
+  adminDeletePost(postId: string, reason: string): Promise<void> // 사유와 함께 지우고 작성자에게 알림
   adminTestText(text: string): Promise<{ word: string | null; masked: string }> // 걸린 단어, 채팅에서 가려지는 모습
 }
 

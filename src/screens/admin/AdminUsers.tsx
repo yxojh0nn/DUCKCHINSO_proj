@@ -11,11 +11,11 @@ import { adminKeys } from './AdminGate'
 
 const PAGE = 50
 const LOGIN: Record<string, string> = { guest: '비회원', email: '아이디', kakao: '카카오', naver: '네이버', google: 'Google', apple: 'Apple' }
-const loginLabel = (l: string) => l.split(',').map((x) => LOGIN[x] ?? x).join('·')
+export const LOGIN_LABEL = (l: string) => l.split(',').map((x) => LOGIN[x] ?? x).join('·')
 const STATUS: Record<AdminUser['status'], string> = { active: '', suspended: '이용 제한', banned: '정지' }
 const day = (iso: string) => new Date(iso).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })
 
-// 전체 사용자: 요약 · 닉네임 검색 · 최근 가입순 50명씩. 이메일 등 개인정보는 보여 주지 않는다
+// 전체 사용자: 요약 · 닉네임 검색 · 최근 가입순 50명씩 → 누르면 사용자 상세(바로 제재). 이메일 등 개인정보는 보여 주지 않는다
 export default function AdminUsers() {
   const [input, setInput] = useState('')
   const [q, setQ] = useState('')
@@ -44,12 +44,12 @@ export default function AdminUsers() {
         <ul className="pb-4 pt-2">
           {list.data.users.map((u) => (
             <li key={u.id}>
-              <Link to={`/profile/${u.id}`} className="block px-5 py-3 active:bg-mist">
+              <Link to={`/admin/users/${u.id}`} className="block px-5 py-3 active:bg-mist">
                 <p className="flex items-center gap-2 t-body">
                   <span className="min-w-0 truncate font-semibold">{u.nickname}</span>
                   {u.isAdmin && <span className="shrink-0 t-cap font-semibold text-success">운영자</span>}
                   {STATUS[u.status] && <span className="shrink-0 t-cap font-semibold text-danger">{STATUS[u.status]}</span>}
-                  <span className="ml-auto shrink-0 t-sub text-graphite">{loginLabel(u.login)}</span>
+                  <span className="ml-auto shrink-0 t-sub text-graphite">{LOGIN_LABEL(u.login)}</span>
                 </p>
                 <p className="mt-0.5 t-cap text-graphite">
                   가입 {day(u.createdAt)} · 최근 접속 {fmtRelative(u.lastSeenAt)}{u.sanctions ? ` · 제재 ${u.sanctions}회` : ''}

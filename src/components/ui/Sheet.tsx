@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-type Action = { label: string; onClick: () => void; danger?: boolean }
+type Action = { label: string; onClick: () => void; danger?: boolean; icon?: React.ReactNode; note?: string }
 
 type Props = {
   open: boolean
@@ -47,9 +47,9 @@ export function Sheet({ open, onClose, title, message, actions, children }: Prop
             <button
               key={a.label}
               onClick={a.onClick}
-              className={`block h-14 w-full border-t border-hairline text-[17px] first:border-0 active:bg-mist ${a.danger ? 'text-danger' : 'text-ink'}`}
+              className={`flex min-h-14 w-full items-center justify-center gap-2 border-t border-hairline text-[17px] first:border-0 active:bg-mist ${a.danger ? 'text-danger' : 'text-ink'}`}
             >
-              {a.label}
+              {a.icon}{a.label}{a.note && <span className="t-cap text-graphite">{a.note}</span>}
             </button>
           ))}
           <button ref={cancel} onClick={onClose} className="block h-14 w-full border-t-[6px] border-mist text-[17px] font-semibold active:bg-mist">

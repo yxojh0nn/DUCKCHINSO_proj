@@ -59,6 +59,7 @@ import InquiryDetail from '@/screens/admin/InquiryDetail'
 import Words from '@/screens/admin/Words'
 import TicketTips from '@/screens/admin/TicketTips'
 import AdminUsers from '@/screens/admin/AdminUsers'
+import AdminUserDetail from '@/screens/admin/AdminUserDetail'
 
 // 로그인·동의가 끝나야 들어갈 수 있는 화면 묶음
 function Gate({ children }: { children?: React.ReactNode }) {
@@ -269,6 +270,7 @@ export default function App() {
                 <Route path="/admin/words" element={<Words />} />
                 <Route path="/admin/tips" element={<TicketTips />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
+                <Route path="/admin/users/:id" element={<AdminUserDetail />} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

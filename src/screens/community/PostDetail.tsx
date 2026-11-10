@@ -3,8 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, errorText } from '@/api'
 import { AppHeader, HeaderButton } from '@/components/AppHeader'
-import { ReportSheet } from '@/components/ReportSheet'
-import { IconComment, IconMore, IconSend, IconUp } from '@/components/icons'
+import { REPORT_REASONS, ReportSheet } from '@/components/ReportSheet'
+import { IconAdmin, IconComment, IconMore, IconSend, IconUp } from '@/components/icons'
 import { Avatar } from '@/components/ui/Avatar'
 import { Confirm } from '@/components/ui/Confirm'
 import { Empty } from '@/components/ui/Empty'
@@ -26,6 +26,8 @@ export default function PostDetail() {
   const [menu, setMenu] = useState(false)
   const [report, setReport] = useState<{ postId?: string; commentId?: string; userId?: string } | null>(null)
   const [del, setDel] = useState(false)
+  const [adminPick, setAdminPick] = useState(false) // 운영자 삭제: 사유 고르기
+  const [adminWhy, setAdminWhy] = useState<string | null>(null) // 고른 사유 → 확인
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
 
@@ -103,7 +105,18 @@ export default function PostDetail() {
         { label: '친구 요청 보내기', onClick: () => { setMenu(false); actions.request(p.author.id) } },
         { label: '상세 프로필 보기', onClick: () => nav(`/profile/${p.author.id}`) },
         { label: '신고하기', danger: true, onClick: () => { setMenu(false); setReport({ postId: p.id }) } },
+        // 운영자 권한: 신고 없이 바로 삭제 (DB 함수가 운영자인지 다시 확인한다)
+        ...(me?.isAdmin ? [{ label: '삭제하기', note: '운영자 권한', danger: true, icon: <IconAdmin size={20} />, onClick: () => { setMenu(false); setAdminPick(true) } }] : []),
       ]) : []} />
+      <Sheet open={adminPick} onClose={() => setAdminPick(false)} title="삭제 사유" message="작성자에게 운영팀 대화방으로 사유와 함께 알려요."
+        actions={REPORT_REASONS.map((r) => ({ label: r.label, onClick: () => { setAdminPick(false); setAdminWhy(r.label) } }))} />
+      <Confirm open={!!adminWhy} title="운영자 권한으로 이 글을 삭제할까요?" message={`사유: ${adminWhy ?? ''} · 삭제하면 되돌릴 수 없어요.`} confirmLabel="삭제" danger
+        onClose={() => setAdminWhy(null)}
+        onConfirm={async () => {
+          const why = adminWhy ?? ''
+          setAdminWhy(null)
+          try { await api.adminDeletePost(id, why); await qc.invalidateQueries({ queryKey: ['posts'] }); toast('운영자 권한으로 글을 삭제했어요'); nav(-1) } catch (e) { toast(errorText(e)) }
+        }} />
       <ReportSheet open={!!report} target={report ?? {}} onClose={() => setReport(null)} />
       <Confirm open={del} title="글을 삭제할까요?" message="삭제하면 되돌릴 수 없어요." confirmLabel="삭제" danger onClose={() => setDel(false)}
         onConfirm={async () => {

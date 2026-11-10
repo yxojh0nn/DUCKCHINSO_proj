@@ -483,6 +483,20 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       const r = (ok(await sb.rpc('admin_user_stats')) as Row[])[0] ?? {}
       return { members: Number(r.members ?? 0), guests: Number(r.guests ?? 0), active7d: Number(r.active_7d ?? 0), suspended: Number(r.suspended ?? 0), banned: Number(r.banned ?? 0) }
     },
+    async adminUser(id) {
+      const [u, s] = await Promise.all([sb.rpc('admin_user', { target: id }), sb.rpc('admin_user_sanctions', { target: id })])
+      const r = (ok(u) as Row[])[0]
+      return {
+        user: r ? {
+          id: r.id, nickname: r.nickname, bio: r.bio ?? '', isGuest: r.is_guest, status: r.status, isAdmin: r.is_admin, login: r.login,
+          createdAt: r.created_at, lastSeenAt: r.last_seen_at, posts: r.posts, comments: r.comments, reportsAgainst: r.reports_against,
+        } : null,
+        sanctions: (ok(s) as Row[]).map((x) => ({ level: x.level, reason: x.reason, startsAt: x.starts_at, endsAt: x.ends_at })),
+      }
+    },
+    async adminDeletePost(postId, reason) {
+      ok(await sb.rpc('admin_delete_post', { post: postId, reason }))
+    },
     async adminReports() {
       const rows = ok(await sb.rpc('admin_reports')) as Row[]
       return rows.map((r) => ({
