@@ -39,7 +39,9 @@ assert.equal(shortRegion('경기도'), '경기')
 
 const d = parseDetail(`<dbs><db><mt20id>PF1</mt20id><prfnm><![CDATA[YOASOBI & Friends]]></prfnm><prfpdfrom>2026.11.14</prfpdfrom>
 <prfpdto>2026.11.15</prfpdto><fcltynm>KSPO DOME</fcltynm><pcseguidance>전석 99,000원</pcseguidance>
-<relates><relate><relatenm>NOL티켓</relatenm><relateurl>https://nol.example/1</relateurl></relate></relates></db></dbs>`)
+<relates><relate><relatenm>NOL티켓</relatenm><relateurl>https://nol.example/1</relateurl></relate></relates>
+<styurls><styurl>http://www.kopis.or.kr/upload/pfmIntroImage/a.jpg</styurl><styurl>http://www.kopis.or.kr/upload/pfmIntroImage/b.jpg</styurl></styurls></db></dbs>`)
+assert.deepEqual(d.intro, ['http://www.kopis.or.kr/upload/pfmIntroImage/a.jpg', 'http://www.kopis.or.kr/upload/pfmIntroImage/b.jpg'])
 assert.equal(d.title, 'YOASOBI & Friends')
 assert.equal(d.from, '2026-11-14')
 assert.deepEqual(d.links, [{ vendor: 'NOL티켓', url: 'https://nol.example/1' }])

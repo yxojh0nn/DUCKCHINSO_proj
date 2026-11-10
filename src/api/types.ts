@@ -15,6 +15,7 @@ export type Concert = {
   priceMin: number | null
   priceMax: number | null
   ticketOpenAt: string | null // ISO
+  introUrls?: string[] // KOPIS 소개 이미지 (포스터보다 큰 상세 안내 이미지)
   genreId: number | null
   artistIds: string[]
   schedules: string[] // ISO, 오름차순

@@ -134,7 +134,7 @@ export default function ConcertDetail() {
       </div>
       )}
       <TicketTipSheet open={tipOpen} onClose={() => setTipOpen(false)} concertId={c.id} />
-      {zoom && c.posterUrl && <PosterViewer url={c.posterUrl} title={c.title} onClose={() => setZoom(false)} />}
+      {zoom && c.posterUrl && <PosterViewer url={c.posterUrl} title={c.title} intro={c.introUrls} onClose={() => setZoom(false)} />}
     </div>
   )
 }
