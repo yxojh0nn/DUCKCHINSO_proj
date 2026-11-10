@@ -23,7 +23,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -140,6 +140,22 @@ await db.query(`select public.run_maintenance()`)
 assert.deepEqual((await db.query(`select level from public.sanctions where user_id = $1`, [ids.c])).rows.map((r) => r.level), ['ban'])
 assert.equal((await db.query(`select count(*)::int n from public.reports`)).rows[0].n, 0)
 await db.query(`delete from public.sanctions where user_id = $1`, [ids.c])
+// 경고 누적: 1회 7일 제한 → 2회 14일 제한 → 3회 계정 정지
+const statusOf = async () => (await db.query(`select status from public.profiles where id = $1`, [ids.c])).rows[0].status
+const daysLeft = async () => (await db.query(`select round(extract(epoch from max(ends_at) - now()) / 86400)::int d from public.sanctions where user_id = $1 and level = 'suspend' and ends_at > now()`, [ids.c])).rows[0].d
+await as('b', `select public.admin_sanction($1, 'warning', '욕설')`, [ids.c])
+assert.equal(await statusOf(), 'suspended'); assert.equal(await daysLeft(), 7)
+await db.query(`update public.sanctions set ends_at = now() - interval '1 minute' where user_id = $1 and level = 'suspend'`, [ids.c])
+await db.query(`select public.run_maintenance()`)
+assert.equal(await statusOf(), 'active')
+await as('b', `select public.admin_sanction($1, 'warning', '욕설')`, [ids.c])
+assert.equal(await statusOf(), 'suspended'); assert.equal(await daysLeft(), 14)
+assert.ok((await db.query(`select 1 from public.messages m join public.chat_members cm on cm.room_id = m.room_id where cm.user_id = $1 and m.body like '%경고 2회%14일%'`, [ids.c])).rows.length)
+await as('b', `select public.admin_sanction($1, 'warning', '욕설')`, [ids.c])
+assert.equal(await statusOf(), 'banned')
+assert.deepEqual((await db.query(`select level from public.sanctions where user_id = $1 order by starts_at, level`, [ids.c])).rows.map((r) => r.level).filter((l) => l === 'ban'), ['ban'])
+await db.query(`delete from public.sanctions where user_id = $1`, [ids.c])
+await db.query(`update public.profiles set status = 'active' where id = $1`, [ids.c])
 
 // 금칙어: 글·댓글·프로필은 거절, 채팅은 가리고 원문은 운영자만
 const newPost = (body) => as('a', `insert into public.posts (author_id, title, body) values ($1, '제목', $2) returning id`, [ids.a, body])
