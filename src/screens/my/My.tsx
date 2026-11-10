@@ -40,10 +40,12 @@ export default function My() {
       </MenuGroup>
 
       <Confirm open={logout} title="정말 로그아웃 하시겠습니까?"
-        message={me.isGuest ? '비회원은 로그아웃하면 지금 계정으로 다시 들어올 수 없어요.' : undefined}
+        message={me.isGuest ? '비회원은 로그아웃하면 지금까지의 기록이 모두 지워져요.' : undefined}
         confirmLabel="로그아웃" danger={me.isGuest} onClose={() => setLogout(false)}
         onConfirm={async () => {
-          await api.signOut()
+          // 비회원은 나가면 계정을 지운다 (다음에 들어오면 새 익명 닉네임). 지우기에 실패해도 로그아웃은 한다
+          if (me.isGuest) await api.deleteAccount().catch(() => api.signOut())
+          else await api.signOut()
           qc.setQueryData(keys.session, null)
           nav('/login', { replace: true })
         }} />

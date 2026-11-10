@@ -185,7 +185,6 @@ export function createDemoApi(): Api {
     async signOut() { setSession(null) },
     async deleteAccount() {
       const uid = me().id
-      if (db.accounts[uid].isGuest) throw new Error('guest_cannot_withdraw')
       // 실제 DB의 on delete cascade 와 같은 범위: 이 계정 ID가 들어간 행만 지운다
       delete db.accounts[uid]
       db.requests = db.requests.filter((r) => r.from !== uid && r.to !== uid)

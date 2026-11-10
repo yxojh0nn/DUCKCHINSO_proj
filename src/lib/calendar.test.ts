@@ -1,6 +1,18 @@
 // node --experimental-strip-types src/lib/calendar.test.ts
 import assert from 'node:assert/strict'
 import { layoutMarks, monthGrid } from './calendar.ts'
+import { priceLines } from './price.ts'
+import { posterUrl } from './poster.ts'
+
+// 가격: 좌석별 줄, 숫자 안 쉼표는 자르지 않음
+assert.deepEqual(priceLines('VIP석 160,000원, GA석  110,000원'), [{ seat: 'VIP석', price: '160,000원' }, { seat: 'GA석', price: '110,000원' }])
+assert.deepEqual(priceLines('플로어석 172,000원, 지정석 P 165,000원'), [{ seat: '플로어석', price: '172,000원' }, { seat: '지정석 P', price: '165,000원' }])
+assert.deepEqual(priceLines('전석 88,000원'), [{ seat: '전석', price: '88,000원' }])
+assert.deepEqual(priceLines('R석 50,000원 / S석 40,000원').length, 2)
+assert.deepEqual(priceLines('무료'), [{ seat: '무료', price: '' }])
+// 포스터: KOPIS 주소는 최종 https 주소로
+assert.equal(posterUrl('http://www.kopis.or.kr/upload/pfmPoster/a.jpg'), 'https://kopis.or.kr/upload/pfmPoster/a.jpg')
+assert.equal(posterUrl('https://example.com/a.jpg'), 'https://example.com/a.jpg')
 
 const g = monthGrid(2026, 11) // 2026-11-01 은 일요일
 assert.equal(g[0][0], '2026-11-01')

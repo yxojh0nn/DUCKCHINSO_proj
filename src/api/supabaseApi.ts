@@ -152,6 +152,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
         sb.rpc('is_admin'),
         sb.rpc('my_login').maybeSingle<{ social: 'naver' | 'kakao' | null; needs_login_id: boolean }>(),
       ])
+      if (p.error?.code === 'PGRST116') { await sb.auth.signOut({ scope: 'local' }); throw new Error('not_authenticated') } // 지워진 비회원 계정 등
       const prof = ok(p) as Row
       // 항목별 가장 최근 기록만 본다
       const latest = new Map<string, Row>()
