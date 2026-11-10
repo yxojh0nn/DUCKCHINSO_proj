@@ -1,18 +1,25 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { api } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { IconSearch } from '@/components/icons'
+import { LoadMore } from '@/components/LoadMore'
 import { Empty } from '@/components/ui/Empty'
 import { adminKeys } from './AdminGate'
 
-// 아티스트: 검색 → 별칭 추가·이름 수정, 또는 새로 추가. 운영자가 손본 아티스트는 MusicBrainz 수집이 덮어쓰지 않는다
+// 아티스트: 전체 목록(스크롤 끝에서 40명씩 더) 또는 검색 → 별칭 추가·이름 수정, 또는 새로 추가. 운영자가 손본 아티스트는 MusicBrainz 수집이 덮어쓰지 않는다
 export default function Artists() {
   const nav = useNavigate()
   const [input, setInput] = useState('')
   const [q, setQ] = useState('')
-  const list = useQuery({ queryKey: adminKeys.artists(q), queryFn: () => api.adminSearchArtists(q) })
+  const list = useInfiniteQuery({
+    queryKey: adminKeys.artists(q),
+    queryFn: ({ pageParam }) => api.adminSearchArtists(q, pageParam),
+    initialPageParam: 0,
+    getNextPageParam: (last, all) => (last.length === 40 ? all.length : undefined),
+  })
+  const artists = list.data?.pages.flat() ?? []
   return (
     <>
       <AppHeader back title="아티스트" right={
@@ -25,9 +32,9 @@ export default function Artists() {
             aria-label="아티스트 검색" className="h-full min-w-0 flex-1 outline-none t-body" />
         </label>
       </form>
-      {list.data?.length ? (
+      {artists.length ? (<>
         <ul className="pb-8 pt-2">
-          {list.data.map((a) => (
+          {artists.map((a) => (
             <li key={a.id}>
               <Link to={`/admin/artists/${a.id}`} className="flex min-h-[56px] flex-col justify-center px-5 py-2 active:bg-mist">
                 <span className="t-body font-semibold">{a.name}{a.source === 'admin' && <span className="ml-2 t-cap font-medium text-graphite">운영자 수정</span>}</span>
@@ -36,7 +43,8 @@ export default function Artists() {
             </li>
           ))}
         </ul>
-      ) : <Empty title={list.isLoading ? '불러오는 중…' : '맞는 아티스트가 없어요'} action={!list.isLoading && <Link to="/admin/artists/new" className="t-body font-semibold underline underline-offset-4">새로 추가하기</Link>} />}
+        {list.hasNextPage && <LoadMore key={artists.length} loading={list.isFetchingNextPage} onMore={() => !list.isFetchingNextPage && list.fetchNextPage()} />}
+      </>) : <Empty title={list.isLoading ? '불러오는 중…' : '맞는 아티스트가 없어요'} action={!list.isLoading && <Link to="/admin/artists/new" className="t-body font-semibold underline underline-offset-4">새로 추가하기</Link>} />}
     </>
   )
 }
