@@ -13,6 +13,10 @@ export const kstDayKey = (v: number | string) =>
 export const DAY_MS = 86_400_000
 
 // 공연 회차 목록 → "11월 14일(토) – 15일(일)" 같은 짧은 표기
+// 지난 공연: 마지막 회차 날짜(KST)가 오늘보다 전
+export const lastShow = (c: { schedules: string[] }) => c.schedules[c.schedules.length - 1] ?? ''
+export const isPastConcert = (c: { schedules: string[] }) => !!c.schedules.length && kstDayKey(lastShow(c)) < kstDayKey(Date.now())
+
 export const fmtRange = (schedules: string[]) => {
   if (!schedules.length) return ''
   const first = fmtDay(schedules[0])

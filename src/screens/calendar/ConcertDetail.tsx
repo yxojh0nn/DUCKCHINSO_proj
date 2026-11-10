@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { api, errorText } from '@/api'
 import { AppHeader, HeaderButton } from '@/components/AppHeader'
@@ -9,6 +8,10 @@ import { TicketTipSheet } from '@/components/TicketTipSheet'
 import { Empty } from '@/components/ui/Empty'
 import { fmtDateTime, fmtTime, fmtDay, kstDayKey, won } from '@/lib/date'
 import { openGoogleMap, openKakaoMap, openTicket } from '@/lib/external'
+import { useNavigate, useParams } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { PostRow } from '@/components/PostRow'
+import { isPastConcert } from '@/lib/date'
 import { priceLines } from '@/lib/price'
 import { keys, useArtists, useConcerts, useMe } from '@/lib/queries'
 import { toast } from '@/store/ui'
@@ -32,7 +35,11 @@ export default function ConcertDetail() {
   const me = useMe().data
   const [tipOpen, setTipOpen] = useState(false)
   const [zoom, setZoom] = useState(false)
+  const nav = useNavigate()
   const c = concerts.data?.find((x) => x.id === id)
+  const past = !!c && isPastConcert(c)
+  // 지난 공연의 후기 (공연 연결 글)
+  const reviews = useQuery({ queryKey: keys.posts({ concertId: id }), queryFn: () => api.listPosts({ concertId: id }), enabled: past })
 
   if (concerts.isLoading) return <AppHeader back />
   if (!c) return (<><AppHeader back /><Empty title="공연을 찾을 수 없어요" body="보관 기간이 지나 정리됐을 수 있어요." /></>)
@@ -81,7 +88,7 @@ export default function ConcertDetail() {
         <Info label="예매 일자">
           {c.ticketOpenAt ? <span className="num">{fmtDateTime(c.ticketOpenAt)}{opened ? ' · 예매 중' : ' 오픈 예정'}</span> : <span className="text-graphite">예매 일정 미정</span>}
           {/* 회원만: 아직 열리지 않은 공연의 예매 오픈일 제보 (날짜가 없거나 바뀐 경우) */}
-          {!opened && me && !me.isGuest && (
+          {!opened && !past && me && !me.isGuest && (
             <button onClick={() => setTipOpen(true)} className="mt-1 flex h-9 items-center t-sub text-graphite underline underline-offset-4">
               {c.ticketOpenAt ? '다른 날짜를 봤어요' : '예매 오픈일 알려 주기'}
             </button>
@@ -106,6 +113,17 @@ export default function ConcertDetail() {
         <Info label="예매처">{c.links.map((l) => l.vendor).join(', ') || <span className="text-graphite">미정</span>}</Info>
       </dl>
 
+      {past ? (
+        <section className="mt-6">
+          <div className="px-5">
+            {me?.isGuest ? <p className="t-sub text-graphite">후기는 회원만 남길 수 있어요.</p>
+              : <button onClick={() => nav(`/community/write?concert=${c.id}`)} className="flex h-[52px] w-full items-center justify-center rounded-[14px] bg-ink t-head text-paper active:opacity-75">후기 남기기</button>}
+          </div>
+          <h2 className="px-5 pb-1 pt-6 t-sub font-semibold text-graphite">이 공연 후기 {reviews.data?.length ?? ''}</h2>
+          {reviews.data?.length ? <ul>{reviews.data.map((p) => <PostRow key={p.id} post={p} />)}</ul>
+            : <p className="px-5 py-4 t-sub text-graphite">{reviews.isLoading ? '불러오는 중…' : '아직 후기가 없어요. 첫 후기를 남겨 주세요.'}</p>}
+        </section>
+      ) : (
       <div className="mt-6 flex flex-col gap-2.5 px-5">
         {c.links.map((l, i) => (
           <button key={l.url} onClick={() => openTicket(l.url)}
@@ -114,6 +132,7 @@ export default function ConcertDetail() {
           </button>
         ))}
       </div>
+      )}
       <TicketTipSheet open={tipOpen} onClose={() => setTipOpen(false)} concertId={c.id} />
       {zoom && c.posterUrl && <PosterViewer url={c.posterUrl} title={c.title} onClose={() => setZoom(false)} />}
     </div>

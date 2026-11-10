@@ -30,10 +30,16 @@ export default function CalendarScreen() {
   const mine = me?.artistIds ?? []
   const favs = me?.favoriteIds ?? []
   const list = (concerts.data ?? []).filter((c) => scope === 'all' || c.artistIds.some((a) => mine.includes(a)) || favs.includes(c.id))
+  // 이번 달: 다가오는 공연 / 다른 달(지난 달 포함): 그 달 공연 전체 / 날짜를 누르면: 그날 공연
+  const ymKey = `${ym.y}-${String(ym.m).padStart(2, '0')}`
+  const thisMonth = ymKey === today.slice(0, 7)
   const shown = day
     ? list.filter((c) => c.schedules.some((s) => kstDayKey(s) === day))
-    : list.filter((c) => c.schedules.some((s) => kstDayKey(s) >= today))
-        .sort((a, b) => (a.schedules.find((s) => kstDayKey(s) >= today) ?? '').localeCompare(b.schedules.find((s) => kstDayKey(s) >= today) ?? ''))
+    : thisMonth
+      ? list.filter((c) => c.schedules.some((s) => kstDayKey(s) >= today))
+          .sort((a, b) => (a.schedules.find((s) => kstDayKey(s) >= today) ?? '').localeCompare(b.schedules.find((s) => kstDayKey(s) >= today) ?? ''))
+      : list.filter((c) => c.schedules.some((s) => kstDayKey(s).startsWith(ymKey)))
+          .sort((a, b) => (a.schedules.find((s) => kstDayKey(s).startsWith(ymKey)) ?? '').localeCompare(b.schedules.find((s) => kstDayKey(s).startsWith(ymKey)) ?? ''))
 
   const move = (d: number) => {
     const t = new Date(Date.UTC(ym.y, ym.m - 1 + d, 1))
@@ -73,11 +79,11 @@ export default function CalendarScreen() {
           <TextTabs label="공연 범위" value={scope} onChange={setScope} tabs={[{ value: 'all', label: '전체' }, { value: 'mine', label: '내 아티스트' }]} />
         </div>
         <h3 className="px-5 pb-1 pt-3 t-sub font-semibold text-graphite">
-          {day ? `${Number(day.slice(5, 7))}월 ${Number(day.slice(8))}일 공연` : '다가오는 공연'}
+          {day ? `${Number(day.slice(5, 7))}월 ${Number(day.slice(8))}일 공연` : thisMonth ? '다가오는 공연' : `${ym.m}월 공연`}
         </h3>
         {concerts.isLoading ? <p className="px-5 py-8 t-sub text-graphite">공연을 불러오는 중…</p>
           : shown.length ? <ul>{shown.map((c) => <ConcertRow key={c.id} concert={c} favorite={favs.includes(c.id)} />)}</ul>
-            : <Empty title={day ? '이날은 공연이 없어요' : '예정된 공연이 없어요'}
+            : <Empty title={day ? '이날은 공연이 없어요' : thisMonth ? '예정된 공연이 없어요' : '이 달에는 공연이 없어요'}
                 body={scope === 'mine' ? '관심 아티스트와 관심 공연이 여기에 모여요.' : undefined} />}
         {/* KOPIS 이용 조건: 출처 표시 */}
         <p className="px-5 pt-4 t-cap text-graphite">공연 정보 일부 출처: (재)예술경영지원센터 공연예술통합전산망(KOPIS)</p>

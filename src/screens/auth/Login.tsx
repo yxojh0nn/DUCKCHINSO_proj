@@ -16,7 +16,7 @@ export default function Login() {
         <Button block onClick={() => nav('/login/member')}>회원 로그인</Button>
         <Button block variant="secondary" onClick={() => nav('/consent?guest=1')}>비회원으로 시작</Button>
         <p className="mt-2 text-center t-cap text-graphite">
-          비회원은 익명 닉네임으로 이용하며, 로그아웃하거나 앱을 지우면 기록이 사라져요.
+          비회원은 익명 닉네임으로 이용하고 커뮤니티 글은 쓸 수 없어요. 로그아웃하거나 14일 동안 들어오지 않으면 기록이 사라져요.
         </p>
         {api.mode === 'demo' && <p className="text-center t-cap text-graphite">데모 모드: 데이터가 이 브라우저에만 저장돼요.</p>}
       </div>

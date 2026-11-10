@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import type { Comment } from '@/api'
+import { useConcerts } from '@/lib/queries'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, errorText } from '@/api'
@@ -29,6 +31,7 @@ export default function PostDetail() {
   const [adminPick, setAdminPick] = useState(false) // 운영자 삭제: 사유 고르기
   const [adminWhy, setAdminWhy] = useState<string | null>(null) // 고른 사유 → 확인
   const [text, setText] = useState('')
+  const [replyTo, setReplyTo] = useState<{ parentId: string; userId: string; nickname: string } | null>(null) // 답글 대상
   const [sending, setSending] = useState(false)
 
   if (post.isError) return (<><AppHeader back /><Empty title="글을 볼 수 없어요" body="삭제됐거나 볼 수 없는 글이에요." /></>)
@@ -47,8 +50,9 @@ export default function PostDetail() {
     if (!body || sending) return
     setSending(true)
     try {
-      await api.addComment(id, body)
+      await api.addComment(id, body, replyTo ? { parentId: replyTo.parentId, toUserId: replyTo.userId } : undefined)
       setText('')
+      setReplyTo(null)
       await Promise.all([qc.invalidateQueries({ queryKey: keys.comments(id) }), qc.invalidateQueries({ queryKey: keys.post(id) })])
     } catch (err) { toast(errorText(err)) } finally { setSending(false) }
   }
@@ -69,6 +73,7 @@ export default function PostDetail() {
           <p className="mt-4 whitespace-pre-wrap t-body">{p.body}</p>
           {p.imageUrls.map((u) => <img key={u} src={u} alt="첨부 사진" className="mt-3 w-full rounded-[12px] bg-mist" />)}
           {p.tags.length > 0 && <p className="mt-4 t-sub text-graphite">{p.tags.map((t) => `#${t}`).join(' ')}</p>}
+          {p.concertId && <PostConcert id={p.concertId} />}
           <div className="mt-4 flex items-center gap-5 border-b border-hairline pb-3">
             <button onClick={like} aria-pressed={p.likedByMe} className={`flex h-10 items-center gap-1 t-sub font-semibold ${p.likedByMe ? 'text-ink' : 'text-graphite'}`}>
               <IconUp size={20} filled={p.likedByMe} strokeWidth={p.likedByMe ? 2.4 : 1.7} />추천 {p.likeCount}
@@ -79,12 +84,19 @@ export default function PostDetail() {
       )}
 
       <ul className="flex-1 pb-4">
-        {comments.data?.map((c) => (
-          <li key={c.id} className="flex gap-3 px-5 py-3">
-            <Link to={`/profile/${c.author.id}`}><Avatar url={c.author.avatarUrl} name={c.author.nickname} size={32} /></Link>
+        {/* 원 댓글 아래에 답글을 시간순으로. 답글은 들여 쓰고 누구에게 단 답글인지 @닉네임으로 보인다 */}
+        {threaded(comments.data ?? []).map((c) => (
+          <li key={c.id} className={`flex gap-3 py-3 pr-5 ${c.parentId ? 'pl-14' : 'pl-5'}`}>
+            <Link to={`/profile/${c.author.id}`}><Avatar url={c.author.avatarUrl} name={c.author.nickname} size={c.parentId ? 26 : 32} /></Link>
             <div className="min-w-0 flex-1">
               <p className="t-sub"><span className="font-semibold">{c.author.nickname}</span> <span className="text-graphite">{fmtRelative(c.createdAt)}</span></p>
-              <p className="mt-0.5 whitespace-pre-wrap t-body">{c.body}</p>
+              <p className="mt-0.5 whitespace-pre-wrap t-body">
+                {c.replyTo && <span className="mr-1 font-semibold text-graphite">@{c.replyTo.nickname}</span>}{c.body}
+              </p>
+              {me && (
+                <button onClick={() => { setReplyTo({ parentId: c.parentId ?? c.id, userId: c.author.id, nickname: c.author.nickname }); document.getElementById('comment-input')?.focus() }}
+                  className="mt-0.5 h-8 t-cap font-semibold text-graphite">답글</button>
+              )}
             </div>
             {me && c.author.id !== me.id && (
               <button onClick={() => setReport({ commentId: c.id })} className="h-8 self-start t-cap text-graphite">신고</button>
@@ -93,10 +105,18 @@ export default function PostDetail() {
         ))}
       </ul>
 
-      <form onSubmit={comment} className="sticky bottom-0 flex items-center gap-2 border-t border-hairline bg-paper px-4 py-2 pb-[max(8px,env(safe-area-inset-bottom))]">
-        <input value={text} onChange={(e) => setText(e.target.value)} maxLength={1000} placeholder="댓글 남기기" aria-label="댓글"
+      <form onSubmit={comment} className="sticky bottom-0 border-t border-hairline bg-paper px-4 py-2 pb-[max(8px,env(safe-area-inset-bottom))]">
+        {replyTo && (
+          <p className="flex items-center gap-2 pb-1.5 pl-1 t-sub text-graphite">
+            <span className="min-w-0 flex-1 truncate"><b className="text-ink">@{replyTo.nickname}</b> 님에게 답글</span>
+            <button type="button" onClick={() => setReplyTo(null)} className="h-8 px-2 font-semibold">취소</button>
+          </p>
+        )}
+        <div className="flex items-center gap-2">
+        <input id="comment-input" value={text} onChange={(e) => setText(e.target.value)} maxLength={1000} placeholder={replyTo ? '답글 남기기' : '댓글 남기기'} aria-label={replyTo ? '답글' : '댓글'}
           className="h-10 flex-1 rounded-full bg-mist px-4 outline-none t-body" />
         <button type="submit" disabled={!text.trim() || sending} aria-label="댓글 보내기" className="disabled:opacity-30"><IconSend size={34} /></button>
+        </div>
       </form>
 
       <Sheet open={menu} onClose={() => setMenu(false)} actions={p ? (mine ? [
@@ -123,5 +143,24 @@ export default function PostDetail() {
           try { await api.deletePost(id); await qc.invalidateQueries({ queryKey: ['posts'] }); toast('글을 삭제했어요'); nav(-1) } catch (e) { toast(errorText(e)) }
         }} />
     </div>
+  )
+}
+
+// 원 댓글 → 그 아래 답글(시간순) 순서로 펼친다. 원 댓글이 지워져 짝이 없는 답글은 맨 끝에
+function threaded(list: Comment[]) {
+  const roots = list.filter((c) => !c.parentId)
+  const out: Comment[] = []
+  for (const r of roots) out.push(r, ...list.filter((c) => c.parentId === r.id))
+  return [...out, ...list.filter((c) => c.parentId && !roots.some((r) => r.id === c.parentId))]
+}
+
+// 공연 후기 글: 어떤 공연의 후기인지
+function PostConcert({ id }: { id: string }) {
+  const c = useConcerts().data?.find((x) => x.id === id)
+  if (!c) return null
+  return (
+    <Link to={`/concert/${c.id}`} className="mt-3 flex items-center gap-2 rounded-[10px] bg-mist px-3 py-2.5 t-sub active:opacity-70">
+      <span className="shrink-0 font-semibold">공연 후기</span><span className="truncate text-graphite">{c.title}</span>
+    </Link>
   )
 }
