@@ -23,7 +23,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -263,4 +263,22 @@ assert.equal((await db.query(`select public.cleanup_guests() as n`)).rows[0].n, 
 assert.equal((await db.query(`select count(*)::int n from public.profiles where id = any($1)`, [[g1, g2, ids.d]])).rows[0].n, 2)
 assert.ok((await db.query(`select nickname from public.profiles where id = $1`, [g2])).rows[0].nickname.startsWith('익명의 팬'))
 await assert.rejects(as('d', `select public.cleanup_guests()`), /permission denied/)
+// 운영자 글 삭제: 사유와 함께 지우고 작성자에게 알림, 대기 신고는 조치 완료. 일반 회원은 불가
+await db.query(`update public.profiles set community_agreed_at = now(), profile_setup_done = true where id = $1`, [ids.d])
+const dPost = (await as('d', `insert into public.posts (author_id, title, body) values ($1, '삭제될 글', '본문') returning id`, [ids.d])).rows[0].id
+await db.query(`insert into public.reports (reporter, target_user, post_id, reason) values ($1, $2, $3, 'spam')`, [ids.b, ids.d, dPost])
+await assert.rejects(as('d', `select public.admin_delete_post($1, '스팸')`, [dPost]), /forbidden/)
+await assert.rejects(as('b', `select public.admin_delete_post($1, ' ')`, [dPost]), /bad_request/)
+await as('b', `select public.admin_delete_post($1, '스팸·홍보')`, [dPost])
+assert.equal((await db.query(`select count(*)::int n from public.posts where id = $1`, [dPost])).rows[0].n, 0)
+assert.equal((await db.query(`select status from public.reports where target_user = $1 order by created_at desc limit 1`, [ids.d])).rows[0].status, 'resolved')
+assert.ok((await db.query(`select 1 from public.messages m join public.chat_members cm on cm.room_id = m.room_id where cm.user_id = $1 and m.body like '%글이 삭제됐어요%삭제될 글%'`, [ids.d])).rows.length)
+await assert.rejects(as('b', `select public.admin_delete_post($1, '스팸')`, [dPost]), /not_found/)
+
+// 운영자 사용자 상세·제재 이력
+const ud = (await as('b', `select * from public.admin_user($1)`, [ids.d])).rows[0]
+assert.equal(ud.login, 'email'); assert.equal(ud.reports_against, 1); assert.equal(ud.posts, 0)
+await as('b', `select public.admin_sanction($1, 'warning', '테스트')`, [ids.d])
+assert.deepEqual((await as('b', `select level from public.admin_user_sanctions($1)`, [ids.d])).rows.map((r) => r.level).sort(), ['suspend', 'warning'])
+await assert.rejects(as('d', `select * from public.admin_user($1)`, [ids.d]), /forbidden|account_restricted/)
 console.log('ALL OK')

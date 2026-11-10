@@ -1,28 +1,18 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, errorText, type AdminReport, type SanctionLevel } from '@/api'
+import { api, errorText, type AdminReport } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { Button } from '@/components/ui/Button'
 import { CheckMark } from '@/components/ui/Checkbox'
-import { Confirm } from '@/components/ui/Confirm'
 import { Empty } from '@/components/ui/Empty'
-import { TextField } from '@/components/ui/Field'
 import { fmtDateTime } from '@/lib/date'
 import { toast } from '@/store/ui'
 import { adminKeys } from './AdminGate'
 import { KIND_LABEL, reasonLabel } from './Reports'
+import { SanctionPanel } from './SanctionPanel'
 
-type Choice = { value: string; label: string; level: SanctionLevel; days?: number }
-const SANCTIONS: Choice[] = [
-  { value: 'warning', label: '경고', level: 'warning' },
-  { value: 'd7', label: '7일 제한', level: 'suspend', days: 7 },
-  { value: 'd30', label: '30일 제한', level: 'suspend', days: 30 },
-  { value: 'ban', label: '영구 제한', level: 'ban' },
-]
 const HIDE_LABEL = { post: '글 숨기기', comment: '댓글 지우기', message: '채팅 메시지 가리기', profile: '' } as const
-// DB 함수 admin_sanction 과 같은 규칙 (마이그레이션 14)
-const WARNING_RULE = '경고가 쌓이면 자동으로 제재돼요: 1회 7일, 2회 14일 커뮤니티·채팅 이용 제한, 3회 계정 정지.'
 const TARGET_STATUS = { active: '정상', suspended: '이용 제한 중', banned: '영구 제한' } as const
 
 // 신고 한 건: 원문 확인 → 내용 가리기와 함께 조치 완료, 또는 기각 → 필요하면 작성자 제재
@@ -38,9 +28,6 @@ function ReportForm({ r }: { r: AdminReport }) {
   const nav = useNavigate()
   const qc = useQueryClient()
   const [hide, setHide] = useState(r.kind !== 'profile')
-  const [choice, setChoice] = useState<Choice>(SANCTIONS[0])
-  const [why, setWhy] = useState(reasonLabel(r.reason))
-  const [confirm, setConfirm] = useState(false)
   const [busy, setBusy] = useState(false)
   const open = r.status === 'open'
 
@@ -52,16 +39,6 @@ function ReportForm({ r }: { r: AdminReport }) {
       await refresh()
       toast(resolution === 'resolved' ? '조치 완료로 처리했어요' : '기각했어요')
       nav('/admin/reports', { replace: true })
-    } catch (e) { toast(errorText(e)) } finally { setBusy(false) }
-  }
-  const sanction = async () => {
-    if (!r.target) return
-    setConfirm(false)
-    setBusy(true)
-    try {
-      await api.adminSanction(r.target.id, choice.level, why, choice.days)
-      await refresh()
-      toast(`${r.target.nickname} 님에게 ${choice.label}을 적용하고 알렸어요`)
     } catch (e) { toast(errorText(e)) } finally { setBusy(false) }
   }
 
@@ -99,29 +76,7 @@ function ReportForm({ r }: { r: AdminReport }) {
         </section>
       )}
 
-      {r.target && r.target.status !== 'banned' && (
-        <section className="mt-8 border-t border-hairline px-5 pt-5">
-          <h2 className="t-head">작성자 제재</h2>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {SANCTIONS.map((s) => (
-              <button key={s.value} aria-pressed={choice.value === s.value} onClick={() => setChoice(s)}
-                className={`h-9 rounded-full px-3.5 t-sub ${choice.value === s.value ? (s.level === 'warning' ? 'bg-ink font-semibold text-paper' : 'bg-danger font-semibold text-white') : 'bg-mist'}`}>
-                {s.label}
-              </button>
-            ))}
-          </div>
-          {choice.level === 'warning' && <p className="mt-3 t-sub text-graphite">{WARNING_RULE}</p>}
-          <TextField className="mt-4" label="사유 (당사자에게 그대로 보여요)" value={why} onChange={(e) => setWhy(e.target.value)} maxLength={200} />
-          <Button block variant={choice.level === 'warning' ? 'secondary' : 'dangerFill'} className="mt-4" disabled={busy || !why.trim()} onClick={() => setConfirm(true)}>
-            {choice.label} 적용
-          </Button>
-        </section>
-      )}
-
-      <Confirm open={confirm} title={`${r.target?.nickname ?? ''} 님에게 ${choice.label}을 적용할까요?`}
-        message={choice.level === 'ban' ? '영구 제한은 되돌리려면 DB에서 직접 풀어야 해요. 당사자에게 운영팀 대화방으로 알려요.'
-          : choice.level === 'warning' ? `${WARNING_RULE} 당사자에게 운영팀 대화방으로 알려요.` : '당사자에게 운영팀 대화방으로 알려요.'}
-        confirmLabel="적용" danger={choice.level !== 'warning'} onClose={() => setConfirm(false)} onConfirm={sanction} />
+      {r.target && r.target.status !== 'banned' && <SanctionPanel target={r.target} defaultReason={reasonLabel(r.reason)} title="작성자 제재" />}
     </div>
   )
 }

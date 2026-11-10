@@ -12,6 +12,7 @@ export const adminKeys = {
   tips: ['admin', 'tips'] as const,
   users: (q: string, page: number) => ['admin', 'users', q, page] as const,
   userStats: ['admin', 'user-stats'] as const,
+  user: (id: string) => ['admin', 'user', id] as const,
 }
 
 // 운영자 화면 묶음. 화면만 막는 것이고, 실제 권한은 DB(RLS·is_admin())가 확인한다
