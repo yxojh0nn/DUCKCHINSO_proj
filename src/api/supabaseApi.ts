@@ -448,10 +448,10 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       }
       return (data as { id: string }).id
     },
-    async adminSearchArtists(q) {
+    async adminSearchArtists(q, page = 0) {
       // or() 필터 문법을 깨는 문자(쉼표·괄호)와 와일드카드는 뺀다
       const term = q.trim().replace(/[,()%_*\\]/g, '')
-      let req = sb.from('artists').select('id, name, name_ja, name_en, aliases, source').order('source').order('name').limit(40)
+      let req = sb.from('artists').select('id, name, name_ja, name_en, aliases, source').order('source').order('name').order('id').range(page * 40, page * 40 + 39)
       if (term) req = req.or(`name.ilike.%${term}%,name_en.ilike.%${term}%,name_ja.ilike.%${term}%`)
       return (ok(await req) as Row[]).map(adminArtist)
     },

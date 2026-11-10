@@ -278,7 +278,7 @@ export interface Api {
   adminHideConcert(id: string): Promise<void>
   adminSearchInbox(q: string): Promise<InboxItem[]>
   adminImportConcert(kopisId: string): Promise<string> // 가져온 공연 id (검수 대기)
-  adminSearchArtists(q: string): Promise<AdminArtist[]>
+  adminSearchArtists(q: string, page?: number): Promise<AdminArtist[]> // 40명씩 (page 0부터)
   adminGetArtist(id: string): Promise<AdminArtist>
   adminSaveArtist(input: ArtistInput): Promise<string>
   adminReports(): Promise<AdminReport[]> // 처리 대기 전체 + 최근 처리분
