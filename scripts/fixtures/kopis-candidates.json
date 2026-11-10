@@ -1,0 +1,1297 @@
+{
+ "fetchedAt": "2026-11-04T04:03:33.117Z",
+ "scanned": 692,
+ "artists": [
+  {
+   "id": "mb:aabc3d78-218b-4e98-95b7-fe6388adef2d",
+   "name": "ryo",
+   "nameJa": null,
+   "nameEn": "ryo",
+   "names": [
+    "ryo",
+    "Ryou Yokota",
+    "ryo (supercell)"
+   ]
+  },
+  {
+   "id": "mb:66bdd1c9-d1c5-40b7-a487-5061fffbd87d",
+   "name": "Eve",
+   "nameJa": null,
+   "nameEn": "Eve",
+   "names": [
+    "Eve",
+    "Hiroki Mizuta",
+    "E ve"
+   ]
+  },
+  {
+   "id": "mb:b128a994-2400-432d-b26a-8feede87daa8",
+   "name": "Do As Infinity",
+   "nameJa": null,
+   "nameEn": "Do As Infinity",
+   "names": [
+    "Do As Infinity",
+    "DAI",
+    "ドゥー・アズ・インフィニティ",
+    "ドゥー・アズ",
+    "大无限乐团",
+    "大無限樂團",
+    "dai",
+    "岩村大輔",
+    "Daisuke Iwamura"
+   ]
+  },
+  {
+   "id": "mb:52aaceb8-6053-4130-ad98-1968be62e2c2",
+   "name": "Dream",
+   "nameJa": null,
+   "nameEn": "Dream",
+   "names": [
+    "Dream",
+    "DRM"
+   ]
+  },
+  {
+   "id": "mb:3e0a5471-46af-4c01-bb2e-11b24c1b55fe",
+   "name": "Afterglow",
+   "nameJa": null,
+   "nameEn": "Afterglow",
+   "names": [
+    "Afterglow"
+   ]
+  },
+  {
+   "id": "mb:1008b912-cbb1-4e4c-bd4d-b9adf6937e8e",
+   "name": "嵐",
+   "nameJa": "嵐",
+   "nameEn": null,
+   "names": [
+    "嵐",
+    "Arashi"
+   ]
+  },
+  {
+   "id": "mb:e476adc4-d5e7-427a-b86f-70ecc970b009",
+   "name": "大塚愛",
+   "nameJa": "大塚愛",
+   "nameEn": "Ai Otsuka",
+   "names": [
+    "大塚愛",
+    "Ai Otsuka",
+    "大塚愛 for TRAPNEST",
+    "otosuka",
+    "大冢爱",
+    "Ootsuka Ai",
+    "大塚　愛",
+    "愛",
+    "大塚 愛",
+    "Ai Ohtsuka",
+    "Otsuka Ai",
+    "LOVE",
+    "大塚爱",
+    "aio"
+   ]
+  },
+  {
+   "id": "mb:04ea0489-0643-4b49-a7c7-aec63680646d",
+   "name": "SiM",
+   "nameJa": "SiM",
+   "nameEn": "SiM",
+   "names": [
+    "SiM",
+    "Silence iz Mine"
+   ]
+  },
+  {
+   "id": "mb:1f3c051f-d798-49ac-b84e-d9c9656b5cc4",
+   "name": "GANG PARADE",
+   "nameJa": "プラニメ",
+   "nameEn": "Pla2me",
+   "names": [
+    "GANG PARADE",
+    "プラニメ",
+    "Pla2me",
+    "Puranime",
+    "Planime",
+    "POP",
+    "Plastic 2 Mercy",
+    "Period of Plastic 2 Mercy",
+    "ピオピ"
+   ]
+  },
+  {
+   "id": "mb:a0387b9b-236d-475f-8846-b2dea4af1112",
+   "name": "FLOW",
+   "nameJa": null,
+   "nameEn": "FLOW",
+   "names": [
+    "FLOW",
+    "フロウ",
+    "フロー"
+   ]
+  },
+  {
+   "id": "mb:0690227a-5b80-4bcc-98af-955a0bd310fa",
+   "name": "INU",
+   "nameJa": null,
+   "nameEn": "INU",
+   "names": [
+    "INU"
+   ]
+  },
+  {
+   "id": "mb:43250cff-06e8-4024-9db3-003047f47799",
+   "name": "Sou",
+   "nameJa": null,
+   "nameEn": "Sou",
+   "names": [
+    "Sou"
+   ]
+  },
+  {
+   "id": "mb:1262ab85-308b-46e7-b0b5-91fef8e46b62",
+   "name": "ネクライトーキー",
+   "nameJa": "ネクライトーキー",
+   "nameEn": "Necry Talkie",
+   "names": [
+    "ネクライトーキー",
+    "Necry Talkie"
+   ]
+  },
+  {
+   "id": "mb:7b9e3651-f9b1-4c62-8679-3fd7bdab307c",
+   "name": "コレサワ",
+   "nameJa": "是澤寿美",
+   "nameEn": "Koresawa",
+   "names": [
+    "コレサワ",
+    "是澤寿美",
+    "Koresawa"
+   ]
+  },
+  {
+   "id": "a3",
+   "name": "요네즈 켄시",
+   "nameJa": "米津玄師",
+   "nameEn": "Kenshi Yonezu",
+   "names": [
+    "요네즈 켄시",
+    "米津玄師",
+    "Kenshi Yonezu",
+    "켄시 요네즈"
+   ]
+  },
+  {
+   "id": "mb:ec93e078-ef9c-4f0b-aab0-6eec009443dc",
+   "name": "시도",
+   "nameJa": "シド",
+   "nameEn": "SID",
+   "names": [
+    "シド",
+    "시도",
+    "SID",
+    "Shido"
+   ]
+  },
+  {
+   "id": "mb:c1854280-3a9d-424b-a112-45fe29fa1f79",
+   "name": "BEGIN",
+   "nameJa": null,
+   "nameEn": "BEGIN",
+   "names": [
+    "BEGIN",
+    "ビギン",
+    "ＢＥＧＩＮ"
+   ]
+  },
+  {
+   "id": "mb:b087aa3e-7e3e-46f1-8ace-0e6e10d8d13f",
+   "name": "μ's",
+   "nameJa": "μ’s",
+   "nameEn": "Muse",
+   "names": [
+    "μ's",
+    "μ’s",
+    "Muse",
+    "ラブライブ！",
+    "Mu's",
+    "Mu’s"
+   ]
+  },
+  {
+   "id": "mb:f8f653b9-11d6-4f6b-adc1-4bfd146e7b7d",
+   "name": "world’s end girlfriend",
+   "nameJa": null,
+   "nameEn": null,
+   "names": [
+    "world’s end girlfriend",
+    "WEGF",
+    "WEG",
+    "ワールズ・エンド・ガールフレンド"
+   ]
+  },
+  {
+   "id": "mb:85d76093-9865-4605-97fa-8c910929d366",
+   "name": "LiSA",
+   "nameJa": "LiSA",
+   "nameEn": "LiSA",
+   "names": [
+    "LiSA",
+    "織部里沙",
+    "lxixsxa",
+    "织部里沙 (LiSA OLiVE)"
+   ]
+  },
+  {
+   "id": "mb:8bf34fc7-8b63-460d-983f-7d1c1435d285",
+   "name": "□□□",
+   "nameJa": "クチロロ",
+   "nameEn": "Kuchiroro",
+   "names": [
+    "□□□",
+    "クチロロ",
+    "Kuchiroro",
+    "ooo",
+    "口口口",
+    "くちロロ",
+    "口ロロ",
+    "くちろろ"
+   ]
+  },
+  {
+   "id": "a6",
+   "name": "아도",
+   "nameJa": null,
+   "nameEn": "Ado",
+   "names": [
+    "아도",
+    "Ado"
+   ]
+  },
+  {
+   "id": "mb:ebb4513e-4aab-4ac9-a949-14e77bb7b836",
+   "name": "ano",
+   "nameJa": "ano",
+   "nameEn": "ano",
+   "names": [
+    "ano",
+    "あの"
+   ]
+  },
+  {
+   "id": "mb:bf13da05-202d-4c66-8b86-a54361bdb2ec",
+   "name": "MELL",
+   "nameJa": null,
+   "nameEn": "MELL",
+   "names": [
+    "MELL"
+   ]
+  },
+  {
+   "id": "mb:6d280ceb-11c1-48c9-80d8-293ad442a991",
+   "name": "ナナヲアカリ",
+   "nameJa": "ナナヲアカリ",
+   "nameEn": "NANAOAKARI",
+   "names": [
+    "ナナヲアカリ",
+    "NANAOAKARI",
+    "Akari Nanawo",
+    "ナナヲ アカリ",
+    "Nanawoakari"
+   ]
+  },
+  {
+   "id": "mb:9953ebf6-1836-45ef-bcca-bee2e32e29c6",
+   "name": "CHiCO",
+   "nameJa": null,
+   "nameEn": "CHiCO",
+   "names": [
+    "CHiCO"
+   ]
+  },
+  {
+   "id": "mb:a0bb95b8-9fd9-47dd-af28-d4210f7f2a11",
+   "name": "ALI",
+   "nameJa": null,
+   "nameEn": "ALI",
+   "names": [
+    "ALI",
+    "Alien Liberty International"
+   ]
+  },
+  {
+   "id": "mb:c45f4716-448b-42ef-8e56-1d711672077b",
+   "name": "YUKI",
+   "nameJa": "YUKI",
+   "nameEn": "YUKI",
+   "names": [
+    "YUKI",
+    "ユキ",
+    "くらもち ゆき",
+    "くらもちゆき",
+    "Kuramochi Yuki",
+    "倉持 有希",
+    "磯谷有希",
+    "ＹＵＫＩ",
+    "倉持有希"
+   ]
+  },
+  {
+   "id": "mb:a644724e-db4f-4885-a6b3-c86b52d2e7da",
+   "name": "KAN",
+   "nameJa": null,
+   "nameEn": "KAN",
+   "names": [
+    "KAN",
+    "木村和"
+   ]
+  },
+  {
+   "id": "mb:acf20c38-8a14-4406-9039-fe78d26c2e4e",
+   "name": "Every Little Thing",
+   "nameJa": "Every Little Thing",
+   "nameEn": "Every Little Thing",
+   "names": [
+    "Every Little Thing",
+    "Every Litle Thing",
+    "ELT"
+   ]
+  },
+  {
+   "id": "mb:38d589dc-b9c7-4e94-b98e-f392f41bbe6e",
+   "name": "mao",
+   "nameJa": "中丸智絵",
+   "nameEn": "mao",
+   "names": [
+    "mao",
+    "中丸智絵",
+    "Chie Nakamaru"
+   ]
+  },
+  {
+   "id": "mb:44017d4d-a289-45a2-a9b6-816313a7fa45",
+   "name": "WEST.",
+   "nameJa": "WEST.",
+   "nameEn": "WEST.",
+   "names": [
+    "WEST.",
+    "ジャニーズWEST",
+    "Johnny's WEST"
+   ]
+  },
+  {
+   "id": "mb:2281c623-f9fe-4df4-b549-5cc8c39654fc",
+   "name": "MAX",
+   "nameJa": null,
+   "nameEn": "MAX",
+   "names": [
+    "MAX",
+    "マックス",
+    "Musical Active eXperience"
+   ]
+  },
+  {
+   "id": "mb:b98fe83a-89fd-4e06-bd87-44f6b182a442",
+   "name": "Ray",
+   "nameJa": "Ray",
+   "nameEn": "Ray",
+   "names": [
+    "Ray",
+    "木須実怜花",
+    "Reika Nakayama",
+    "中山怜香",
+    "RAY"
+   ]
+  },
+  {
+   "id": "mb:1a19b0cd-fa9d-4363-b130-b3eb394cf373",
+   "name": "MASS OF THE FERMENTING DREGS",
+   "nameJa": null,
+   "nameEn": "Masu Dore",
+   "names": [
+    "MASS OF THE FERMENTING DREGS",
+    "Masu Dore",
+    "マスドレ",
+    "マス・オブ・ザ・ファーメンティング・ドレッグス",
+    "motfd"
+   ]
+  },
+  {
+   "id": "mb:3d2cd44b-9e77-4249-9d37-d8028e756693",
+   "name": "ZAZEN BOYS",
+   "nameJa": null,
+   "nameEn": "ZAZEN BOYS",
+   "names": [
+    "ZAZEN BOYS"
+   ]
+  },
+  {
+   "id": "mb:923158cf-9d21-4bce-8040-41e7a497c1c9",
+   "name": "ELLEGARDEN",
+   "nameJa": null,
+   "nameEn": "ELLEGARDEN",
+   "names": [
+    "ELLEGARDEN",
+    "エルレガーデン"
+   ]
+  },
+  {
+   "id": "mb:ef420144-71ed-4e2e-bed5-6b8f827cfc5d",
+   "name": "前田愛",
+   "nameJa": "前田愛",
+   "nameEn": "Ai Maeda",
+   "names": [
+    "前田愛",
+    "Ai Maeda",
+    "favorite child*ai maeda",
+    "AiM",
+    "エイム",
+    "Maeda Ai"
+   ]
+  },
+  {
+   "id": "mb:33ff8a92-2f3b-4cac-8ea0-5eebfa995626",
+   "name": "KANA-BOON",
+   "nameJa": "KANA-BOON",
+   "nameEn": "KANA-BOON",
+   "names": [
+    "KANA-BOON"
+   ]
+  },
+  {
+   "id": "a12",
+   "name": "유우리",
+   "nameJa": "優里",
+   "nameEn": "Yuuri",
+   "names": [
+    "유우리",
+    "優里",
+    "Yuuri"
+   ]
+  },
+  {
+   "id": "mb:f9621b9b-b7b9-4c1d-899f-cec896749255",
+   "name": "EastNewSound",
+   "nameJa": null,
+   "nameEn": "EastNewSound",
+   "names": [
+    "EastNewSound",
+    "ENS",
+    "East New Sound"
+   ]
+  },
+  {
+   "id": "mb:90ba650a-a920-4d19-a35e-d7f1d998e140",
+   "name": "リーガルリリー",
+   "nameJa": "リーガルリリー",
+   "nameEn": "regallily",
+   "names": [
+    "リーガルリリー",
+    "regallily",
+    "Regal Lily"
+   ]
+  }
+ ],
+ "items": [
+  {
+   "id": "PF305356",
+   "title": "WANDER YOUR LANE",
+   "cast": "",
+   "visit": false,
+   "promoter": "아티팩토리엔터테인먼트 주식회사",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF305311",
+   "title": "MIERE Release Event: We Are Winner",
+   "cast": "",
+   "visit": false,
+   "promoter": "캔디마운틴(CANDY MOUNTAIN)",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF305304",
+   "title": "お祭り開演: 한국교복",
+   "cast": "",
+   "visit": false,
+   "promoter": "피피아이프로덕션(PPI PRODUCTION)",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF305297",
+   "title": "CUSE HACKER 2ND RELEASE EVENT",
+   "cast": "",
+   "visit": false,
+   "promoter": "FLIP PRODUCTION",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF305284",
+   "title": "ARIS 2ND RELEASE EVENT: OUT",
+   "cast": "",
+   "visit": false,
+   "promoter": "META WAVE",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF305260",
+   "title": "DAILY: DIRECTION 1st FAN: CON: SUN: DAY CLUB: ORIENTATION",
+   "cast": "",
+   "visit": false,
+   "promoter": "(주)티엠이그룹(TME Group) (구. 하이그라운드), (주)오드웨이브 (Oddwave Co., Ltd.)",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF305094",
+   "title": "YOU ME DREAM CONCERT",
+   "cast": "오유미",
+   "visit": false,
+   "promoter": "목마르다, 유미스타",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF305077",
+   "title": "하동균 단독 콘서트: AFTERGLOW",
+   "cast": "하동균",
+   "visit": false,
+   "promoter": "(주)감각컴퍼니, (주)창작사운드, (주)트라이어스엔터테인먼트, (주)전공이엔티",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF305042",
+   "title": "UNDERCITY, presents Wata Igarashi",
+   "cast": "",
+   "visit": true,
+   "promoter": "언더시티컬쳐(UNDERCITY)",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF304866",
+   "title": "테종 단독 공연, LOST AND FOUND: THE DEPARTMENT OF LOST MEMORY (LOVE)",
+   "cast": "김민수",
+   "visit": false,
+   "promoter": "위트(weete)",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF304859",
+   "title": "딘딘 콘서트, 연애대상: LOVE AWARDS",
+   "cast": "임철",
+   "visit": false,
+   "promoter": "슈퍼벨컴퍼니, 엔에이치엔링크(주)",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF304848",
+   "title": "재즈 피아니스트 송영주 11집 발매 기념 공연: Simplicity",
+   "cast": "송영주, 황호규, 김종국",
+   "visit": false,
+   "promoter": "(주)블루룸뮤직코리아(Blue Room Music)",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF304828",
+   "title": "THE Dreamers K-POP STORY CONCERT",
+   "cast": "이승현, 최은준, 김도륜, 김요엘, 박승환, 황우영, 송루오 등",
+   "visit": false,
+   "promoter": "(주)스마틱스, 레오웍스",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF304819",
+   "title": "JEONJINHEE: Where Seasons Flow",
+   "cast": "전진희",
+   "visit": false,
+   "promoter": "래프터스(rafters.seoul)",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF304681",
+   "title": "사이먼 도미닉 1ST 콘서트 SIMON DOMINIC 1ST CONCERT: SIMON SAYS",
+   "cast": "정기석",
+   "visit": false,
+   "promoter": "(주)Master Plan Music Group(MPMG, 엠피엠지), (주)오닉스 엔터테인먼트",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF304557",
+   "title": "규현 (KYUHYUN) ASIA TOUR: CONTINUE [서울]",
+   "cast": "조규현",
+   "visit": false,
+   "promoter": "놀유니버스, (주)안테나",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF304547",
+   "title": "off the menu: Soundwork Ⅱ",
+   "cast": "",
+   "visit": false,
+   "promoter": "오프더메뉴(off the menu), howorks",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF304541",
+   "title": "네크라이토키 (Necry Talkie) 첫 내한공연",
+   "cast": "",
+   "visit": true,
+   "promoter": "지누락엔터테인먼트",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF304508",
+   "title": "WeSA Festival: UnTamed Sound",
+   "cast": "",
+   "visit": true,
+   "promoter": "(주)위사",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF304273",
+   "title": "I AM KORESAWA vol.1",
+   "cast": "코레사와 하시미",
+   "visit": true,
+   "promoter": "위트(weete)",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF304185",
+   "title": "요네즈 켄시 내한공연",
+   "cast": "요네즈 켄시",
+   "visit": true,
+   "promoter": "(주)라이브네이션코리아",
+   "area": "인천광역시"
+  },
+  {
+   "id": "PF304157",
+   "title": "데미안 라이스 내한공연 Damien Rice O 25th Anniversary Tour",
+   "cast": "데미안 라이스",
+   "visit": true,
+   "promoter": "(주)프라이빗커브",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF304150",
+   "title": "SAEM: Chapter of love",
+   "cast": "정한샘",
+   "visit": false,
+   "promoter": "(주)블랙베어엔터테인먼트",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF304139",
+   "title": "AND2BLE FAN-CON: W!nter inside [서울]",
+   "cast": "",
+   "visit": false,
+   "promoter": "(주)와이에이치엔터테인먼트(YH ENTERTAINMENT), (주)컴지( COM Z Inc.)",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF304087",
+   "title": "#1 EXEX BEGINS",
+   "cast": "",
+   "visit": false,
+   "promoter": "이엑스이엑스(EXEX)",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF303946",
+   "title": "KT&G 상상마당 부산 시리즈 기획 공연, 클로버 뮤직 스테이션 (CLOVER MUSIC STATION)",
+   "cast": "",
+   "visit": false,
+   "promoter": "KT&G 상상마당 [부산]",
+   "area": "부산광역시"
+  },
+  {
+   "id": "PF303839",
+   "title": "Lovely Summer Chan (러블리서머짱) Live in Seoul: LSC 10th Anniversary GIG tour",
+   "cast": "이마이즈미 아이카, 변지훈",
+   "visit": true,
+   "promoter": "(주)이릴레반트",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF303833",
+   "title": "KaWang 2nd Concert: WE GO [일본 오사카]",
+   "cast": "",
+   "visit": false,
+   "promoter": "(주)PIA LIVE CREATIVE, 현역가왕재팬 제작위원회(현역가왕 JAPAN)",
+   "area": ""
+  },
+  {
+   "id": "PF303720",
+   "title": "TONE STUDIO LIVE, Reverse N Rebirth",
+   "cast": "",
+   "visit": false,
+   "promoter": "톤엔터, 톤 스튜디오",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF303707",
+   "title": "KaWang 2nd Concert: WE GO [일본 도쿄]",
+   "cast": "",
+   "visit": false,
+   "promoter": "(주)PIA LIVE CREATIVE, 현역가왕재팬 제작위원회(현역가왕 JAPAN)",
+   "area": "해외"
+  },
+  {
+   "id": "PF303703",
+   "title": "NAM WOOHYUN 10th ANNIVERSARY CONCERT, 식목일 Ⅵ: EVER GREEN",
+   "cast": "남우현",
+   "visit": false,
+   "promoter": "(주) 빌리언스, 율 컴퍼니",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF303596",
+   "title": "블루노트 도쿄 올스타 재즈 오케스트라 with LISA ONO 내한공연",
+   "cast": "리사 오노, 에릭 미야시로, 마사토 혼다, 에이지로 나카가와, 센리 카와구치 등",
+   "visit": true,
+   "promoter": "(재)CBS",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF303578",
+   "title": "나이틀리 (NIGHTLY) 내한공연",
+   "cast": "",
+   "visit": true,
+   "promoter": "스타힐스엔터테인먼트, Banyak Bagus Entertainment(B.B.E.)",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF303568",
+   "title": "나윤권 콘서트, SOUND TRACK: To You, With Love",
+   "cast": "나윤권",
+   "visit": false,
+   "promoter": "(주) 에스이십칠, S27M",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF303521",
+   "title": "기프트 x O.O.O 교차점",
+   "cast": "",
+   "visit": false,
+   "promoter": "Vel.R 벨르",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF303466",
+   "title": "비바두비 첫 내한공연 beabadoobee: The Powerlines Tour [서울]",
+   "cast": "",
+   "visit": true,
+   "promoter": "(주)라이브네이션코리아",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF303408",
+   "title": "정성하 콘서트: For Your Playlist with 영소",
+   "cast": "정성하, 김영소",
+   "visit": false,
+   "promoter": "(주)데이원드림 (day one dream), (주)셋더스테이지",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF303172",
+   "title": "에이다인 EP 발매 기념 단독공연: ANOTHER WAY",
+   "cast": "",
+   "visit": false,
+   "promoter": "Sharpen, 자유낙하(JAYUNAKHA)",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF303042",
+   "title": "ミームトーキョー ONE-MAN LIVE TOUR",
+   "cast": "",
+   "visit": false,
+   "promoter": "세티 라이브홀(SETi LIVE HALL), (주) 수소엔터테인먼트 (SOOSO Ent.)",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF302963",
+   "title": "TEEN TOP WE GONNA ROCK IT DROP IT TOP IT HEY DON‘T STOP IT POP IT X 3 LIVE",
+   "cast": "",
+   "visit": false,
+   "promoter": "(주)젬스톤라이브(GEMSTONE LIVE)",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF302948",
+   "title": "PhenoMellow 1st SHOWCASE IN SEOUL",
+   "cast": "이치카와 타쿠미, 모리야마 신",
+   "visit": true,
+   "promoter": "(주)루이이엔엠, CRAVE Entertainment",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF302861",
+   "title": "LE SSERAFIM TOUR: PUREFLOW [오사카]",
+   "cast": "",
+   "visit": false,
+   "promoter": "놀유니버스",
+   "area": "해외"
+  },
+  {
+   "id": "PF302829",
+   "title": "NANAOAKARI, ALL EYES in Seoul",
+   "cast": "",
+   "visit": true,
+   "promoter": "주식회사 원더로크, LIVET(리벳)",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF302745",
+   "title": "DAVICHI CONCERT: IN OUR SCENES",
+   "cast": "이해리, 강민경",
+   "visit": false,
+   "promoter": "놀유니버스, (주) 씨에이엠위더스(CAM)",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF302689",
+   "title": "Venna live in Seoul",
+   "cast": "말릭 베너",
+   "visit": true,
+   "promoter": "가람스테이지",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF302667",
+   "title": "Yuki Kajiura LIVE vol.#22 ~precious pieces~ SPECIAL SETLIST [서울]",
+   "cast": "카지우라 유키",
+   "visit": true,
+   "promoter": "(주)아뮤즈엔터테인먼트, 주식회사 알앤디컴퍼니, 엔에이치엔링크(주)",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF302664",
+   "title": "KIMCHANGWAN BAND LIVE IN JAPAN: サランへ [일본 도쿄]",
+   "cast": "김창완, 이상훈, 최윤식, 강윤기, 염민열",
+   "visit": false,
+   "promoter": "(주) 에이피에프컴퍼니(APF COMPANY)",
+   "area": "해외"
+  },
+  {
+   "id": "PF302572",
+   "title": "이층버스 X 이재훈: ALL FOR YOU",
+   "cast": "이재훈 등",
+   "visit": false,
+   "promoter": "(사)플로잉인터내셔널, 밴드 이층버스",
+   "area": "경기도"
+  },
+  {
+   "id": "PF302509",
+   "title": "KGMA, KOREA GRAND MUSIC AWARD 코리아 그랜드 뮤직어워즈",
+   "cast": "",
+   "visit": false,
+   "promoter": "(주)이데일리, 일간스포츠, KGMA조직위원회",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF302440",
+   "title": "ASEAN-KOREA MUSIC FESTIVAL, ROUND IN KOREA [인천]",
+   "cast": "권정열, 김상우, 이승윤 등",
+   "visit": true,
+   "promoter": "본사앤코",
+   "area": "인천광역시"
+  },
+  {
+   "id": "PF302153",
+   "title": "프레야 스카이 첫 내한공연 Freya Skye: Stars Align Tour [서울]",
+   "cast": "프레야 스카이",
+   "visit": true,
+   "promoter": "(주)라이브네이션코리아",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF302097",
+   "title": "NEE 1st Concert in KOREA: EXOTIC METTYA KANKOKU",
+   "cast": "",
+   "visit": true,
+   "promoter": "위트(weete)",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF301737",
+   "title": "Mulasaki Ima ONE MAN TOUR: PURPLE SHELTER -ep.1- EXTRA in Seoul",
+   "cast": "",
+   "visit": true,
+   "promoter": "주식회사 원더로크, LIVET(리벳)",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF301582",
+   "title": "서진주 IC 락페스티벌 (WEST JINJU IC ROCK FESTIVAL) Vol.2 [진주]",
+   "cast": "송명섭, 임희윤, 박기택, 류준현, 최보라, 조홍제, 권재현 등",
+   "visit": false,
+   "promoter": "문기타",
+   "area": "경상남도"
+  },
+  {
+   "id": "PF301556",
+   "title": "말콤 토드 첫 내한공연",
+   "cast": "말콤 토드 호버트",
+   "visit": true,
+   "promoter": "(주)라이브네이션코리아",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF301501",
+   "title": "MAX CHANGMIN LIVE SESSION: RESONANCE in SEOUL",
+   "cast": "심창민",
+   "visit": false,
+   "promoter": "(주)쇼노트, (주)에스엠엔터테인먼트 (SM ENTERTAINMENT)",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF301500",
+   "title": "GUMMY Tour Concert : LOVE [인천]",
+   "cast": "박지연",
+   "visit": false,
+   "promoter": "(주)공연마루, (주)아메바컬쳐, (주)제이제이팩토리",
+   "area": "인천광역시"
+  },
+  {
+   "id": "PF301450",
+   "title": "GUMMY Tour Concert: LOVE [대구]",
+   "cast": "박지연",
+   "visit": false,
+   "promoter": "(주)밝은누리",
+   "area": "대구광역시"
+  },
+  {
+   "id": "PF301444",
+   "title": "GUMMY Tour Concert : LOVE [전남광주]",
+   "cast": "박지연",
+   "visit": false,
+   "promoter": "(주)공연마루, (주)아메바컬쳐, (주)제이제이팩토리, (주)장터미디어, KCTV광주방송",
+   "area": "전남광주통합특별시"
+  },
+  {
+   "id": "PF301394",
+   "title": "GUMMY Tour Concert: LOVE [용인]",
+   "cast": "박지연",
+   "visit": false,
+   "promoter": "(주)공연마루, (주)아메바컬쳐, (주)제이제이팩토리, (재)용인문화재단",
+   "area": "경기도"
+  },
+  {
+   "id": "PF301318",
+   "title": "GUMMY Tour Concert: LOVE [부산]",
+   "cast": "박지연",
+   "visit": false,
+   "promoter": "(주)공연마루, (주)아메바컬쳐, (주)제이제이팩토리",
+   "area": "부산광역시"
+  },
+  {
+   "id": "PF301303",
+   "title": "GUMMY Tour Concert: LOVE [서울]",
+   "cast": "박지연",
+   "visit": false,
+   "promoter": "(주)제이제이팩토리, (주)아메바컬쳐",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF301286",
+   "title": "GUMMY Tour Concert: LOVE [성남]",
+   "cast": "박지연",
+   "visit": false,
+   "promoter": "(주)공연마루",
+   "area": "경기도"
+  },
+  {
+   "id": "PF301280",
+   "title": "Aosaka: kurayamisaka & parannoul",
+   "cast": "",
+   "visit": true,
+   "promoter": "HIGHJINKX(하이징크스)",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF301276",
+   "title": "GUMMY Tour Concert: LOVE [대전]",
+   "cast": "박지연",
+   "visit": false,
+   "promoter": "(주)공연마루, (주)아메바컬쳐, (주)제이제이팩토리, 정밀기획",
+   "area": "대전광역시"
+  },
+  {
+   "id": "PF301220",
+   "title": "카키 내한공연 (Khaki ONE-MAN Live in Seoul)",
+   "cast": "",
+   "visit": true,
+   "promoter": "(주)Master Plan Music Group(MPMG, 엠피엠지), 더 볼트, 민트페이퍼",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF301121",
+   "title": "영 카이 첫 내한공연 yung kai asia tour: stay with the ocean, i'll find you [서울]",
+   "cast": "맥스 알로이시스 장",
+   "visit": true,
+   "promoter": "(주)라이브네이션코리아",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF301059",
+   "title": "베니싱스 내한공연 BENNY SINGS LIVE IN SEOUL",
+   "cast": "",
+   "visit": true,
+   "promoter": "김밥레코즈",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF300875",
+   "title": "Mass Of The Fermenting Dregs World Tour: Iwaou with Dabda [서울]",
+   "cast": "",
+   "visit": true,
+   "promoter": "더 텔 테일 하트 (The Tell-Tale Heart)",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF300804",
+   "title": "사토시 고고 내한 공연",
+   "cast": "사토시 고고",
+   "visit": true,
+   "promoter": "핑거스타일 기타 코리아",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF300621",
+   "title": "조나 마레·잭 헤론·잭 에이버리 내한공연: Why Can't We?",
+   "cast": "조나 마레 로스 프란지치, 잭 로버트 에이버리, 재커리 딘 헤론",
+   "visit": true,
+   "promoter": "스타힐스엔터테인먼트",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF300590",
+   "title": "ZAZEN BOYS MATSURI SESSION [서울]",
+   "cast": "",
+   "visit": true,
+   "promoter": "HIGHJINKX(하이징크스)",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF299935",
+   "title": "ELLEGARDEN, Bad For Education Tour Ⅱ",
+   "cast": "",
+   "visit": true,
+   "promoter": "(주)Master Plan Music Group(MPMG, 엠피엠지), 더 볼트, 민트페이퍼",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF299887",
+   "title": "펜트하우스 내한 공연: Penthouse ONE MAN LIVE TOUR Neon Garden in Seoul",
+   "cast": "나미오카 신타로, 오오시마 마호, 스미노 하야토, 야노 신타로, 오오하라 타쿠마, 히라이 타츠노리",
+   "visit": true,
+   "promoter": "(주)프라이빗커브",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF299848",
+   "title": "홈커밍스 내한 공연: You are you, even if no one fill in about you.",
+   "cast": "",
+   "visit": true,
+   "promoter": "위트(weete), 위트",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF299827",
+   "title": "AKANE YONEZAWA, Black Pasta TOUR [서울]",
+   "cast": "요네자와 아카네",
+   "visit": true,
+   "promoter": "주식회사 원더로크",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF299778",
+   "title": "슬로우다이브 내한 공연",
+   "cast": "닐 할스테드, 크리스티안 새빌, 레이첼 고스웰, 닉 채플린, 사이먼 스콧",
+   "visit": true,
+   "promoter": "(주)라이브네이션코리아",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF299690",
+   "title": "AIMI ASIA TOUR: STAR RISING in Seoul",
+   "cast": "테라카와 아이미",
+   "visit": true,
+   "promoter": "EUPHORIC PRODUCTION, (주)타키엘",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF299001",
+   "title": "스테이시 켄트 내한공연",
+   "cast": "스테이시 켄트, 짐 톰린슨, 아트 히라하라",
+   "visit": true,
+   "promoter": "재즈브릿지컴퍼니",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF298996",
+   "title": "스테이시 켄트 내한공연 [울산]",
+   "cast": "스테이시 켄트, 짐 톰린슨, 아트 히라하라",
+   "visit": true,
+   "promoter": "재즈브릿지컴퍼니",
+   "area": "울산광역시"
+  },
+  {
+   "id": "PF298903",
+   "title": "카와사키 타카야 내한공연 KAWASAKI TAKAYA LIVE [서울]",
+   "cast": "카와사키 타카야",
+   "visit": true,
+   "promoter": "(주)프라이빗커브",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF298602",
+   "title": "카즈미 타테이시 트리오 내한공연: 지브리, 재즈를 만나다 [부산]",
+   "cast": "타테이시 카즈미, 사토 시노부, 스즈키 마오",
+   "visit": true,
+   "promoter": "지누락엔터테인먼트",
+   "area": "부산광역시"
+  },
+  {
+   "id": "PF298279",
+   "title": "마룬5 내한공연",
+   "cast": "",
+   "visit": true,
+   "promoter": "(주)라이브네이션코리아",
+   "area": "경기도"
+  },
+  {
+   "id": "PF298220",
+   "title": "KANA-BOON, CRITICAL HIT PARADE: Asian Adventure",
+   "cast": "",
+   "visit": true,
+   "promoter": "주식회사 원더로크, LIVET(리벳)",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF297997",
+   "title": "카즈미 타테이시 트리오 내한공연: 지브리, 재즈를 만나다 [대구]",
+   "cast": "타테이시 카즈미, 사토 시노부, 스즈키 마오",
+   "visit": true,
+   "promoter": "지누락엔터테인먼트",
+   "area": "대구광역시"
+  },
+  {
+   "id": "PF297519",
+   "title": "YUURI LIVE [서울]",
+   "cast": "",
+   "visit": true,
+   "promoter": "애플우드 크리에이티브",
+   "area": "인천광역시"
+  },
+  {
+   "id": "PF297379",
+   "title": "카즈미 타테이시 트리오 내한공연: 지브리, 재즈를 만나다 [광주]",
+   "cast": "타테이시 카즈미, 사토 시노부, 스즈키 마오",
+   "visit": true,
+   "promoter": "지누락엔터테인먼트",
+   "area": "전남광주통합특별시"
+  },
+  {
+   "id": "PF296879",
+   "title": "카즈미 타테이시 트리오 내한공연: 크리스마스, 재즈를 만나다 [서울 강동]",
+   "cast": "타테이시 카즈미, 사토 시노부, 스즈키 마오",
+   "visit": true,
+   "promoter": "지누락엔터테인먼트",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF296425",
+   "title": "Morgenshtern Alisher World Tour Part 2 [서울]",
+   "cast": "알리셰르 타기로비치 발레예프",
+   "visit": true,
+   "promoter": "HIGHJINKX(하이징크스)",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF296339",
+   "title": "카즈미 타테이시 트리오 내한공연: 지브리, 재즈를 만나다 [서울]",
+   "cast": "타테이시 카즈미, 사토 시노부, 스즈키 마오",
+   "visit": true,
+   "promoter": "지누락엔터테인먼트",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF296039",
+   "title": "칼리드 내한공연 [고양]",
+   "cast": "칼리드 도넬 로빈슨",
+   "visit": true,
+   "promoter": "(주)라이브네이션코리아",
+   "area": "경기도"
+  },
+  {
+   "id": "PF295748",
+   "title": "카즈미 타테이시 트리오 내한공연: 크리스마스, 재즈를 만나다 [성남]",
+   "cast": "타테이시 카즈미, 사토 시노부, 스즈키 마오",
+   "visit": true,
+   "promoter": "지누락엔터테인먼트",
+   "area": "경기도"
+  },
+  {
+   "id": "PF295744",
+   "title": "MEIYO DENSETSU 1st ONEMAN TOUR",
+   "cast": "",
+   "visit": true,
+   "promoter": "위트",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF295528",
+   "title": "FKJ 내한공연 [고양]",
+   "cast": "빈센트 펜튼",
+   "visit": true,
+   "promoter": "(주)라이브네이션코리아",
+   "area": "경기도"
+  },
+  {
+   "id": "PF295292",
+   "title": "카즈미 타테이시 트리오 내한공연: 지브리, 재즈를 만나다 [수원]",
+   "cast": "타테이시 카즈미, 사토 시노부, 스즈키 마오",
+   "visit": true,
+   "promoter": "지누락엔터테인먼트",
+   "area": "경기도"
+  },
+  {
+   "id": "PF294990",
+   "title": "Regallily Asia Tour: Dawn [서울]",
+   "cast": "",
+   "visit": true,
+   "promoter": "HIGHJINKX(하이징크스)",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF294000",
+   "title": "시에나 스파이로 첫 내한공연",
+   "cast": "시에나 앤 스파이로",
+   "visit": true,
+   "promoter": "(주)라이브네이션코리아",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF293396",
+   "title": "제시 골드 (JESSE GOLD) 내한공연",
+   "cast": "제시 골드",
+   "visit": true,
+   "promoter": "스타힐스엔터테인먼트, Banyak Bagus Entertainment(B.B.E.)",
+   "area": "서울특별시"
+  },
+  {
+   "id": "PF290915",
+   "title": "5 Seconds Of Summer 내한공연",
+   "cast": "",
+   "visit": true,
+   "promoter": "(주)엑세스엑스",
+   "area": "경기도"
+  },
+  {
+   "id": "PF281962",
+   "title": "마이 케미컬 로맨스 내한공연",
+   "cast": "",
+   "visit": true,
+   "promoter": "(주)위얼라이브, (주)Master Plan Music Group(MPMG, 엠피엠지)",
+   "area": "인천광역시"
+  }
+ ]
+}
