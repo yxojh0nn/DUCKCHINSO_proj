@@ -86,6 +86,10 @@ function Gate({ children }: { children?: React.ReactNode }) {
   if (me.data && !me.data.consentsOk && pathname !== '/consent') return <Navigate to="/consent" replace />
   // 이메일로 가입한 사람은 아이디를 만들어야 다음으로 (docs/로그인_계정_암호화_설계.md 5장)
   if (me.data?.consentsOk && me.data.needsLoginId && pathname !== '/login-id') return <Navigate to="/login-id" replace />
+  // 회원은 첫 로그인 때 메인 화면 전에 닉네임·프로필을 정한다 (비회원은 커뮤니티 첫 진입 때)
+  if (me.data?.consentsOk && !me.data.needsLoginId && !me.data.isGuest && !me.data.profileSetupDone && pathname !== '/community/setup') {
+    return <Navigate to="/community/setup" replace />
+  }
   return children ?? <Outlet />
 }
 
