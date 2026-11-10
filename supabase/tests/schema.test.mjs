@@ -23,7 +23,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -255,4 +255,12 @@ assert.deepEqual((await as('b', `select id from public.admin_users($1)`, [dNick]
 const stats = (await as('b', `select * from public.admin_user_stats()`)).rows[0]
 assert.ok(Number(stats.members) >= 2 && Number(stats.guests) >= 1)
 await assert.rejects(as('d', `select * from public.admin_users()`), /forbidden/)
+// 비회원: 1시간 무접속이면 정기 작업이 지운다. 회원·최근 접속 비회원은 그대로
+const g1 = (await db.query(`insert into auth.users (is_anonymous) values (true) returning id`)).rows[0].id
+const g2 = (await db.query(`insert into auth.users (is_anonymous) values (true) returning id`)).rows[0].id
+await db.query(`update public.profiles set last_seen_at = now() - interval '2 hours' where id = any($1)`, [[g1, ids.d]])
+assert.equal((await db.query(`select public.cleanup_guests() as n`)).rows[0].n, 1)
+assert.equal((await db.query(`select count(*)::int n from public.profiles where id = any($1)`, [[g1, g2, ids.d]])).rows[0].n, 2)
+assert.ok((await db.query(`select nickname from public.profiles where id = $1`, [g2])).rows[0].nickname.startsWith('익명의 팬'))
+await assert.rejects(as('d', `select public.cleanup_guests()`), /permission denied/)
 console.log('ALL OK')

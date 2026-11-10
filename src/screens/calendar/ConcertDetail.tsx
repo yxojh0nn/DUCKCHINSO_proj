@@ -4,11 +4,12 @@ import { useQueryClient } from '@tanstack/react-query'
 import { api, errorText } from '@/api'
 import { AppHeader, HeaderButton } from '@/components/AppHeader'
 import { IconExternal, IconPin, IconTicket } from '@/components/icons'
-import { Poster } from '@/components/Poster'
+import { Poster, PosterViewer } from '@/components/Poster'
 import { TicketTipSheet } from '@/components/TicketTipSheet'
 import { Empty } from '@/components/ui/Empty'
 import { fmtDateTime, fmtTime, fmtDay, kstDayKey, won } from '@/lib/date'
 import { openGoogleMap, openKakaoMap, openTicket } from '@/lib/external'
+import { priceLines } from '@/lib/price'
 import { keys, useArtists, useConcerts, useMe } from '@/lib/queries'
 import { toast } from '@/store/ui'
 
@@ -30,6 +31,7 @@ export default function ConcertDetail() {
   const artists = useArtists().data ?? []
   const me = useMe().data
   const [tipOpen, setTipOpen] = useState(false)
+  const [zoom, setZoom] = useState(false)
   const c = concerts.data?.find((x) => x.id === id)
 
   if (concerts.isLoading) return <AppHeader back />
@@ -56,7 +58,11 @@ export default function ConcertDetail() {
         </HeaderButton>
       } />
       <div className="flex gap-4 px-5 pt-2">
-        <Poster id={c.id} url={c.posterUrl} title={c.title} className="h-[168px] w-[120px] shrink-0 rounded-[12px]" />
+        {c.posterUrl ? (
+          <button onClick={() => setZoom(true)} aria-label="포스터 크게 보기" className="shrink-0 rounded-[12px] active:opacity-80">
+            <Poster id={c.id} url={c.posterUrl} title={c.title} eager className="h-[168px] w-[120px] rounded-[12px]" />
+          </button>
+        ) : <Poster id={c.id} url={null} title={c.title} className="h-[168px] w-[120px] shrink-0 rounded-[12px]" />}
         <div className="min-w-0 flex-1 pt-1">
           {artistNames && <p className="t-sub font-semibold text-graphite">{artistNames}</p>}
           <h1 className="mt-1 t-title">{c.title}</h1>
@@ -89,7 +95,13 @@ export default function ConcertDetail() {
           </p>
         </Info>
         <Info label="가격">
-          {c.priceText ?? (c.priceMin ? `${won(c.priceMin)}~` : <span className="text-graphite">예매처에서 확인</span>)}
+          {c.priceText ? (
+            <ul className="space-y-0.5">
+              {priceLines(c.priceText).map((p, i) => (
+                <li key={i}>{p.seat} <span className="num">{p.price}</span></li>
+              ))}
+            </ul>
+          ) : c.priceMin ? `${won(c.priceMin)}~` : <span className="text-graphite">예매처에서 확인</span>}
         </Info>
         <Info label="예매처">{c.links.map((l) => l.vendor).join(', ') || <span className="text-graphite">미정</span>}</Info>
       </dl>
@@ -103,6 +115,7 @@ export default function ConcertDetail() {
         ))}
       </div>
       <TicketTipSheet open={tipOpen} onClose={() => setTipOpen(false)} concertId={c.id} />
+      {zoom && c.posterUrl && <PosterViewer url={c.posterUrl} title={c.title} onClose={() => setZoom(false)} />}
     </div>
   )
 }
