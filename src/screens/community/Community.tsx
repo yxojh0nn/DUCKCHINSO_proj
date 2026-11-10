@@ -5,6 +5,7 @@ import { api } from '@/api'
 import { AppHeader, HeaderButton } from '@/components/AppHeader'
 import { PostRow } from '@/components/PostRow'
 import { UserRow } from '@/components/UserRow'
+import { PastConcerts } from './PastConcerts'
 import { IconClose, IconFilter, IconRequests, IconSearch } from '@/components/icons'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -16,14 +17,15 @@ import { keys, useArtists, useGenres, useMe, useRequests } from '@/lib/queries'
 
 type Filter = { genreId?: number; artistId?: string }
 
-// 커뮤니티 탭: 상단 검색·범주·친구 요청함, 아래 커뮤니티(기본) / 추천 덕친
+// 커뮤니티 탭: 상단 검색·범주·친구 요청함, 아래 커뮤니티(기본) / 후기 남기기(지난 공연) / 추천 덕친
 export default function Community() {
   const nav = useNavigate()
   const me = useMe()
   // 보던 하위 탭을 주소에 남겨서 프로필을 보고 돌아와도 유지
   const [params, setParams] = useSearchParams()
-  const tab = params.get('tab') === 'friends' ? 'friends' : 'feed'
-  const setTab = (t: 'feed' | 'friends') => setParams(t === 'friends' ? { tab: t } : {}, { replace: true })
+  const t0 = params.get('tab')
+  const tab = t0 === 'friends' || t0 === 'reviews' ? t0 : 'feed'
+  const setTab = (t: 'feed' | 'reviews' | 'friends') => setParams(t === 'feed' ? {} : { tab: t }, { replace: true })
   const [q, setQ] = useState('')
   const [filter, setFilter] = useState<Filter>({})
   const [filterOpen, setFilterOpen] = useState(false)
@@ -60,7 +62,7 @@ export default function Community() {
         <label className="flex h-10 flex-1 items-center gap-2 rounded-[10px] bg-mist px-3">
           <IconSearch size={18} className="text-graphite" />
           <input value={q} onChange={(e) => setQ(e.target.value)} aria-label="검색어"
-            placeholder={tab === 'feed' ? '글 제목, 내용, 태그' : '닉네임이나 소개글 키워드'} className="h-full min-w-0 flex-1 outline-none t-body" />
+            placeholder={tab === 'feed' ? '글 제목, 내용, 태그' : tab === 'reviews' ? '지난 공연 검색' : '닉네임이나 소개글 키워드'} className="h-full min-w-0 flex-1 outline-none t-body" />
           {q && <button aria-label="검색어 지우기" onClick={() => setQ('')} className="text-graphite"><IconClose size={16} /></button>}
         </label>
         <HeaderButton label="검색 범주 설정" onClick={() => { setTab('friends'); setFilterOpen(true) }}>
@@ -69,14 +71,15 @@ export default function Community() {
         </HeaderButton>
       </div>
       <div className="mt-1 flex items-center justify-between border-b border-hairline pr-3">
-        <TextTabs label="커뮤니티 보기" value={tab} onChange={setTab} tabs={[{ value: 'feed', label: '커뮤니티' }, { value: 'friends', label: '추천 덕친' }]} />
-        {tab === 'feed' && <Link to="/community/write" className="flex h-11 items-center px-2 t-body font-semibold">글쓰기</Link>}
+        <TextTabs label="커뮤니티 보기" value={tab} onChange={setTab} tabs={[{ value: 'feed', label: '커뮤니티' }, { value: 'reviews', label: '후기 남기기' }, { value: 'friends', label: '추천 덕친' }]} />
+        {tab === 'feed' && !me.data?.isGuest && <Link to="/community/write" className="flex h-11 items-center px-2 t-body font-semibold">글쓰기</Link>}
       </div>
 
-      {tab === 'feed' ? (
+      {me.data?.isGuest && tab !== 'friends' && <p className="px-5 pt-3 t-sub text-graphite">비회원은 글·후기를 쓸 수 없어요. 회원으로 로그인하면 쓸 수 있어요.</p>}
+      {tab === 'reviews' ? <PastConcerts q={term} /> : tab === 'feed' ? (
         posts.data?.length ? <ul className="pb-6">{posts.data.map((p) => <PostRow key={p.id} post={p} />)}</ul>
           : <Empty title={posts.isLoading ? '불러오는 중…' : term ? '맞는 글이 없어요' : '아직 글이 없어요'}
-              action={!posts.isLoading && <Button size="md" onClick={() => nav('/community/write')}>글쓰기</Button>} />
+              action={!posts.isLoading && !me.data?.isGuest && <Button size="md" onClick={() => nav('/community/write')}>글쓰기</Button>} />
       ) : (
         <>
           {(term || filtered) && (

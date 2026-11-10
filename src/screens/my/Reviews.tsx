@@ -7,21 +7,21 @@ import { Button } from '@/components/ui/Button'
 import { Empty } from '@/components/ui/Empty'
 import { keys, useMe } from '@/lib/queries'
 
-// 공연 후기 모아보기: 내가 쓴 글 중 "후기" 태그
+// 내가 남긴 공연 후기: 지난 공연에서 남긴 후기 + '후기' 태그를 단 글
 export default function Reviews() {
   const nav = useNavigate()
   const me = useMe().data
   const posts = useQuery({
-    queryKey: keys.posts({ authorId: me?.id, tag: '후기' }),
-    queryFn: () => api.listPosts({ authorId: me!.id, tag: '후기' }),
+    queryKey: keys.posts({ authorId: me?.id, reviews: true }),
+    queryFn: () => api.listPosts({ authorId: me!.id, reviews: true }),
     enabled: !!me,
   })
   return (
     <>
-      <AppHeader back title="공연 후기" />
+      <AppHeader back title="내 공연 후기" />
       {posts.data?.length ? <ul>{posts.data.map((p) => <PostRow key={p.id} post={p} />)}</ul>
-        : <Empty title="아직 쓴 후기가 없어요" body="커뮤니티에 글을 쓸 때 '후기' 태그를 달면 여기에 모여요."
-            action={<Button size="md" onClick={() => nav('/community/write')}>후기 쓰기</Button>} />}
+        : <Empty title="아직 쓴 후기가 없어요" body="커뮤니티 > 후기 남기기에서 다녀온 공연을 골라 후기를 남겨 보세요."
+            action={<Button size="md" onClick={() => nav('/community?tab=reviews')}>후기 남기기</Button>} />}
     </>
   )
 }

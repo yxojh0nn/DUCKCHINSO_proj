@@ -23,7 +23,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -78,7 +78,8 @@ assert.equal((await as('a', `select * from public.list_my_rooms()`)).rows[0].can
 await assert.rejects(as('a', `select public.send_friend_request($1)`, [ids.b]), /unavailable/)
 
 // posts + likes
-const post = await as('c', `insert into public.posts (author_id, title, body, tags) values ($1, 't', 'b', '{후기}') returning id`, [ids.c])
+await assert.rejects(as('c', `insert into public.posts (author_id, title, body) values ($1, 't', 'b')`, [ids.c])) // 비회원은 글쓰기 불가
+const post = await db.query(`insert into public.posts (author_id, title, body, tags) values ($1, 't', 'b', '{후기}') returning id`, [ids.c])
 const pid = post.rows[0].id
 assert.equal((await as('a', `select public.toggle_post_like($1) as v`, [pid])).rows[0].v, true)
 assert.equal((await as('a', `select public.toggle_post_like($1) as v`, [pid])).rows[0].v, false)
@@ -255,10 +256,11 @@ assert.deepEqual((await as('b', `select id from public.admin_users($1)`, [dNick]
 const stats = (await as('b', `select * from public.admin_user_stats()`)).rows[0]
 assert.ok(Number(stats.members) >= 2 && Number(stats.guests) >= 1)
 await assert.rejects(as('d', `select * from public.admin_users()`), /forbidden/)
-// 비회원: 1시간 무접속이면 정기 작업이 지운다. 회원·최근 접속 비회원은 그대로
+// 비회원: 14일 무접속이면 정기 작업이 지운다. 회원·최근 접속 비회원은 그대로
 const g1 = (await db.query(`insert into auth.users (is_anonymous) values (true) returning id`)).rows[0].id
 const g2 = (await db.query(`insert into auth.users (is_anonymous) values (true) returning id`)).rows[0].id
-await db.query(`update public.profiles set last_seen_at = now() - interval '2 hours' where id = any($1)`, [[g1, ids.d]])
+await db.query(`update public.profiles set last_seen_at = now() - interval '15 days' where id = any($1)`, [[g1, ids.d]])
+await db.query(`update public.profiles set last_seen_at = now() - interval '13 days' where id = $1`, [g2])
 assert.equal((await db.query(`select public.cleanup_guests() as n`)).rows[0].n, 1)
 assert.equal((await db.query(`select count(*)::int n from public.profiles where id = any($1)`, [[g1, g2, ids.d]])).rows[0].n, 2)
 assert.ok((await db.query(`select nickname from public.profiles where id = $1`, [g2])).rows[0].nickname.startsWith('익명의 팬'))
@@ -281,4 +283,22 @@ assert.equal(ud.login, 'email'); assert.equal(ud.reports_against, 1); assert.equ
 await as('b', `select public.admin_sanction($1, 'warning', '테스트')`, [ids.d])
 assert.deepEqual((await as('b', `select level from public.admin_user_sanctions($1)`, [ids.d])).rows.map((r) => r.level).sort(), ['suspend', 'warning'])
 await assert.rejects(as('d', `select * from public.admin_user($1)`, [ids.d]), /forbidden|account_restricted/)
+// 대댓글: 한 단계로 붙고, 다른 글의 댓글에는 못 단다. 원 댓글을 지우면 답글도 지워진다
+await db.query(`update public.profiles set status = 'active' where id = $1`, [ids.d])
+await db.query(`delete from public.sanctions where user_id = $1`, [ids.d])
+const rp = (await as('d', `insert into public.posts (author_id, title, body) values ($1, '대댓글 글', '본문') returning id`, [ids.d])).rows[0].id
+const root = (await as('d', `insert into public.comments (post_id, author_id, body) values ($1, $2, '원 댓글') returning id`, [rp, ids.d])).rows[0].id
+const r1 = (await as('d', `insert into public.comments (post_id, author_id, body, parent_id, reply_to) values ($1, $2, '답글', $3, $2) returning id, parent_id`, [rp, ids.d, root])).rows[0]
+assert.equal(r1.parent_id, root)
+const r2 = (await as('d', `insert into public.comments (post_id, author_id, body, parent_id, reply_to) values ($1, $2, '답글의 답글', $3, $2) returning parent_id, reply_to`, [rp, ids.d, r1.id])).rows[0]
+assert.equal(r2.parent_id, root); assert.equal(r2.reply_to, ids.d)
+const other = (await as('d', `insert into public.posts (author_id, title, body) values ($1, '다른 글', '본문') returning id`, [ids.d])).rows[0].id
+await assert.rejects(as('d', `insert into public.comments (post_id, author_id, body, parent_id) values ($1, $2, 'x', $3)`, [other, ids.d, root]), /bad_request/)
+assert.equal((await db.query(`select comment_count from public.posts where id = $1`, [rp])).rows[0].comment_count, 3)
+await as('d', `delete from public.comments where id = $1`, [root])
+assert.equal((await db.query(`select count(*)::int n from public.comments where post_id = $1`, [rp])).rows[0].n, 0)
+// 알림 종류별 설정: 본인이 바꿀 수 있다
+await as('d', `update public.profiles set notify_like = false, notify_concert = false where id = $1`, [ids.d])
+assert.deepEqual((await db.query(`select notify_friend, notify_like, notify_comment, notify_concert from public.profiles where id = $1`, [ids.d])).rows[0],
+  { notify_friend: true, notify_like: false, notify_comment: true, notify_concert: false })
 console.log('ALL OK')

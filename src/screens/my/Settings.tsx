@@ -7,7 +7,15 @@ import { Toggle } from '@/components/ui/Toggle'
 import { keys, useMe } from '@/lib/queries'
 import { toast, useUI, type Theme } from '@/store/ui'
 
-// 설정: 알림, 테마(다크), 광고성 정보 수신(동의 철회 포함)
+// 알림 종류 (docs/푸시_알림_설계.md 2장과 같은 묶음)
+const NOTIFY = [
+  { key: 'friend', label: '친구 요청', desc: '덕친 요청을 받았을 때, 내 요청을 상대가 수락했을 때' },
+  { key: 'like', label: '좋아요', desc: '내 글이나 공연 후기를 누군가 추천했을 때' },
+  { key: 'comment', label: '댓글', desc: '내 글·공연 후기에 댓글이 달렸을 때, 내 댓글에 답글이 달렸을 때' },
+  { key: 'concert', label: '공연 알림', desc: '관심 아티스트의 새 공연이 등록됐을 때, 관심 공연 예매 오픈 전날과 공연 전날' },
+] as const
+
+// 설정: 알림(종류별), 테마(다크), 광고성 정보 수신(동의 철회 포함)
 export default function Settings() {
   const qc = useQueryClient()
   const me = useMe().data
@@ -24,6 +32,12 @@ export default function Settings() {
     } catch (e) { toast(errorText(e)) }
   }
   const push = !!me.consents.push && me.notifyEnabled
+  const setNotify = async (k: keyof typeof me.notify, v: boolean) => {
+    try {
+      await api.updateMe({ notify: { [k]: v } })
+      await qc.invalidateQueries({ queryKey: keys.me })
+    } catch (e) { toast(errorText(e)) }
+  }
   const ads = !!me.consents.marketing
   const night = !!me.consents.nightMarketing
 
@@ -31,8 +45,18 @@ export default function Settings() {
     <>
       <AppHeader back title="설정" />
       <MenuGroup title="알림">
-        <MenuRow label="서비스 알림 (친구 요청·채팅·예매 오픈)" right={
+        <MenuRow label="서비스 알림" right={
           <Toggle label="서비스 알림" checked={push} onChange={(v) => setConsent({ push: v }, v ? '알림을 켰어요' : '알림을 껐어요')} />} />
+        {/* 종류별: 서비스 알림이 켜져 있을 때만 바꿀 수 있다. 채팅·운영팀 안내는 서비스 알림을 따른다 */}
+        {NOTIFY.map((n) => (
+          <li key={n.key} className={`flex items-start gap-3 py-3 pl-9 pr-5 ${push ? '' : 'opacity-40'}`}>
+            <div className="min-w-0 flex-1">
+              <p className="t-body">{n.label}</p>
+              <p className="mt-0.5 t-cap text-graphite">{n.desc}</p>
+            </div>
+            <Toggle label={n.label.endsWith('알림') ? n.label : `${n.label} 알림`} checked={push && me.notify[n.key]} disabled={!push} onChange={(v) => setNotify(n.key, v)} />
+          </li>
+        ))}
         <MenuRow label="광고성 정보 수신" right={
           <Toggle label="광고성 정보 수신" checked={ads} onChange={(v) => setConsent(v ? { marketing: true } : { marketing: false, nightMarketing: false }, v ? '광고성 정보 수신에 동의했어요' : '광고성 정보 수신을 철회했어요')} />} />
         <MenuRow label="야간(21시~08시) 광고성 정보 수신" right={

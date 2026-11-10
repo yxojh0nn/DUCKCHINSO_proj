@@ -55,7 +55,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
 
   const toPost = (p: Row, liked: Set<string>): Post => ({
     id: p.id, author: card(p.author), title: p.title, body: p.body, tags: p.tags ?? [], imageUrls: p.image_urls ?? [],
-    likeCount: p.like_count, commentCount: p.comment_count, likedByMe: liked.has(p.id), createdAt: p.created_at,
+    likeCount: p.like_count, commentCount: p.comment_count, likedByMe: liked.has(p.id), createdAt: p.created_at, concertId: p.concert_id ?? null,
   })
 
   const api: Api = {
@@ -171,6 +171,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
         loginMethod: prof.is_guest ? 'guest' : login.data?.social ?? (s.session?.user.app_metadata.provider as LoginMethod | undefined) ?? 'email',
         email: login.data?.social === 'kakao' ? null : s.session?.user.email ?? null,
         needsLoginId: login.data?.needs_login_id === true,
+        notify: { friend: prof.notify_friend ?? true, like: prof.notify_like ?? true, comment: prof.notify_comment ?? true, concert: prof.notify_concert ?? true },
         isAdmin: adm.data === true,
       }
     },
@@ -183,6 +184,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       if (patch.bannerUrl !== undefined) row.banner_url = patch.bannerUrl
       if (patch.profileSetupDone !== undefined) row.profile_setup_done = patch.profileSetupDone
       if (patch.notifyEnabled !== undefined) row.notify_enabled = patch.notifyEnabled
+      for (const [k, v] of Object.entries(patch.notify ?? {})) row[`notify_${k}`] = v
       if (patch.communityAgreed) {
         row.community_agreed_at = new Date().toISOString()
         ok(await sb.from('consents').insert({ user_id: id, item: 'community', version: CONSENT_VERSION, agreed: true }))
@@ -365,6 +367,8 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
         .eq('status', 'visible').order('created_at', { ascending: false }).limit(50)
       if (filter.tag) q = q.contains('tags', [filter.tag])
       if (filter.authorId) q = q.eq('author_id', filter.authorId)
+      if (filter.concertId) q = q.eq('concert_id', filter.concertId)
+      if (filter.reviews) q = q.or('concert_id.not.is.null,tags.cs.{후기}')
       if (filter.q) {
         const s = filter.q.replace(/[%,()]/g, ' ')
         q = q.or(`title.ilike.%${s}%,body.ilike.%${s}%`)
@@ -380,10 +384,10 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       const { data: like } = await sb.from('post_likes').select('post_id').eq('post_id', id).eq('user_id', me).maybeSingle()
       return toPost(r, new Set(like ? [id] : []))
     },
-    async createPost({ title, body, tags, images }) {
+    async createPost({ title, body, tags, images, concertId }) {
       const me = await uid()
       const urls = await Promise.all(images.map((b) => api.uploadImage('posts', b)))
-      const r = ok(await sb.from('posts').insert({ author_id: me, title, body, tags, image_urls: urls }).select('id').single()) as Row
+      const r = ok(await sb.from('posts').insert({ author_id: me, title, body, tags, image_urls: urls, concert_id: concertId ?? null }).select('id').single()) as Row
       return r.id
     },
     async deletePost(id) {
@@ -393,12 +397,16 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       return ok(await sb.rpc('toggle_post_like', { p: postId })) as boolean
     },
     async listComments(postId) {
-      const rows = ok(await sb.from('comments').select('*, author:profiles!comments_author_id_fkey(id, nickname, bio, avatar_url)')
+      const rows = ok(await sb.from('comments')
+        .select('*, author:profiles!comments_author_id_fkey(id, nickname, bio, avatar_url), reply:profiles!comments_reply_to_fkey(id, nickname)')
         .eq('post_id', postId).order('created_at')) as Row[]
-      return rows.map((r) => ({ id: r.id, postId: r.post_id, author: card(r.author), body: r.body, createdAt: r.created_at }))
+      return rows.map((r) => ({
+        id: r.id, postId: r.post_id, author: card(r.author), body: r.body, createdAt: r.created_at,
+        parentId: r.parent_id, replyTo: r.reply ? { id: r.reply.id, nickname: r.reply.nickname } : null,
+      }))
     },
-    async addComment(postId, body) {
-      ok(await sb.from('comments').insert({ post_id: postId, author_id: await uid(), body }))
+    async addComment(postId, body, reply) {
+      ok(await sb.from('comments').insert({ post_id: postId, author_id: await uid(), body, parent_id: reply?.parentId ?? null, reply_to: reply?.toUserId ?? null }))
     },
 
     async submitInquiry(input) {

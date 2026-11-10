@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { Concert } from '@/api'
-import { fmtRange } from '@/lib/date'
+import { fmtRange, isPastConcert } from '@/lib/date'
 import { IconTicket } from './icons'
 import { Poster } from './Poster'
 
@@ -12,7 +12,7 @@ export function ConcertRow({ concert, favorite, right }: { concert: Concert; fav
         <Poster id={concert.id} url={concert.posterUrl} title={concert.title} className="h-[76px] w-[56px] shrink-0 rounded-[8px]" />
         <div className="min-w-0 flex-1 py-0.5">
           <p className="line-clamp-2 t-body font-semibold">{concert.title}</p>
-          <p className="mt-1 t-sub text-graphite num">{fmtRange(concert.schedules)}</p>
+          <p className="mt-1 t-sub text-graphite num">{fmtRange(concert.schedules)}{isPastConcert(concert) && <span className="ml-1.5 font-semibold">· 지난 공연</span>}</p>
           <p className="truncate t-sub text-graphite">{concert.venue}</p>
         </div>
         {favorite && <><IconTicket size={18} filled className="mt-1 shrink-0" /><span className="sr-only">관심 공연</span></>}

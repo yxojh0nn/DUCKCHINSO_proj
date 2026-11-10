@@ -194,13 +194,6 @@ export default function App() {
   useEffect(() => { applyTheme(theme, themed.current); themed.current = true }, [theme])
   useLiveSync(session.data)
   useNativeAuthReturn()
-  const me = useMe()
-  const qc = useQueryClient()
-  useEffect(() => {
-    if (!me.data?.isGuest) return
-    const t = setInterval(() => document.visibilityState === 'visible' && qc.invalidateQueries({ queryKey: keys.me }), 10 * 60_000)
-    return () => clearInterval(t)
-  }, [me.data?.isGuest, qc])
   const { pathname } = useLocation()
   const wide = useWide()
   const split = wide ? splitOf(SPLITS, pathname) : undefined

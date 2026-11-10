@@ -3,7 +3,7 @@
 import { CONSENT_VERSION, REQUIRED_KEYS } from '@/data/consent'
 import { LOGIN_ID } from './types'
 import { ARTISTS, AUTO_REPLIES, DEMO_POSTS, DEMO_USERS, GENRES, buildConcerts } from './demoData'
-import type { Api, Artist, Concert, LoginMethod, Message, Post, Profile, RealtimeEvent, UserCard } from './types'
+import type { Api, Artist, Concert, LoginMethod, NotifyPrefs, Message, Post, Profile, RealtimeEvent, UserCard } from './types'
 
 // pnpm fetch:opendata 로 받은 실제 공연·아티스트(KOPIS·MusicBrainz). 파일이 없거나 공연이 0건이면 샘플을 쓴다
 type OpenData = { fetchedAt: string; artists: Artist[]; concerts: Concert[] }
@@ -18,12 +18,13 @@ type Acc = Profile & {
   consents: { item: string; agreed: boolean; version: string }[]
   email: string | null; password: string | null
   method: LoginMethod; loginId: string | null
+  notify?: Partial<NotifyPrefs>
 }
 type Req = { id: string; from: string; to: string; status: 'pending' | 'accepted' | 'declined'; createdAt: number; expiresAt: number }
 type RoomRow = { id: string; kind: 'dm' | 'support'; members: string[]; lastRead: Record<string, number>; createdAt: number }
 type MsgRow = Omit<Message, 'createdAt'> & { createdAt: number }
-type PostRow = { id: string; authorId: string; title: string; body: string; tags: string[]; imageUrls: string[]; likes: string[]; createdAt: number }
-type CommentRow = { id: string; postId: string; authorId: string; body: string; createdAt: number }
+type PostRow = { id: string; authorId: string; title: string; body: string; tags: string[]; imageUrls: string[]; likes: string[]; createdAt: number; concertId?: string | null }
+type CommentRow = { id: string; postId: string; authorId: string; body: string; createdAt: number; parentId?: string | null; replyTo?: string | null }
 type DB = {
   session: string | null
   accounts: Record<string, Acc>
@@ -126,7 +127,7 @@ export function createDemoApi(): Api {
   const toPost = (p: PostRow, uid: string): Post => ({
     id: p.id, author: card(p.authorId), title: p.title, body: p.body, tags: p.tags, imageUrls: p.imageUrls,
     likeCount: p.likes.length, commentCount: db.comments.filter((c) => c.postId === p.id).length,
-    likedByMe: p.likes.includes(uid), createdAt: iso(p.createdAt),
+    likedByMe: p.likes.includes(uid), createdAt: iso(p.createdAt), concertId: p.concertId ?? null,
   })
 
   const api: Api = {
@@ -210,12 +211,14 @@ export function createDemoApi(): Api {
         consentsOk: REQUIRED_KEYS.every((k) => latest.get(k)?.agreed && latest.get(k)?.version === CONSENT_VERSION),
         loginMethod: a.isGuest ? 'guest' : method,
         needsLoginId: !a.isGuest && method === 'email' && !loginId,
+        notify: { friend: true, like: true, comment: true, concert: true, ...a.notify },
         isAdmin: false,
       }
     },
     async updateMe(patch) {
       const a = me()
-      const { communityAgreed, ...rest } = patch
+      const { communityAgreed, notify, ...rest } = patch
+      if (notify) a.notify = { ...a.notify, ...notify }
       if (rest.nickname && Object.values(db.accounts).some((x) => x.id !== a.id && x.nickname === rest.nickname)) throw new Error('이미 쓰고 있는 닉네임이에요.')
       Object.assign(a, rest)
       if (communityAgreed) {
@@ -407,6 +410,8 @@ export function createDemoApi(): Api {
         .filter((p) => p.authorId === a.id || !blockedBetween(a.id, p.authorId))
         .filter((p) => !filter.tag || p.tags.includes(filter.tag))
         .filter((p) => !filter.authorId || p.authorId === filter.authorId)
+        .filter((p) => !filter.concertId || p.concertId === filter.concertId)
+        .filter((p) => !filter.reviews || !!p.concertId || p.tags.includes('후기'))
         .filter((p) => !s || `${p.title} ${p.body} ${p.tags.join(' ')}`.toLowerCase().includes(s))
         .sort((x, y) => y.createdAt - x.createdAt)
         .map((p) => toPost(p, a.id))
@@ -416,10 +421,10 @@ export function createDemoApi(): Api {
       if (!p) throw new Error('not_found')
       return toPost(p, me().id)
     },
-    async createPost({ title, body, tags, images }) {
+    async createPost({ title, body, tags, images, concertId }) {
       const a = me()
       const urls = await Promise.all(images.map((b) => api.uploadImage('posts', b)))
-      const p: PostRow = { id: id(), authorId: a.id, title, body, tags, imageUrls: urls, likes: [], createdAt: Date.now() }
+      const p: PostRow = { id: id(), authorId: a.id, title, body, tags, imageUrls: urls, likes: [], createdAt: Date.now(), concertId: concertId ?? null }
       db.posts.push(p)
       save()
       return p.id
@@ -441,10 +446,11 @@ export function createDemoApi(): Api {
     async listComments(pid) {
       const a = me()
       return db.comments.filter((c) => c.postId === pid && !blockedBetween(a.id, c.authorId))
-        .map((c) => ({ id: c.id, postId: c.postId, author: card(c.authorId), body: c.body, createdAt: iso(c.createdAt) }))
+        .map((c) => ({ id: c.id, postId: c.postId, author: card(c.authorId), body: c.body, createdAt: iso(c.createdAt), parentId: c.parentId ?? null, replyTo: c.replyTo ? { id: c.replyTo, nickname: card(c.replyTo).nickname } : null }))
     },
-    async addComment(pid, body) {
-      db.comments.push({ id: id(), postId: pid, authorId: me().id, body, createdAt: Date.now() })
+    async addComment(pid, body, reply) {
+      const parent = reply && db.comments.find((c) => c.id === reply.parentId)
+      db.comments.push({ id: id(), postId: pid, authorId: me().id, body, createdAt: Date.now(), parentId: parent ? parent.parentId ?? parent.id : null, replyTo: reply?.toUserId ?? null })
       save()
     },
 

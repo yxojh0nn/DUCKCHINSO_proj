@@ -40,6 +40,7 @@ export type Me = Profile & {
   email: string | null // 카카오 계정은 이메일을 받지 않아 null
   loginMethod: LoginMethod
   needsLoginId: boolean // 이메일로 가입했는데 아직 로그인 아이디를 안 만들었다 → 아이디 만들기 화면으로
+  notify: NotifyPrefs
   isAdmin: boolean // 운영자 메뉴 표시용. 실제 권한은 DB(RLS·is_admin())가 확인한다
 }
 
@@ -172,9 +173,13 @@ export type Post = {
   commentCount: number
   likedByMe: boolean
   createdAt: string
+  concertId: string | null // 공연 후기면 그 공연
 }
 
-export type Comment = { id: string; postId: string; author: UserCard; body: string; createdAt: string }
+// parentId: 대댓글이면 원 댓글, replyTo: 누구에게 단 답글인지
+export type Comment = { id: string; postId: string; author: UserCard; body: string; createdAt: string; parentId: string | null; replyTo: { id: string; nickname: string } | null }
+// 알림 종류별 켜고 끄기 (서비스 알림이 켜져 있을 때만 의미)
+export type NotifyPrefs = { friend: boolean; like: boolean; comment: boolean; concert: boolean }
 
 export type ReportReason = 'abuse' | 'sexual' | 'scam' | 'spam' | 'harmful_image' | 'etc'
 export type ReportTarget = { userId?: string; postId?: string; commentId?: string; messageId?: string }
@@ -195,6 +200,7 @@ export type ImageKind = 'avatar' | 'banner' | 'posts'
 export type RealtimeEvent = { type: 'message'; roomId: string } | { type: 'request' }
 
 export type ProfilePatch = Partial<Pick<Profile, 'nickname' | 'bio' | 'avatarUrl' | 'bannerUrl' | 'profileSetupDone' | 'notifyEnabled'>> & {
+  notify?: Partial<NotifyPrefs>
   communityAgreed?: boolean
 }
 
@@ -260,13 +266,13 @@ export interface Api {
   subscribe(cb: (e: RealtimeEvent) => void): () => void
 
   // 커뮤니티
-  listPosts(filter: { q?: string; tag?: string; authorId?: string }): Promise<Post[]>
+  listPosts(filter: { q?: string; tag?: string; authorId?: string; concertId?: string; reviews?: boolean }): Promise<Post[]> // reviews: 공연 후기(공연 연결 또는 '후기' 태그)
   getPost(id: string): Promise<Post>
-  createPost(input: { title: string; body: string; tags: string[]; images: Blob[] }): Promise<string>
+  createPost(input: { title: string; body: string; tags: string[]; images: Blob[]; concertId?: string | null }): Promise<string>
   deletePost(id: string): Promise<void>
   toggleLike(postId: string): Promise<boolean>
   listComments(postId: string): Promise<Comment[]>
-  addComment(postId: string, body: string): Promise<void>
+  addComment(postId: string, body: string, reply?: { parentId: string; toUserId: string }): Promise<void>
 
   // 문의
   submitInquiry(input: InquiryInput): Promise<void>
