@@ -1,0 +1,37 @@
+<!doctype html>
+<!-- 링크 미리보기 이미지(1200×630) 원본. 디자인 캔버스 "덕친소 링크 미리보기 정리" 시안과 같은 값
+     고친 뒤 아래 명령으로 public/og.png 를 다시 만든다 (Chrome 헤드리스)
+     "C:\Program Files\Google\Chrome\Application\chrome.exe" --headless --hide-scrollbars --window-size=1200,630 --screenshot="<저장소>\public\og.png" "<저장소>\design\og\og.html"
+     로고는 src/screens/auth/Wordmark.tsx 의 심볼과 같은 모양 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: "Pretendard Variable"; src: url("../../node_modules/pretendard/dist/web/variable/woff2/PretendardVariable.woff2") format("woff2"); font-weight: 45 920; font-display: block; }
+  html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; }
+  .card { width: 1200px; height: 630px; box-sizing: border-box; position: relative; background: #FFFFFF; color: #18181A;
+          font-family: "Pretendard Variable", sans-serif; padding: 0 104px 36px; display: flex; flex-direction: column; justify-content: center; gap: 52px; }
+  .brand { display: flex; align-items: center; gap: 22px; }
+  /* 심볼 상자의 안쪽 여백만큼 당겨 보이는 왼쪽 끝을 맞춘다 */
+  .brand svg { flex-shrink: 0; margin-left: -12px; margin-top: 10px; }
+  .name { margin: 0; font-size: 100px; font-weight: 800; letter-spacing: -0.045em; line-height: 1; }
+  .tag { display: flex; align-items: center; gap: 20px; }
+  .amp { font-size: 156px; font-weight: 250; line-height: 0.8; letter-spacing: 0; margin-left: -6px; }
+  .lines { margin: 0; font-size: 50px; font-weight: 600; letter-spacing: -0.04em; line-height: 1.24; }
+  .url { position: absolute; left: 104px; bottom: 52px; margin: 0; font-size: 26px; font-weight: 500; letter-spacing: -0.01em; color: #66666B; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">
+      <svg viewBox="0 0 256 256" width="128" height="128" aria-hidden="true">
+        <path fill="#18181A" fill-rule="evenodd" d="M48 44 H208 A24 24 0 0 1 232 68 V100 A22 22 0 0 0 232 144 V164 A24 24 0 0 1 208 188 H104 L60 224 V188 H48 A24 24 0 0 1 24 164 V68 A24 24 0 0 1 48 44 Z M166 66 h12 v18 h-12 Z M166 98 h12 v18 h-12 Z M166 130 h12 v18 h-12 Z M166 162 h12 v4 h-12 Z"/>
+        <g fill="#FFFFFF"><rect x="70" y="92" width="14" height="48"/><rect x="96" y="78" width="14" height="76"/><rect x="122" y="98" width="14" height="36"/></g>
+      </svg>
+      <h1 class="name">덕친소</h1>
+    </div>
+    <div class="tag"><span class="amp" aria-hidden="true">&amp;</span><p class="lines">J-POP 공연 캘린더<br>커뮤니티</p></div>
+    <p class="url">duckchinso.com</p>
+  </div>
+</body>
+</html>
