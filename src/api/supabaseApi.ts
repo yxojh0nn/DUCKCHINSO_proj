@@ -242,6 +242,9 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       if (on) ok(await sb.from('favorites').upsert({ user_id: id, concert_id: concertId }))
       else ok(await sb.from('favorites').delete().eq('user_id', id).eq('concert_id', concertId))
     },
+    async submitTicketTip(concertId, openAt, sourceUrl) {
+      ok(await sb.rpc('submit_ticket_tip', { concert: concertId, open_at: openAt, source_url: sourceUrl }))
+    },
 
     async getProfile(userId) {
       const me = await uid()
@@ -453,6 +456,31 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     },
     async adminGetArtist(id) {
       return adminArtist(ok(await sb.from('artists').select('id, name, name_ja, name_en, aliases, source').eq('id', id).single()) as Row)
+    },
+    async adminTicketTips() {
+      const rows = ok(await sb.rpc('admin_ticket_tips')) as Row[]
+      return rows.map((r) => ({
+        id: r.id, concertId: r.concert_id, concertTitle: r.concert_title, currentOpenAt: r.current_open_at, openAt: r.open_at,
+        sourceUrl: r.source_url, status: r.status, user: r.user_id ? { id: r.user_id, nickname: r.nickname } : null,
+        createdAt: r.created_at, resolvedAt: r.resolved_at,
+      }))
+    },
+    async adminResolveTicketTip(id, approve) {
+      ok(await sb.rpc('admin_resolve_ticket_tip', { tip: id, approve }))
+    },
+    async adminUsers(q, page) {
+      const rows = ok(await sb.rpc('admin_users', { q, lim: 50, off: page * 50 })) as Row[]
+      return {
+        total: Number(rows[0]?.total ?? 0),
+        users: rows.map((r) => ({
+          id: r.id, nickname: r.nickname, isGuest: r.is_guest, status: r.status, isAdmin: r.is_admin, login: r.login,
+          createdAt: r.created_at, lastSeenAt: r.last_seen_at, sanctions: r.sanctions,
+        })),
+      }
+    },
+    async adminUserStats() {
+      const r = (ok(await sb.rpc('admin_user_stats')) as Row[])[0] ?? {}
+      return { members: Number(r.members ?? 0), guests: Number(r.guests ?? 0), active7d: Number(r.active_7d ?? 0), suspended: Number(r.suspended ?? 0), banned: Number(r.banned ?? 0) }
     },
     async adminReports() {
       const rows = ok(await sb.rpc('admin_reports')) as Row[]

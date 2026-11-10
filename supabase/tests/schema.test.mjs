@@ -23,7 +23,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -224,4 +224,35 @@ assert.equal((await db.query(`select count(*)::int n from public.posts`)).rows[0
 assert.equal((await db.query(`select reporter from public.reports where id = $1`, [repByA])).rows[0].reporter, null)
 assert.equal((await db.query(`select count(*)::int n from public.user_artists where user_id = $1`, [ids.b])).rows[0].n, 1)
 assert.equal((await db.query(`select count(*)::int n from public.login_ids`)).rows[0].n, 0) // 탈퇴하면 아이디도 지워진다
+// 예매 오픈일 제보: 회원만, 하루 10건, 같은 공연 대기 1건 → 운영자 승인 시 공연에 반영·제보자에게 알림
+ids.d = (await db.query(`insert into auth.users (email) values ('d@x.com') returning id`)).rows[0].id
+await db.query(`insert into auth.identities (user_id, provider) values ($1, 'email')`, [ids.d])
+await db.query(`update public.profiles set is_guest = false where id = $1`, [ids.d])
+const soon = new Date(Date.now() + 7 * 86400e3).toISOString()
+await as('d', `select public.submit_ticket_tip($1, $2, 'https://example.com/notice')`, [con, soon])
+await assert.rejects(as('d', `select public.submit_ticket_tip($1, $2, 'https://example.com/2')`, [con, soon]), /tip_exists/)
+await assert.rejects(as('d', `select public.submit_ticket_tip($1, $2, 'javascript:alert(1)')`, [con, soon]), /tip_bad_url|tip_exists/)
+await assert.rejects(as('d', `select public.submit_ticket_tip($1, now() + interval '3 years', 'https://e.com')`, [con]), /tip_bad_date/)
+await assert.rejects(as('c', `select public.submit_ticket_tip($1, $2, 'https://e.com')`, [con, soon]), /members_only/)
+await assert.rejects(as('d', `select * from public.ticket_open_tips`), /permission denied/)
+await assert.rejects(as('d', `select * from public.admin_ticket_tips()`), /forbidden/)
+const tips = (await as('b', `select * from public.admin_ticket_tips()`)).rows
+assert.equal(tips.length, 1); assert.equal(tips[0].status, 'pending'); assert.equal(tips[0].current_open_at, null)
+await as('b', `select public.admin_resolve_ticket_tip($1, true)`, [tips[0].id])
+assert.equal(new Date((await db.query(`select ticket_open_at from public.concerts where id = $1`, [con])).rows[0].ticket_open_at).toISOString(), soon)
+assert.equal((await db.query(`select status from public.ticket_open_tips where id = $1`, [tips[0].id])).rows[0].status, 'approved')
+assert.ok((await db.query(`select 1 from public.messages m join public.chat_members cm on cm.room_id = m.room_id where cm.user_id = $1 and m.body like '%예매 오픈일%'`, [ids.d])).rows.length)
+await assert.rejects(as('b', `select public.admin_resolve_ticket_tip($1, false)`, [tips[0].id]), /not_found/) // 이미 처리됨
+
+// 운영자 전체 사용자: 검색·전체 수·로그인 방식, 운영자만
+const users = (await as('b', `select * from public.admin_users('', 50, 0)`)).rows
+assert.ok(users.length >= 3); assert.equal(Number(users[0].total), users.length)
+assert.equal(users.find((u) => u.id === ids.d).login, 'email')
+assert.equal(users.find((u) => u.id === ids.c).login, 'guest')
+assert.equal(users.find((u) => u.id === ids.b).is_admin, true)
+const dNick = users.find((u) => u.id === ids.d).nickname
+assert.deepEqual((await as('b', `select id from public.admin_users($1)`, [dNick])).rows.map((r) => r.id), [ids.d])
+const stats = (await as('b', `select * from public.admin_user_stats()`)).rows[0]
+assert.ok(Number(stats.members) >= 2 && Number(stats.guests) >= 1)
+await assert.rejects(as('d', `select * from public.admin_users()`), /forbidden/)
 console.log('ALL OK')

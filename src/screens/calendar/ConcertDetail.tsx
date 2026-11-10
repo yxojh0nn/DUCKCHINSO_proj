@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { api, errorText } from '@/api'
 import { AppHeader, HeaderButton } from '@/components/AppHeader'
 import { IconExternal, IconPin, IconTicket } from '@/components/icons'
 import { Poster } from '@/components/Poster'
+import { TicketTipSheet } from '@/components/TicketTipSheet'
 import { Empty } from '@/components/ui/Empty'
 import { fmtDateTime, fmtTime, fmtDay, kstDayKey, won } from '@/lib/date'
 import { openGoogleMap, openKakaoMap, openTicket } from '@/lib/external'
@@ -27,6 +29,7 @@ export default function ConcertDetail() {
   const concerts = useConcerts()
   const artists = useArtists().data ?? []
   const me = useMe().data
+  const [tipOpen, setTipOpen] = useState(false)
   const c = concerts.data?.find((x) => x.id === id)
 
   if (concerts.isLoading) return <AppHeader back />
@@ -71,6 +74,12 @@ export default function ConcertDetail() {
         </Info>
         <Info label="예매 일자">
           {c.ticketOpenAt ? <span className="num">{fmtDateTime(c.ticketOpenAt)}{opened ? ' · 예매 중' : ' 오픈 예정'}</span> : <span className="text-graphite">예매 일정 미정</span>}
+          {/* 회원만: 아직 열리지 않은 공연의 예매 오픈일 제보 (날짜가 없거나 바뀐 경우) */}
+          {!opened && me && !me.isGuest && (
+            <button onClick={() => setTipOpen(true)} className="mt-1 flex h-9 items-center t-sub text-graphite underline underline-offset-4">
+              {c.ticketOpenAt ? '다른 날짜를 봤어요' : '예매 오픈일 알려 주기'}
+            </button>
+          )}
         </Info>
         <Info label="공연 위치">
           <p>{c.venue}{c.region ? ` · ${c.region}` : ''}</p>
@@ -93,6 +102,7 @@ export default function ConcertDetail() {
           </button>
         ))}
       </div>
+      <TicketTipSheet open={tipOpen} onClose={() => setTipOpen(false)} concertId={c.id} />
     </div>
   )
 }

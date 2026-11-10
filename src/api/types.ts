@@ -69,6 +69,30 @@ export type InboxItem = {
   endDate: string | null
   concert: { id: string; status: AdminConcert['status'] } | null // 이미 가져온 공연
 }
+export type AdminTicketTip = {
+  id: string
+  concertId: string
+  concertTitle: string
+  currentOpenAt: string | null // 공연에 지금 들어 있는 예매 오픈일
+  openAt: string // 제보한 날짜
+  sourceUrl: string
+  status: 'pending' | 'approved' | 'rejected'
+  user: { id: string; nickname: string } | null
+  createdAt: string
+  resolvedAt: string | null
+}
+export type AdminUser = {
+  id: string
+  nickname: string
+  isGuest: boolean
+  status: 'active' | 'suspended' | 'banned'
+  isAdmin: boolean
+  login: string // guest · email · kakao · naver · google · apple (여러 개면 쉼표)
+  createdAt: string
+  lastSeenAt: string
+  sanctions: number
+}
+export type AdminUserStats = { members: number; guests: number; active7d: number; suspended: number; banned: number }
 export type AdminArtist = Artist & { aliases: string[]; source: 'admin' | 'musicbrainz' }
 export type SanctionLevel = 'warning' | 'suspend' | 'ban'
 export type WordCategory = 'abuse' | 'sexual' | 'hate' | 'scam'
@@ -209,6 +233,7 @@ export interface Api {
   listConcerts(): Promise<Concert[]>
   openDataUpdatedAt(): Promise<string | null> // KOPIS 공연 정보를 마지막으로 받은 시각 (출처 표시의 최종집계일)
   setFavorite(concertId: string, on: boolean): Promise<void>
+  submitTicketTip(concertId: string, openAt: string, sourceUrl: string): Promise<void> // 예매 오픈일 제보 (회원만)
 
   // 사람·친구
   getProfile(userId: string): Promise<PublicProfile>
@@ -262,6 +287,10 @@ export interface Api {
   adminWords(): Promise<{ banned: BannedWord[]; allowed: string[] }>
   adminAddWord(input: { allowed: true; word: string } | ({ allowed?: false } & BannedWord)): Promise<void>
   adminDeleteWord(allowed: boolean, word: string): Promise<void>
+  adminTicketTips(): Promise<AdminTicketTip[]> // 확인 대기 전체 + 최근 처리분
+  adminResolveTicketTip(id: string, approve: boolean): Promise<void>
+  adminUsers(q: string, page: number): Promise<{ users: AdminUser[]; total: number }> // 50명씩
+  adminUserStats(): Promise<AdminUserStats>
   adminTestText(text: string): Promise<{ word: string | null; masked: string }> // 걸린 단어, 채팅에서 가려지는 모습
 }
 
@@ -280,6 +309,10 @@ export const errorText = (e: unknown) => {
     kopis_unavailable: 'KOPIS에서 공연 정보를 받지 못했어요. 잠시 후 다시 시도해 주세요.',
     word_exists: '이미 목록에 있는 단어예요.',
     blocked_word:'사용할 수 없는 표현이 들어 있어요. 고쳐서 다시 올려 주세요.',
+    members_only: '회원만 할 수 있어요. 회원 로그인 후 이용해 주세요.',
+    tip_exists: '이 공연에 보낸 제보를 운영자가 확인하고 있어요.',
+    tip_bad_date: '날짜를 다시 확인해 주세요. (최근 30일 ~ 1년 뒤)',
+    tip_bad_url: 'https:// 로 시작하는 공지 링크를 넣어 주세요.',
     email_code_invalid: '인증 코드가 맞지 않아요.',
     email_code_expired: '인증 코드가 만료됐어요. 인증 메일을 다시 받아 주세요.',
     email_ticket_expired: '메일 인증 시간이 지났어요. 다시 인증해 주세요.',
