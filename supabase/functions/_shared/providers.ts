@@ -6,7 +6,8 @@ import { decrypt } from './crypto.ts'
 export type Provider = 'naver' | 'kakao'
 
 // 카카오 계정은 이메일을 받지 않는다(카카오 회원번호로 계정을 찾는다). auth 에 이메일 칸이 필요해 넣는 자리 채움 주소. 이 주소로 메일을 보내지 않는다
-export const NO_MAIL_DOMAIN = 'kakao.noemail.duckchinso.app'
+// 예전 계정은 kakao.noemail.duckchinso.app 주소를 쓴다 (mail.ts 가 둘 다 막는다)
+export const NO_MAIL_DOMAIN = 'kakao.noemail.duckchinso.com'
 
 const env = (n: string) => Deno.env.get(n) ?? ''
 const qs = (o: Record<string, string>) => new URLSearchParams(o).toString()

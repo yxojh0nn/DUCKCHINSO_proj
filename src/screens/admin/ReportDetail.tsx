@@ -21,6 +21,8 @@ const SANCTIONS: Choice[] = [
   { value: 'ban', label: '영구 제한', level: 'ban' },
 ]
 const HIDE_LABEL = { post: '글 숨기기', comment: '댓글 지우기', message: '채팅 메시지 가리기', profile: '' } as const
+// DB 함수 admin_sanction 과 같은 규칙 (마이그레이션 14)
+const WARNING_RULE = '경고가 쌓이면 자동으로 제재돼요: 1회 7일, 2회 14일 커뮤니티·채팅 이용 제한, 3회 계정 정지.'
 const TARGET_STATUS = { active: '정상', suspended: '이용 제한 중', banned: '영구 제한' } as const
 
 // 신고 한 건: 원문 확인 → 내용 가리기와 함께 조치 완료, 또는 기각 → 필요하면 작성자 제재
@@ -108,6 +110,7 @@ function ReportForm({ r }: { r: AdminReport }) {
               </button>
             ))}
           </div>
+          {choice.level === 'warning' && <p className="mt-3 t-sub text-graphite">{WARNING_RULE}</p>}
           <TextField className="mt-4" label="사유 (당사자에게 그대로 보여요)" value={why} onChange={(e) => setWhy(e.target.value)} maxLength={200} />
           <Button block variant={choice.level === 'warning' ? 'secondary' : 'dangerFill'} className="mt-4" disabled={busy || !why.trim()} onClick={() => setConfirm(true)}>
             {choice.label} 적용
@@ -116,7 +119,8 @@ function ReportForm({ r }: { r: AdminReport }) {
       )}
 
       <Confirm open={confirm} title={`${r.target?.nickname ?? ''} 님에게 ${choice.label}을 적용할까요?`}
-        message={choice.level === 'ban' ? '영구 제한은 되돌리려면 DB에서 직접 풀어야 해요. 당사자에게 운영팀 대화방으로 알려요.' : '당사자에게 운영팀 대화방으로 알려요.'}
+        message={choice.level === 'ban' ? '영구 제한은 되돌리려면 DB에서 직접 풀어야 해요. 당사자에게 운영팀 대화방으로 알려요.'
+          : choice.level === 'warning' ? `${WARNING_RULE} 당사자에게 운영팀 대화방으로 알려요.` : '당사자에게 운영팀 대화방으로 알려요.'}
         confirmLabel="적용" danger={choice.level !== 'warning'} onClose={() => setConfirm(false)} onConfirm={sanction} />
     </div>
   )
