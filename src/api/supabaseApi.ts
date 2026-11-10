@@ -230,7 +230,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       return rows.map((r): Concert => ({
         id: r.id, title: r.title, posterUrl: r.poster_url, venue: r.venue_name, venueQuery: r.venue_query,
         region: r.region, priceText: r.price_text, priceMin: r.price_min, priceMax: r.price_max,
-        ticketOpenAt: r.ticket_open_at, genreId: r.genre_id,
+        ticketOpenAt: r.ticket_open_at, genreId: r.genre_id, introUrls: r.intro_urls ?? [],
         artistIds: r.concert_artists.map((a: Row) => a.artist_id),
         schedules: r.concert_schedules.map((s: Row) => new Date(s.starts_at).toISOString()).sort(),
         links: r.ticket_links,

@@ -5,6 +5,7 @@ export type KopisDetail = KopisListItem & {
   cast: string; priceText: string; schedule: string; links: { vendor: string; url: string }[]
   visit: boolean // 내한 공연 여부 (KOPIS visit=Y)
   promoter: string // 제작·기획·주최·주관사 (중복 제거, 쉼표로)
+  intro: string[] // 소개 이미지(styurls) 주소 — 포스터보다 큰 상세 안내 이미지
 }
 export type ArtistKey = { id: string; names: string[] }
 
@@ -45,6 +46,7 @@ export const parseDetail = (xml: string): KopisDetail => {
       .flatMap((k) => tag(b, k).split(',')).map((x) => x.trim()).filter(Boolean))].join(', '),
     links: blocks(b, 'relate').map((r) => ({ vendor: tag(r, 'relatenm'), url: tag(r, 'relateurl') }))
       .filter((l) => /^https?:\/\//.test(l.url)),
+    intro: blocks(b, 'styurl').map((u) => u.trim()).filter((u) => /^https?:\/\//.test(u)),
   }
 }
 

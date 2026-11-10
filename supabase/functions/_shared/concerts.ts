@@ -40,6 +40,7 @@ export async function saveConcert(db: SupabaseClient, d: KopisDetail, verdict: V
     region: shortRegion(d.area), price_text: d.priceText || null, price_min: priceMin, price_max: priceMax,
     status, source: existing?.source ?? 'kopis', last_date: d.to, updated_at: new Date().toISOString(),
     review_score: verdict.score, review_reasons: verdict.reasons, visit: d.visit, cast_text: d.cast || null, promoter: d.promoter || null,
+    intro_urls: d.intro,
   }
   const { data: saved, error } = await db.from('concerts').upsert(row, { onConflict: 'kopis_id' }).select('id, status').single()
   if (error || !saved) return null
