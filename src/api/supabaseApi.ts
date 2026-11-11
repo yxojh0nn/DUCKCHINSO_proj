@@ -130,6 +130,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     async updatePassword(password) {
       const { error } = await sb.auth.updateUser({ password })
       if (error) throw error
+      await sb.auth.signOut({ scope: 'others' }) // 비밀번호를 바꾸면 다른 기기 로그인은 끊는다 (도용 대비)
     },
     async signOut() {
       await sb.auth.signOut()
@@ -528,6 +529,9 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
         id: r.id, user: { id: r.user_id, nickname: r.nickname ?? '탈퇴한 사용자', isGuest: !!r.is_guest }, category: r.category,
         answers: r.answers ?? {}, body: r.body, status: r.status, answer: r.answer, answeredAt: r.answered_at, createdAt: r.created_at,
       }))
+    },
+    async adminDeleteInquiry(id) {
+      ok(await sb.rpc('admin_delete_inquiry', { p_id: id }))
     },
     async adminAnswerInquiry(id, answer) {
       const { data, error } = await sb.functions.invoke('answer-inquiry', { body: { inquiryId: id, answer } })

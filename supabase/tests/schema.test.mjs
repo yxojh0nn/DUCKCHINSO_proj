@@ -24,7 +24,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql', '20261111000030_inquiry_delete_and_hardening.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -443,6 +443,28 @@ await as('e', `update public.profiles set notify_like = false where id = $1`, [i
 const eRooms = (await as('e', `select room_id, kind, can_send from public.list_my_rooms()`)).rows
 assert.equal(eRooms.find((r) => r.room_id === dm).can_send, false)
 assert.equal(eRooms.find((r) => r.kind === 'support').can_send, true)
+// ── 마이그 30 ──
+// 답변 완료 문의만 운영자가 지운다. 대기 중은 거절, 일반 회원은 forbidden, 지운 사실은 운영 기록에
+const eInq = (await db.query(`select id from public.inquiries where user_id = $1 order by created_at desc limit 1`, [ids.e])).rows[0].id
+await assert.rejects(as('b', `select public.admin_delete_inquiry($1)`, [eInq]), /not_answered/)
+await db.query(`update public.inquiries set status = 'answered', answer = '답변', answered_at = now() where id = $1`, [eInq])
+await assert.rejects(as('d', `select public.admin_delete_inquiry($1)`, [eInq]), /forbidden/)
+await as('b', `select public.admin_delete_inquiry($1)`, [eInq])
+assert.equal((await db.query(`select count(*)::int n from public.inquiries where id = $1`, [eInq])).rows[0].n, 0)
+assert.equal((await db.query(`select count(*)::int n from public.admin_audit_log where table_name = 'inquiries' and action = 'delete' and actor = $1`, [ids.b])).rows[0].n, 1)
+await assert.rejects(as('b', `select public.admin_delete_inquiry($1)`, [eInq]), /not_found/)
+// 남의 차단 관계는 함수로도 알아낼 수 없다 (당사자만 true)
+await db.query(`insert into public.blocks (blocker, blocked) values ($1, $2)`, [ids.d, ids.e])
+assert.equal((await as('d', `select public.is_blocked_between($1, $2) as v`, [ids.d, ids.e])).rows[0].v, true)
+assert.equal((await as('b', `select public.is_blocked_between($1, $2) as v`, [ids.d, ids.e])).rows[0].v, false)
+await db.query(`delete from public.blocks where blocker = $1 and blocked = $2`, [ids.d, ids.e])
+// 비로그인(anon) 요청은 회원 전용 함수를 못 부른다. 공연 공개 정책이 쓰는 is_admin() 은 그대로
+await db.exec(`reset role; select set_config('request.uid', '', false); set role anon`)
+try {
+  await assert.rejects(db.query(`select public.my_profile()`), /permission denied/)
+  await assert.rejects(db.query(`select public.is_member()`), /permission denied/)
+  assert.ok((await db.query(`select count(*) from public.concerts where status = 'published'`)).rows.length)
+} finally { await db.exec('reset role') }
 // 알림 종류별 설정: 본인이 바꿀 수 있다
 await as('d', `update public.profiles set notify_like = false, notify_concert = false where id = $1`, [ids.d])
 assert.deepEqual((await db.query(`select notify_friend, notify_like, notify_comment, notify_concert from public.profiles where id = $1`, [ids.d])).rows[0],
