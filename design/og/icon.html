@@ -1,0 +1,30 @@
+<!doctype html>
+<!-- 대체 아이콘 원본: favicon.ico(16·32·48), apple-touch-icon.png(180). 최신 브라우저는 public/favicon.svg(다크 모드 대응)를 쓴다
+     다시 만들기: node scripts/make-icons.mjs  (Chrome 헤드리스로 크기별 PNG → ICO 묶기)
+     ?r=1 이면 둥근 모서리(파비콘), 없으면 꽉 찬 사각형(애플: iOS 가 모서리를 직접 깎는다) -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; overflow: hidden; background: transparent; }
+  /* 크기는 ?s=픽셀 로 받는다 (Chrome 헤드리스는 작은 창을 최소 폭으로 키우므로 화면 폭 단위를 쓰지 않는다) */
+  .tile { width: 180px; height: 180px; background: #FFFFFF; display: flex; align-items: center; justify-content: center; }
+  .round { border-radius: 22%; }
+  /* 심볼은 앱 로고와 같은 모양. 작은 크기에서도 보이게 타일의 88% 크기 */
+  svg { width: 88%; height: 88%; }
+</style>
+</head>
+<body>
+  <div class="tile" id="t">
+    <svg viewBox="0 0 256 256" aria-hidden="true">
+      <path fill="#18181A" fill-rule="evenodd" d="M48 44 H208 A24 24 0 0 1 232 68 V100 A22 22 0 0 0 232 144 V164 A24 24 0 0 1 208 188 H104 L60 224 V188 H48 A24 24 0 0 1 24 164 V68 A24 24 0 0 1 48 44 Z M166 66 h12 v18 h-12 Z M166 98 h12 v18 h-12 Z M166 130 h12 v18 h-12 Z M166 162 h12 v4 h-12 Z"/>
+      <g fill="#FFFFFF"><rect x="70" y="92" width="14" height="48"/><rect x="96" y="78" width="14" height="76"/><rect x="122" y="98" width="14" height="36"/></g>
+    </svg>
+  </div>
+  <script>
+    const q = new URLSearchParams(location.search), t = document.getElementById('t'), px = (q.get('s') || '180') + 'px'
+    t.style.width = px; t.style.height = px
+    if (q.get('r') === '1') t.classList.add('round')
+  </script>
+</body>
+</html>
