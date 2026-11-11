@@ -24,7 +24,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -71,7 +71,8 @@ assert.equal((await as('c', `select public.is_admin() as v`)).rows[0].v, false)
 // 남의 프로필: 공개 칸만. 마지막 접속 시각은 못 읽고, 내 것은 my_profile() 로 전부
 await assert.rejects(as('c', `select last_seen_at from public.profiles`), /permission denied/)
 await assert.rejects(as('c', `select * from public.profiles`), /permission denied/)
-assert.equal((await as('c', `select id, nickname from public.profiles`)).rows.length, 3)
+assert.deepEqual((await as('c', `select id from public.profiles`)).rows.map((r) => r.id), [ids.c]) // 비회원: 아직 글·댓글 쓴 사람이 없으면 자기만
+assert.equal((await as('a', `select id, nickname from public.profiles`)).rows.length, 3) // 회원: 전원
 const mine = (await as('a', `select * from public.my_profile()`)).rows
 assert.equal(mine.length, 1); assert.equal(mine[0].id, ids.a); assert.ok('last_seen_at' in mine[0])
 // 취향 표는 본인 것만 직접 읽힌다
@@ -122,6 +123,10 @@ const pid = post.rows[0].id
 assert.equal((await as('a', `select public.toggle_post_like($1) as v`, [pid])).rows[0].v, true)
 assert.equal((await as('a', `select public.toggle_post_like($1) as v`, [pid])).rows[0].v, false)
 await as('a', `insert into public.comments (post_id, author_id, body) values ($1, $2, 'c')`, [pid, ids.a])
+// 비회원은 글·댓글 작성자만 보인다 (b 는 아무것도 안 써서 안 보임). 글 목록의 작성자 이름은 그대로 나온다
+assert.deepEqual((await as('c', `select id from public.profiles`)).rows.map((r) => r.id).sort(), [ids.a, ids.c].sort())
+assert.equal((await as('c', `select a.nickname from public.posts p join public.profiles a on a.id = p.author_id where p.id = $1`, [pid])).rows.length, 1)
+assert.equal((await as('c', `select * from public.profile_card($1)`, [ids.b])).rows.length, 1) // 링크로 여는 상세 프로필은 된다
 // b blocked a → b doesn't see a's comment
 assert.equal((await as('b', `select * from public.comments`)).rows.length, 0)
 
