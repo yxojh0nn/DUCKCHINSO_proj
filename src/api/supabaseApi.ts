@@ -55,7 +55,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
 
   const toPost = (p: Row, liked: Set<string>): Post => ({
     id: p.id, author: card(p.author), title: p.title, body: p.body, tags: p.tags ?? [], imageUrls: p.image_urls ?? [],
-    likeCount: p.like_count, commentCount: p.comment_count, likedByMe: liked.has(p.id), createdAt: p.created_at, concertId: p.concert_id ?? null,
+    likeCount: p.like_count, commentCount: p.comment_count, likedByMe: liked.has(p.id), createdAt: p.created_at, concertId: p.concert_id ?? null, edited: !!p.edited_at,
   })
 
   const api: Api = {
@@ -69,8 +69,8 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       const { data } = sb.auth.onAuthStateChange((_e, s) => cb(s?.user.id ?? null))
       return () => data.subscription.unsubscribe()
     },
-    async signInGuest() {
-      const { error } = await sb.auth.signInAnonymously()
+    async signInGuest(captchaToken) {
+      const { error } = await sb.auth.signInAnonymously({ options: { captchaToken } })
       if (error) throw error
     },
     async signInOAuth(provider) {
@@ -102,8 +102,8 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       const { tokenHash } = await fn<{ tokenHash: string }>('login-id', { action: 'signup', ticket, loginId, password })
       await api.completeSocialLogin(tokenHash)
     },
-    async signInEmail(email, password) {
-      const { error } = await sb.auth.signInWithPassword({ email, password })
+    async signInEmail(email, password, captchaToken) {
+      const { error } = await sb.auth.signInWithPassword({ email, password, options: { captchaToken } })
       if (error) throw error
     },
     async signInLoginId(loginId, password) {
@@ -123,8 +123,8 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     async findLoginId(email) {
       return fn<{ mailReady: boolean }>('login-id', { action: 'find', email })
     },
-    async resetPassword(email) {
-      const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: `${authRedirect()}?next=password` })
+    async resetPassword(email, captchaToken) {
+      const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: `${authRedirect()}?next=password`, captchaToken })
       if (error) throw error
     },
     async updatePassword(password) {
@@ -144,7 +144,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       const id = await uid()
       const [{ data: s }, p, a, g, f, c, adm, login] = await Promise.all([
         sb.auth.getSession(),
-        sb.from('profiles').select('*').eq('id', id).single(),
+        sb.rpc('my_profile').single(), // profiles 표는 공개 칸만 읽힌다 → 내 칸 전부는 함수로
         sb.from('user_artists').select('artist_id').eq('user_id', id),
         sb.from('user_genres').select('genre_id').eq('user_id', id),
         sb.from('favorites').select('concert_id').eq('user_id', id),
@@ -190,7 +190,8 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
         ok(await sb.from('consents').insert({ user_id: id, item: 'community', version: CONSENT_VERSION, agreed: true }))
       }
       const { error } = await sb.from('profiles').update(row).eq('id', id)
-      if (error) throw new Error(error.code === '23505' ? '이미 쓰고 있는 닉네임이에요.' : error.message)
+      if (error) throw new Error(error.code === '23505' ? '이미 쓰고 있는 닉네임이에요.'
+        : error.message.includes('profiles_nickname_chars') ? '닉네임에는 한글·일본어·영문·숫자와 공백 _ . - 만 쓸 수 있어요.' : error.message)
     },
     async setMyArtists(ids) {
       const id = await uid()
@@ -251,11 +252,9 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
 
     async getProfile(userId) {
       const me = await uid()
-      const [p, a, g, f, fr, rq] = await Promise.all([
-        sb.from('profiles').select('*').eq('id', userId).single(),
-        sb.from('user_artists').select('artist_id').eq('user_id', userId),
-        sb.from('user_genres').select('genre_id').eq('user_id', userId),
-        sb.from('favorites').select('concert_id').eq('user_id', userId),
+      // 남의 취향·관심 공연 표는 직접 못 읽는다. 한 사람씩 profile_card 로 (다가오는 공연은 친구만)
+      const [p, fr, rq] = await Promise.all([
+        sb.rpc('profile_card', { target: userId }).single(),
         sb.from('friendships').select('room_id').eq('user_a', me < userId ? me : userId).eq('user_b', me < userId ? userId : me).maybeSingle(),
         sb.from('friend_requests').select('from_user').eq('status', 'pending').gt('expires_at', new Date().toISOString())
           .or(`and(from_user.eq.${me},to_user.eq.${userId}),and(from_user.eq.${userId},to_user.eq.${me})`),
@@ -265,9 +264,9 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       const friend = ok(fr) as Row | null
       return {
         ...card(prof), bannerUrl: prof.banner_url, isGuest: prof.is_guest, profileSetupDone: prof.profile_setup_done,
-        communityAgreedAt: prof.community_agreed_at, notifyEnabled: false,
-        artistIds: (ok(a) as Row[]).map((r) => r.artist_id), genreIds: (ok(g) as Row[]).map((r) => r.genre_id),
-        favoriteIds: (ok(f) as Row[]).map((r) => r.concert_id),
+        communityAgreedAt: null, notifyEnabled: false,
+        artistIds: prof.artist_ids ?? [], genreIds: prof.genre_ids ?? [], favoriteIds: prof.favorite_ids ?? [],
+        upcomingCount: prof.upcoming_count ?? 0,
         relation: userId === me ? 'self' : friend ? 'friend' : req ? (req.from_user === me ? 'sent' : 'received') : 'none',
         roomId: friend?.room_id ?? null,
       }
@@ -401,12 +400,19 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
         .select('*, author:profiles!comments_author_id_fkey(id, nickname, bio, avatar_url), reply:profiles!comments_reply_to_fkey(id, nickname)')
         .eq('post_id', postId).order('created_at')) as Row[]
       return rows.map((r) => ({
-        id: r.id, postId: r.post_id, author: card(r.author), body: r.body, createdAt: r.created_at,
+        id: r.id, postId: r.post_id, author: card(r.author), body: r.body, createdAt: r.created_at, edited: !!r.edited_at,
         parentId: r.parent_id, replyTo: r.reply ? { id: r.reply.id, nickname: r.reply.nickname } : null,
       }))
     },
     async addComment(postId, body, reply) {
       ok(await sb.from('comments').insert({ post_id: postId, author_id: await uid(), body, parent_id: reply?.parentId ?? null, reply_to: reply?.toUserId ?? null }))
+    },
+
+    async editPost(id, { title, body, tags }) {
+      ok(await sb.rpc('edit_post', { p: id, new_title: title, new_body: body, new_tags: tags }))
+    },
+    async editComment(id, body) {
+      ok(await sb.rpc('edit_comment', { c: id, new_body: body }))
     },
 
     async submitInquiry(input) {

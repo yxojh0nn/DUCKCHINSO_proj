@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { api, errorText, type InquiryInput } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { Button } from '@/components/ui/Button'
+import { Empty } from '@/components/ui/Empty'
 import { TextArea } from '@/components/ui/Field'
 import { keys, useMe } from '@/lib/queries'
 import { toast } from '@/store/ui'
@@ -45,6 +46,9 @@ export default function Inquiry() {
       nav('/chats')
     } catch (e) { toast(errorText(e)) } finally { setBusy(false) }
   }
+
+  // 문의(운영팀 대화방)는 회원만 (서버 ensure_support_room·inquiries 정책도 막는다)
+  if (me?.isGuest) return (<><AppHeader back title="문의" /><Empty title="문의는 회원만 보낼 수 있어요" body="회원으로 로그인한 뒤 다시 찾아 주세요." /></>)
 
   return (
     <div className="flex min-h-full flex-col">

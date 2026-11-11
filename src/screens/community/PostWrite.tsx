@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, errorText } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { ImageButton } from '@/components/ImageButton'
 import { IconClose, IconPhoto } from '@/components/icons'
 import { TextArea, TextField } from '@/components/ui/Field'
 import { APP_SETTINGS } from '@/lib/settings'
-import { useConcerts, useMe } from '@/lib/queries'
+import { keys, useConcerts, useMe } from '@/lib/queries'
 import { Empty } from '@/components/ui/Empty'
 import { toast } from '@/store/ui'
 
@@ -16,23 +16,34 @@ const parseTags = (s: string) =>
 
 // 글쓰기: 제목, 내용, 태그, 사진(최대 4장). 지난 공연에서 "후기 남기기"로 오면(?concert=) 그 공연의 후기가 된다
 // 공연 후기·'후기' 태그 글은 MY > 공연 후기에 모인다
+// ?edit=글ID 면 내 글 수정: 제목·내용·태그만 (사진·공연 연결은 그대로, 서버 edit_post 가 작성자를 확인한다)
 export default function PostWrite() {
   const nav = useNavigate()
   const qc = useQueryClient()
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
-  const concertId = useSearchParams()[0].get('concert')
+  const params = useSearchParams()[0]
+  const concertId = params.get('concert')
+  const editId = params.get('edit')
+  const editing = useQuery({ queryKey: keys.post(editId ?? ''), queryFn: () => api.getPost(editId!), enabled: !!editId })
+  const [loaded, setLoaded] = useState(false)
   const concert = useConcerts().data?.find((c) => c.id === concertId)
   const [tags, setTags] = useState(concertId ? '후기' : '')
   const [images, setImages] = useState<{ blob: Blob; url: string }[]>([])
   const [busy, setBusy] = useState(false)
   const ok = title.trim() && body.trim()
   const guest = useMe().data?.isGuest
+  if (editing.data && !loaded) { setTitle(editing.data.title); setBody(editing.data.body); setTags(editing.data.tags.join(' ')); setLoaded(true) }
 
   const submit = async () => {
     if (!ok || busy) return
     setBusy(true)
     try {
+      if (editId) {
+        await api.editPost(editId, { title: title.trim(), body: body.trim(), tags: parseTags(tags) })
+        await Promise.all([qc.invalidateQueries({ queryKey: keys.post(editId) }), qc.invalidateQueries({ queryKey: ['posts'] })])
+        return nav(-1)
+      }
       const id = await api.createPost({ title: title.trim(), body: body.trim(), tags: parseTags(tags), images: images.map((i) => i.blob), concertId: concert?.id ?? null })
       await qc.invalidateQueries({ queryKey: ['posts'] })
       nav(`/community/post/${id}`, { replace: true })
@@ -42,8 +53,8 @@ export default function PostWrite() {
   if (guest) return <><AppHeader back title="글쓰기" /><Empty title="글은 회원만 쓸 수 있어요" body="회원으로 로그인하면 글과 공연 후기를 남길 수 있어요." /></>
   return (
     <div className="flex min-h-full flex-col">
-      <AppHeader back title={concert ? '후기 남기기' : '글쓰기'} right={
-        <button onClick={submit} disabled={!ok || busy} className="h-11 px-4 t-body font-semibold disabled:opacity-30">{busy ? '올리는 중' : '올리기'}</button>
+      <AppHeader back title={editId ? '글 수정' : concert ? '후기 남기기' : '글쓰기'} right={
+        <button onClick={submit} disabled={!ok || busy} className="h-11 px-4 t-body font-semibold disabled:opacity-30">{busy ? (editId ? '저장 중' : '올리는 중') : editId ? '저장' : '올리기'}</button>
       } />
       <div className="flex-1 px-5 pt-2">
         {concert && <p className="mb-5 rounded-[10px] bg-mist px-3 py-2.5 t-sub"><b>공연 후기</b> <span className="text-graphite">{concert.title}</span></p>}
@@ -52,6 +63,7 @@ export default function PostWrite() {
           placeholder="공연 후기, 같이 갈 사람 찾기, 덕질 이야기를 자유롭게 남겨 주세요." />
         <TextField className="mt-6" label="태그" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="예) 후기 요아소비 서울"
           hint={parseTags(tags).length ? parseTags(tags).map((t) => `#${t}`).join(' ') : `띄어쓰기로 구분, 최대 ${APP_SETTINGS.maxTags}개. '후기'를 달면 공연 후기에 모여요.`} />
+        {editId ? <p className="mt-6 t-sub text-graphite">사진은 수정할 수 없어요.</p> : <>
         <p className="mt-6 t-sub font-semibold text-graphite">사진 {images.length}/{APP_SETTINGS.maxPostImages}</p>
         <div className="mt-2 flex gap-2 overflow-x-auto">
           {images.length < APP_SETTINGS.maxPostImages && (
@@ -68,6 +80,7 @@ export default function PostWrite() {
             </div>
           ))}
         </div>
+        </>}
       </div>
     </div>
   )

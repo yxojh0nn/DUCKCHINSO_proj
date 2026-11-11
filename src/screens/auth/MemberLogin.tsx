@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { api, errorText, type OAuthProvider } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { TextField } from '@/components/ui/Field'
+import { Captcha, captchaOn } from '@/components/Captcha'
 import { toast } from '@/store/ui'
 
 // 간편 로그인 버튼: 각 서비스의 공식 표기 색을 따른다 (브랜드 가이드)
@@ -19,6 +20,8 @@ export default function MemberLogin() {
   const [loginId, setLoginId] = useState('')
   const [pw, setPw] = useState('')
   const [failed, setFailed] = useState(false) // 아래 문구: 다시 입력할 때까지
+  const [captcha, setCaptcha] = useState<string | null>(null) // 이메일 로그인(Supabase 기본 경로)만 필요
+  const [tries, setTries] = useState(0)
   const [flash, setFlash] = useState(0) // 붉은 밑줄·흔들림: 잠깐 (실패할 때마다 다시)
   useEffect(() => {
     if (!flash) return
@@ -33,13 +36,15 @@ export default function MemberLogin() {
   const login = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!canLogin) return toast('아이디와 비밀번호를 입력해 주세요.')
+    if (loginId.includes('@') && captchaOn && !captcha) return toast('로봇이 아닌지 확인을 마쳐 주세요.')
     setBusy('id')
     try {
       // shortcut: 아이디가 생기기 전에 가입한 계정을 위해 이메일 로그인도 받는다. 기존 계정이 모두 아이디를 만들면 지운다
-      if (loginId.includes('@')) await api.signInEmail(loginId, pw)
+      if (loginId.includes('@')) await api.signInEmail(loginId, pw, captcha ?? undefined)
       else await api.signInLoginId(loginId, pw)
       nav('/calendar', { replace: true })
     } catch (err) {
+      setCaptcha(null); setTries((n) => n + 1)
       if (/invalid/i.test((err as Error)?.message ?? '')) { setFailed(true); setFlash(Date.now()) }
       else toast(errorText(err))
     } finally { setBusy(null) }
@@ -57,6 +62,7 @@ export default function MemberLogin() {
             <TextField className="mt-5" label="비밀번호" type="password" autoComplete="current-password" value={pw} invalid={!!flash}
               onChange={(e) => { setPw(e.target.value); setFailed(false) }} />
           </div>
+          {loginId.includes('@') && <Captcha key={tries} onToken={setCaptcha} />}
           {failed && <p role="alert" className="mt-2 t-sub text-danger">아이디 또는 비밀번호가 올바르지 않습니다</p>}
           <div className="mt-4 flex items-center justify-center t-sub">
             <Link to="/login/email" className="flex h-11 items-center px-3 text-graphite">이메일로 가입</Link>

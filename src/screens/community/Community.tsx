@@ -41,7 +41,7 @@ export default function Community() {
   const people = useQuery({
     queryKey: [...keys.recommend, term, filter],
     queryFn: () => (term || filtered ? api.searchUsers(term, filter) : api.recommend()),
-    enabled: tab === 'friends',
+    enabled: tab === 'friends' && me.data?.isGuest === false, // 사용자 검색·추천은 회원만 (서버도 막는다)
   })
 
   if (me.data && !me.data.communityAgreedAt) return <Navigate to="/community/rules" replace />
@@ -75,7 +75,7 @@ export default function Community() {
         {tab === 'feed' && !me.data?.isGuest && <Link to="/community/write" className="flex h-11 items-center px-2 t-body font-semibold">글쓰기</Link>}
       </div>
 
-      {me.data?.isGuest && tab !== 'friends' && <p className="px-5 pt-3 t-sub text-graphite">비회원은 글·후기를 쓸 수 없어요. 회원으로 로그인하면 쓸 수 있어요.</p>}
+      {me.data?.isGuest && <p className="px-5 pt-3 t-sub text-graphite">비회원은 읽기만 할 수 있어요. 글·댓글·추천·덕친 찾기는 회원으로 로그인하면 쓸 수 있어요.</p>}
       {tab === 'reviews' ? <PastConcerts q={term} /> : tab === 'feed' ? (
         posts.data?.length ? <ul className="pb-6">{posts.data.map((p) => <PostRow key={p.id} post={p} />)}</ul>
           : <Empty title={posts.isLoading ? '불러오는 중…' : term ? '맞는 글이 없어요' : '아직 글이 없어요'}
@@ -99,7 +99,7 @@ export default function Community() {
                   </>} />
               ))}
             </ul>
-          ) : <Empty title={people.isLoading ? '찾는 중…' : '아직 추천할 덕친이 없어요'} />}
+          ) : <Empty title={me.data?.isGuest ? '덕친 찾기는 회원만 쓸 수 있어요' : people.isLoading ? '찾는 중…' : '아직 추천할 덕친이 없어요'} />}
         </>
       )}
 

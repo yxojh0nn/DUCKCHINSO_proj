@@ -44,12 +44,12 @@ export default function ProfileEdit() {
       <AppHeader back title="프로필 편집" right={
         <button onClick={save} disabled={!nickOk || busy} className="h-11 px-4 t-body font-semibold disabled:opacity-30">{busy ? '저장 중' : '저장'}</button>
       } />
-      <ImageButton label="배너 사진 바꾸기" onPick={([b]) => setBanner(b)} className="relative block h-[120px] w-full bg-mist">
+      <ImageButton label="배너 사진 바꾸기" onPick={([b]) => me?.isGuest ? toast(errorText('members_only')) : setBanner(b)} className="relative block h-[120px] w-full bg-mist">
         {bannerSrc && <img src={bannerSrc} alt="" className="h-full w-full object-cover" />}
         <span className="absolute bottom-2 right-3 flex h-8 items-center gap-1 rounded-full bg-ink/80 px-3 t-cap text-paper"><IconPhoto size={14} />배너</span>
       </ImageButton>
       <div className="-mt-10 px-5">
-        <ImageButton label="프로필 사진 바꾸기" onPick={([b]) => setAvatar(b)} className="relative rounded-full ring-4 ring-paper">
+        <ImageButton label="프로필 사진 바꾸기" onPick={([b]) => me?.isGuest ? toast(errorText('members_only')) : setAvatar(b)} className="relative rounded-full ring-4 ring-paper">
           <Avatar url={avatar ? URL.createObjectURL(avatar) : me.avatarUrl} name={nickname || me.nickname} size={80} />
           <span className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full bg-ink text-paper"><IconPhoto size={15} /></span>
         </ImageButton>

@@ -131,7 +131,8 @@ export type ArtistInput = { id?: string; name: string; nameJa: string | null; na
 export type PublicProfile = Profile & {
   artistIds: string[]
   genreIds: number[]
-  favoriteIds: string[]
+  favoriteIds: string[] // 다가오는 관심 공연은 본인·친구에게만 들어온다 (서버 profile_card)
+  upcomingCount: number // 다가오는 관심 공연 수 (목록이 가려져도 개수는 보인다)
   relation: 'none' | 'friend' | 'sent' | 'received' | 'self'
   roomId: string | null
 }
@@ -175,10 +176,11 @@ export type Post = {
   likedByMe: boolean
   createdAt: string
   concertId: string | null // 공연 후기면 그 공연
+  edited: boolean // 작성자가 고친 적 있음
 }
 
 // parentId: 대댓글이면 원 댓글, replyTo: 누구에게 단 답글인지
-export type Comment = { id: string; postId: string; author: UserCard; body: string; createdAt: string; parentId: string | null; replyTo: { id: string; nickname: string } | null }
+export type Comment = { id: string; postId: string; author: UserCard; body: string; createdAt: string; edited: boolean; parentId: string | null; replyTo: { id: string; nickname: string } | null }
 // 알림 종류별 켜고 끄기 (서비스 알림이 켜져 있을 때만 의미)
 export type NotifyPrefs = { friend: boolean; like: boolean; comment: boolean; concert: boolean }
 
@@ -211,19 +213,19 @@ export interface Api {
   // 계정
   sessionUserId(): Promise<string | null>
   onAuthChange(cb: (userId: string | null) => void): () => void
-  signInGuest(): Promise<void>
+  signInGuest(captchaToken?: string): Promise<void> // captchaToken: Supabase Auth 캡차를 켰을 때 (components/Captcha)
   signInOAuth(provider: OAuthProvider): Promise<void>
   checkLoginId(loginId: string): Promise<boolean> // 쓸 수 있으면 true
   sendEmailCode(email: string): Promise<{ expiresIn: number }>
   verifyEmailCode(email: string, code: string): Promise<string> // 인증 완료 표
   signUpEmail(ticket: string, loginId: string, password: string): Promise<void>
-  signInEmail(email: string, password: string): Promise<void>
+  signInEmail(email: string, password: string, captchaToken?: string): Promise<void>
   signInLoginId(loginId: string, password: string): Promise<void>
   completeSocialLogin(tokenHash: string): Promise<void> // 네이버·카카오: 서버 함수가 준 일회용 토큰으로 세션 받기
   setLoginId(loginId: string): Promise<void>
   myLoginId(): Promise<string | null>
   findLoginId(email: string): Promise<{ mailReady: boolean }>
-  resetPassword(email: string): Promise<void>
+  resetPassword(email: string, captchaToken?: string): Promise<void>
   updatePassword(password: string): Promise<void>
   signOut(): Promise<void>
   deleteAccount(): Promise<void>
@@ -274,6 +276,9 @@ export interface Api {
   toggleLike(postId: string): Promise<boolean>
   listComments(postId: string): Promise<Comment[]>
   addComment(postId: string, body: string, reply?: { parentId: string; toUserId: string }): Promise<void>
+  // 수정은 본인 글·댓글만 (서버 edit_post·edit_comment 가 작성자를 확인한다). 사진·공연 연결은 못 바꾼다
+  editPost(id: string, input: { title: string; body: string; tags: string[] }): Promise<void>
+  editComment(id: string, body: string): Promise<void>
 
   // 문의
   submitInquiry(input: InquiryInput): Promise<void>

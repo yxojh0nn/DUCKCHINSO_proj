@@ -17,13 +17,14 @@ create function auth.uid() returns uuid language sql stable as $$ select nullif(
 create table storage.buckets (id text primary key, name text, public boolean, file_size_limit bigint, allowed_mime_types text[]);
 create table storage.objects (id uuid default gen_random_uuid(), bucket_id text, name text);
 alter table storage.objects enable row level security;
+grant select, insert, update, delete on storage.objects to authenticated; -- Supabase 기본 권한 (거르는 건 RLS)
 create function storage.foldername(name text) returns text[] language sql as $$ select string_to_array(name, '/') $$;
 create publication supabase_realtime;
 grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -55,14 +56,51 @@ const upd = await as('a', `update public.profiles set bio = 'hack' where id = $1
 assert.equal(upd.affectedRows, 0)
 
 const rec = await as('a', `select * from public.recommend_friends(10)`)
-assert.equal(rec.rows.length, 2)
+assert.deepEqual(rec.rows.map((r) => r.id), [ids.b]) // 비회원(c)은 추천에 나오지 않는다
+
+// 보안 점검 1단계: 비회원은 사용자 검색·추천·친구·문의·추천(좋아요)·댓글 불가
+assert.equal((await as('c', `select * from public.recommend_friends(10)`)).rows.length, 0)
+assert.equal((await as('c', `select * from public.search_users('')`)).rows.length, 0)
+assert.deepEqual((await as('a', `select id from public.search_users('')`)).rows.map((r) => r.id), [ids.b])
+await assert.rejects(as('c', `select public.send_friend_request($1)`, [ids.a]), /members_only/)
+await assert.rejects(as('a', `select public.send_friend_request($1)`, [ids.c]), /unavailable/)
+await assert.rejects(as('c', `select public.block_user($1)`, [ids.a]), /members_only/)
+await assert.rejects(as('c', `select public.ensure_support_room()`), /members_only/)
+await assert.rejects(as('c', `insert into public.inquiries (user_id, category, body) values ($1, 'etc', 'x')`, [ids.c]))
+assert.equal((await as('c', `select public.is_admin() as v`)).rows[0].v, false)
+// 남의 프로필: 공개 칸만. 마지막 접속 시각은 못 읽고, 내 것은 my_profile() 로 전부
+await assert.rejects(as('c', `select last_seen_at from public.profiles`), /permission denied/)
+await assert.rejects(as('c', `select * from public.profiles`), /permission denied/)
+assert.equal((await as('c', `select id, nickname from public.profiles`)).rows.length, 3)
+const mine = (await as('a', `select * from public.my_profile()`)).rows
+assert.equal(mine.length, 1); assert.equal(mine[0].id, ids.a); assert.ok('last_seen_at' in mine[0])
+// 취향 표는 본인 것만 직접 읽힌다
+assert.deepEqual((await as('a', `select user_id from public.user_artists`)).rows.map((r) => r.user_id), [ids.a])
+// 스토리지: 비회원은 사진을 못 올리고, 회원은 본인 경로를 읽을 수 있어 지울 수 있다
+await assert.rejects(as('c', `insert into storage.objects (bucket_id, name) values ('public-media', $1)`, [`${ids.c}/x.png`]))
+await as('a', `insert into storage.objects (bucket_id, name) values ('public-media', $1)`, [`${ids.a}/x.png`])
+assert.equal((await as('a', `delete from storage.objects where name = $1`, [`${ids.a}/x.png`])).affectedRows, 1)
+// 닉네임 허용 문자
+await assert.rejects(as('a', `update public.profiles set nickname = '"><img>' where id = $1`, [ids.a]), /profiles_nickname_chars/)
+await as('a', `update public.profiles set nickname = 'あいう 팬_1' where id = $1`, [ids.a])
 
 // friend flow
 const req = await as('a', `select public.send_friend_request($1) as id`, [ids.b])
 await assert.rejects(as('a', `select public.send_friend_request($1)`, [ids.b]), /duplicate/)
-await assert.rejects(as('c', `select public.respond_friend_request($1, true)`, [req.rows[0].id]), /not_found/)
+await assert.rejects(as('c', `select public.respond_friend_request($1, true)`, [req.rows[0].id]), /members_only/)
 const room = (await as('b', `select public.respond_friend_request($1, true) as r`, [req.rows[0].id])).rows[0].r
 assert.ok(room)
+// 남의 프로필 카드: 취향·지난 관심 공연은 누구나, 다가오는 관심 공연은 친구만 (비회원 c 는 개수만)
+const [cUp, cPast] = (await db.query(`insert into public.concerts (title, venue_name, venue_query, status) values
+  ('다가올 공연', 'v', 'v', 'published'), ('지난 공연', 'v', 'v', 'published') returning id`)).rows.map((r) => r.id)
+await db.query(`insert into public.concert_schedules (concert_id, starts_at) values ($1, now() + interval '10 days'), ($2, now() - interval '10 days')`, [cUp, cPast])
+await as('a', `insert into public.favorites (user_id, concert_id) values ($1, $2), ($1, $3)`, [ids.a, cUp, cPast])
+const cardBy = async (k) => (await as(k, `select * from public.profile_card($1)`, [ids.a])).rows[0]
+assert.deepEqual((await cardBy('b')).favorite_ids.sort(), [cUp, cPast].sort())
+const guestView = await cardBy('c')
+assert.deepEqual(guestView.favorite_ids, [cPast]); assert.equal(guestView.upcoming_count, 1)
+assert.equal(guestView.artist_ids.length, 1); assert.ok(!('last_seen_at' in guestView))
+assert.equal((await cardBy('a')).favorite_ids.length, 2)
 await as('a', `insert into public.messages (room_id, sender_id, body) values ($1, $2, 'hi')`, [room, ids.a])
 await assert.rejects(as('c', `insert into public.messages (room_id, sender_id, body) values ($1, $2, 'x')`, [room, ids.c]))
 assert.equal((await as('c', `select * from public.messages where room_id = $1`, [room])).rows.length, 0)
@@ -297,6 +335,25 @@ await assert.rejects(as('d', `insert into public.comments (post_id, author_id, b
 assert.equal((await db.query(`select comment_count from public.posts where id = $1`, [rp])).rows[0].comment_count, 3)
 await as('d', `delete from public.comments where id = $1`, [root])
 assert.equal((await db.query(`select count(*)::int n from public.comments where post_id = $1`, [rp])).rows[0].n, 0)
+// 글·댓글 수정: 작성자 본인만, 함수로만. 다른 회원(b)·비회원(c)은 못 고치고, 표 직접 수정도 막힌다
+const ec = (await as('d', `insert into public.comments (post_id, author_id, body) values ($1, $2, '원래 댓글') returning id`, [rp, ids.d])).rows[0].id
+await as('d', `select public.edit_post($1, '고친 제목', '고친 내용', '{후기}')`, [rp])
+await as('d', `select public.edit_comment($1, '고친 댓글')`, [ec])
+const edited = (await db.query(`select p.title, p.edited_at, c.body from public.posts p join public.comments c on c.post_id = p.id where c.id = $1`, [ec])).rows[0]
+assert.equal(edited.title, '고친 제목'); assert.equal(edited.body, '고친 댓글'); assert.ok(edited.edited_at)
+await assert.rejects(as('b', `select public.edit_post($1, 'x', 'x', '{}')`, [rp]), /not_found/)
+await assert.rejects(as('b', `select public.edit_comment($1, 'x')`, [ec]), /not_found/)
+await assert.rejects(as('c', `select public.edit_comment($1, 'x')`, [ec]), /members_only/)
+const ep = (await as('d', `insert into public.posts (author_id, title, body) values ($1, '남의 글 테스트', '본문') returning id`, [ids.d])).rows[0].id
+ids.e = (await db.query(`insert into auth.users (email) values ('e@x.com') returning id`)).rows[0].id
+await db.query(`update public.profiles set is_guest = false, community_agreed_at = now(), profile_setup_done = true where id = $1`, [ids.e])
+assert.equal((await as('e', `update public.posts set title = 'hack' where id = $1`, [ep])).affectedRows, 0)
+assert.equal((await as('d', `update public.posts set title = 'direct' where id = $1`, [ep])).affectedRows, 0) // 본인도 표 직접 수정은 불가 (상태·추천 수 보호)
+await assert.rejects(as('e', `update public.comments set body = 'hack' where id = $1`, [ec]), /permission denied/)
+await assert.rejects(as('e', `select public.edit_post($1, 'x', 'x', '{}')`, [ep]), /not_found/)
+await assert.rejects(as('d', `select public.edit_post($1, '씨발', '본문', '{}')`, [ep]), /blocked_word/)
+await db.query(`update public.posts set status = 'hidden' where id = $1`, [ep])
+await assert.rejects(as('d', `select public.edit_post($1, '가려진 글 수정', '본문', '{}')`, [ep]), /not_found/) // 운영자가 가린 글은 못 고친다
 // 알림 종류별 설정: 본인이 바꿀 수 있다
 await as('d', `update public.profiles set notify_like = false, notify_concert = false where id = $1`, [ids.d])
 assert.deepEqual((await db.query(`select notify_friend, notify_like, notify_comment, notify_concert from public.profiles where id = $1`, [ids.d])).rows[0],
