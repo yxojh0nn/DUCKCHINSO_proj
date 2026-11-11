@@ -181,7 +181,8 @@ export function createDemoApi(): Api {
     },
     async myLoginId() { return me().loginId },
     async findLoginId() { await wait(); return { mailReady: false } },
-    async resetPassword() { await wait() },
+    async requestPasswordReset() { await wait() },
+    async resetPasswordWithCode() { await wait() }, // 데모: 메일이 없어 어떤 코드든 통과
     async updatePassword(password) { await wait(); me().password = password; save() },
     async signOut() { setSession(null) },
     async deleteAccount() {

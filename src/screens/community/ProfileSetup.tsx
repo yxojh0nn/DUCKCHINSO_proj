@@ -9,7 +9,7 @@ import { IconPhoto } from '@/components/icons'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { TextArea, TextField } from '@/components/ui/Field'
-import { APP_SETTINGS } from '@/lib/settings'
+import { APP_SETTINGS, nicknameError } from '@/lib/settings'
 import { keys, useArtists, useGenres, useMe } from '@/lib/queries'
 import { toast } from '@/store/ui'
 
@@ -29,7 +29,8 @@ export default function ProfileSetup() {
   const [avatar, setAvatar] = useState<Blob | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const nickOk = nickname.trim().length >= 2 && nickname.trim().length <= 20
+  const nickErr = nicknameError(nickname)
+  const nickOk = !nickErr
 
   // 닉네임은 첫 단계에서 바로 저장한다 (중복·금칙어면 다음으로 넘어가지 않게)
   const saveNickname = async () => {
@@ -80,7 +81,7 @@ export default function ProfileSetup() {
               <span className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-ink text-paper"><IconPhoto size={17} /></span>
             </ImageButton>)}
             <TextField className="mt-6" label="닉네임" value={nickname} maxLength={20} onChange={(e) => setNickname(e.target.value)} readOnly={me.isGuest}
-              error={!nickOk ? '2~20자로 정해 주세요.' : undefined} hint={me.isGuest ? '비회원 닉네임은 자동으로 정해져요. 닉네임·사진은 회원으로 로그인하면 바꿀 수 있어요.' : '다른 사람에게 보이는 이름이에요.'} />
+              error={nickErr} hint={me.isGuest ? '비회원 닉네임은 자동으로 정해져요. 닉네임·사진은 회원으로 로그인하면 바꿀 수 있어요.' : '다른 사람에게 보이는 이름이에요.'} />
             <TextArea className="mt-6" label="소개글" placeholder="당신의 덕력을 뽐내보세요!" rows={3} maxLength={150} value={bio} onChange={(e) => setBio(e.target.value)}
               hint={`${bio.length}/150`} />
           </div>
