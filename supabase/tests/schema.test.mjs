@@ -24,7 +24,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -376,6 +376,15 @@ await assert.rejects(as('e', `insert into public.messages (room_id, sender_id, b
 await assert.rejects(as('e', `select public.send_friend_request($1)`, [ids.b]), /account_restricted/)
 await assert.rejects(as('e', `insert into public.comments (post_id, author_id, body) values ($1, $2, 'x')`, [rp, ids.e]))
 await as('d', `insert into public.messages (room_id, sender_id, body) values ($1, $2, 'active dm')`, [dm, ids.d]) // 상대(활성 회원)는 그대로
+// 비회원: 닉네임·사진·배너는 못 바꾸고 소개글은 된다. 운영자 SQL 정리(본인이 아닌 변경)는 된다
+const g = (await db.query(`insert into auth.users (is_anonymous) values (true) returning id`)).rows[0].id
+ids.g = g
+await assert.rejects(as('g', `update public.profiles set nickname = '새닉네임' where id = $1`, [g]), /members_only/)
+await assert.rejects(as('g', `update public.profiles set banner_url = 'https://evil.example/x.png' where id = $1`, [g]), /members_only/)
+await assert.rejects(as('g', `update public.profiles set avatar_url = 'https://evil.example/x.png' where id = $1`, [g]), /members_only/)
+await as('g', `update public.profiles set bio = '소개', last_seen_at = now() where id = $1`, [g])
+await db.exec(`select set_config('request.uid', '', false)`) // SQL Editor 처럼 로그인 사용자 없음
+await db.query(`update public.profiles set nickname = '익명의 팬0001' where id = $1`, [g])
 // 알림 종류별 설정: 본인이 바꿀 수 있다
 await as('d', `update public.profiles set notify_like = false, notify_concert = false where id = $1`, [ids.d])
 assert.deepEqual((await db.query(`select notify_friend, notify_like, notify_comment, notify_concert from public.profiles where id = $1`, [ids.d])).rows[0],
