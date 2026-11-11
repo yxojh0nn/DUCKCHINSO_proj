@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api, errorText, type OAuthProvider } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
+import { Button } from '@/components/ui/Button'
 import { TextField } from '@/components/ui/Field'
 import { Captcha, captchaOn } from '@/components/Captcha'
 import { toast } from '@/store/ui'
@@ -64,13 +65,17 @@ export default function MemberLogin() {
           </div>
           {loginId.includes('@') && <Captcha key={tries} onToken={setCaptcha} />}
           {failed && <p role="alert" className="mt-2 t-sub text-danger">아이디 또는 비밀번호가 올바르지 않습니다</p>}
+          {/* 아이디·비밀번호를 모두 넣으면 비밀번호 칸 아래에 큰 로그인 버튼 (아래 줄의 작은 로그인은 숨긴다) */}
+          {canLogin && (
+            <Button type="submit" block className="mt-5" disabled={!!busy}>{busy === 'id' ? '로그인 중…' : '로그인'}</Button>
+          )}
           <div className="mt-4 flex items-center justify-center t-sub">
             <Link to="/login/email" className="flex h-11 items-center px-3 text-graphite">이메일로 가입</Link>
             <span aria-hidden className="h-3 w-px bg-hairline" />
-            <button type="submit" disabled={!!busy} className="flex h-11 items-center px-3 font-semibold disabled:opacity-50">
-              {busy === 'id' ? '로그인 중…' : '로그인'}
-            </button>
-            <span aria-hidden className="h-3 w-px bg-hairline" />
+            {!canLogin && <>
+              <button type="submit" disabled={!!busy} className="flex h-11 items-center px-3 font-semibold disabled:opacity-50">로그인</button>
+              <span aria-hidden className="h-3 w-px bg-hairline" />
+            </>}
             <Link to="/login/find" className="flex h-11 items-center px-3 text-graphite">아이디/비밀번호 찾기</Link>
           </div>
         </form>

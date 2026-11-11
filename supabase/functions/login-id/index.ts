@@ -4,6 +4,7 @@
 import { admin, callerOf, cors, json } from '../_shared/supabase.ts'
 import { blindIndex, decrypt, emailCode, encrypt, signState, verifyState } from '../_shared/crypto.ts'
 import { canMail, sendMail } from '../_shared/mail.ts'
+import { verifyCaptcha } from '../_shared/captcha.ts'
 
 const LOGIN_ID = /^[a-z][a-z0-9_]{3,19}$/ // 영문 소문자로 시작, 소문자·숫자·밑줄 4~20자 (앱 화면과 같은 규칙)
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -13,9 +14,13 @@ const LIMIT = { id: 5, ip: 20, find: 5, check: 30, codeEmail: 5, codeIp: 20, cod
 
 type Db = ReturnType<typeof admin>
 const clientIp = (req: Request) => req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown'
-const recent = async (db: Db, key: string) =>
+const recent = async (db: Db, key: string, windowMs = WINDOW_MS) =>
   (await db.from('login_attempts').select('key', { count: 'exact', head: true }).eq('key', key)
-    .gt('at', new Date(Date.now() - WINDOW_MS).toISOString())).count ?? 0
+    .gt('at', new Date(Date.now() - windowMs).toISOString())).count ?? 0
+// 이메일당 메일 발송 제한 (메일 폭탄 방지): 1시간 3회, 하루 5회. 넘으면 true
+const HOUR = 60 * 60_000
+const mailFlood = async (db: Db, emailKey: string) =>
+  (await recent(db, emailKey, HOUR)) >= 3 || (await recent(db, emailKey, 24 * HOUR)) >= 5
 // 비밀번호 찾기 대상: 아이디의 계정이 있고, 그 계정의 가입 이메일이 입력한 이메일과 같을 때만 사용자 id
 const resetTarget = async (db: Db, idHmac: string, email: string) => {
   const { data } = await db.from('login_ids').select('user_id').eq('id_hmac', idHmac).maybeSingle()
@@ -165,11 +170,13 @@ Deno.serve(async (req) => {
         const email = String(body.email ?? '').trim().toLowerCase()
         if (!LOGIN_ID.test(id) || !EMAIL.test(email) || email.length > 254) return json({ error: 'bad_request' }, 400)
         if (!canMail(email)) return json({ error: 'mail_not_ready' }, 503)
+        if (!(await verifyCaptcha(body.captchaToken, clientIp(req)))) return json({ error: 'captcha_failed' }, 400)
         const idHmac = await blindIndex('login', id)
+        const mailKey = `mail:${await blindIndex('email', email)}`
         const keys = [`reset:${idHmac}`, `resetip:${await blindIndex('ip', clientIp(req))}`]
         const [byId, byIp] = await Promise.all(keys.map((k) => recent(db, k)))
-        if (byId >= LIMIT.codeEmail || byIp >= LIMIT.codeIp) return json({ error: 'too_many_attempts' }, 429)
-        await db.from('login_attempts').insert(keys.map((key) => ({ key })))
+        if (byId >= LIMIT.codeEmail || byIp >= LIMIT.codeIp || await mailFlood(db, mailKey)) return json({ error: 'too_many_attempts' }, 429)
+        await db.from('login_attempts').insert([...keys, mailKey].map((key) => ({ key })))
         const uid = await resetTarget(db, idHmac, email)
         if (uid) {
           const code = emailCode()
@@ -190,8 +197,9 @@ Deno.serve(async (req) => {
         const id = String(body.loginId ?? '').trim().toLowerCase()
         const email = String(body.email ?? '').trim().toLowerCase()
         const code = String(body.code ?? '').trim().toUpperCase()
+        const ticket = body.ticket ? await verifyState(String(body.ticket)) : null // 아이디 찾기에서 이메일 코드를 이미 확인한 경우(30분)
         const pw = String(body.password ?? '')
-        if (!LOGIN_ID.test(id) || !EMAIL.test(email) || !code) return json({ error: 'bad_request' }, 400)
+        if (!LOGIN_ID.test(id) || !EMAIL.test(email) || (!code && !body.ticket)) return json({ error: 'bad_request' }, 400)
         if (pw.length < 8 || pw.length > 72 || !/[A-Za-z]/.test(pw) || !/\d/.test(pw)) return json({ error: 'password_rule' }, 400)
         const idHmac = await blindIndex('login', id)
         const keys = [`resetv:${idHmac}`, `resetvip:${await blindIndex('ip', clientIp(req))}`]
@@ -199,16 +207,21 @@ Deno.serve(async (req) => {
         if (byId >= LIMIT.id || byIp >= LIMIT.ip) return json({ error: 'too_many_attempts' }, 429)
         await db.from('login_attempts').insert(keys.map((key) => ({ key })))
         const uid = await resetTarget(db, idHmac, email)
-        const codeKey = uid ? await blindIndex('reset', uid) : null
-        const { data: row } = codeKey
-          ? await db.from('email_codes').select('code_hmac, expires_at, tries').eq('email_hmac', codeKey).maybeSingle()
-          : { data: null }
-        if (!uid || !row || new Date(row.expires_at) <= new Date() || row.tries >= LIMIT.codeTries) return json({ error: 'email_code_expired' }, 400)
-        if (row.code_hmac !== await blindIndex('reset_code', `${uid}:${code}`)) {
-          await db.from('email_codes').update({ tries: row.tries + 1 }).eq('email_hmac', codeKey)
-          return json({ error: 'email_code_invalid' }, 400)
+        if (body.ticket) {
+          // 표는 같은 계정(아이디·이메일 일치)일 때만 유효. 코드 확인을 대신한다
+          if (!uid || ticket?.purpose !== 'reset' || ticket.uid !== uid) return json({ error: 'email_ticket_expired' }, 400)
+        } else {
+          const codeKey = uid ? await blindIndex('reset', uid) : null
+          const { data: row } = codeKey
+            ? await db.from('email_codes').select('code_hmac, expires_at, tries').eq('email_hmac', codeKey).maybeSingle()
+            : { data: null }
+          if (!uid || !row || new Date(row.expires_at) <= new Date() || row.tries >= LIMIT.codeTries) return json({ error: 'email_code_expired' }, 400)
+          if (row.code_hmac !== await blindIndex('reset_code', `${uid}:${code}`)) {
+            await db.from('email_codes').update({ tries: row.tries + 1 }).eq('email_hmac', codeKey)
+            return json({ error: 'email_code_invalid' }, 400)
+          }
+          await db.from('email_codes').delete().eq('email_hmac', codeKey)
         }
-        await db.from('email_codes').delete().eq('email_hmac', codeKey)
         const { error } = await db.auth.admin.updateUserById(uid, { password: pw })
         if (error) throw error
         const { error: revokeErr } = await db.rpc('revoke_user_sessions', { p_uid: uid })
@@ -218,19 +231,29 @@ Deno.serve(async (req) => {
         return json({ ok: true })
       }
 
-      // 아이디 찾기: 가입한 이메일로 아이디를 보낸다. 가입 여부는 화면에 알려 주지 않는다
-      case 'find': {
+      // 아이디 찾기 1단계: 캡차 + 가입 이메일 → 아이디가 있는 계정이면 인증 코드만 메일로 (메일에 아이디를 넣지 않는다).
+      // 아이디 없는 계정은 로그인 방법 안내, 가입 안 된 이메일은 아무것도 보내지 않는다. 화면 응답은 모두 같다.
+      // 제한: IP 10분 5회 + 이메일 1시간 3회·하루 5회 (메일 폭탄 방지)
+      case 'find_code': {
         const email = String(body.email ?? '').trim()
         if (!EMAIL.test(email) || email.length > 254) return json({ error: 'bad_request' }, 400)
         if (!canMail(email)) return json({ ok: true, mailReady: false })
+        if (!(await verifyCaptcha(body.captchaToken, clientIp(req)))) return json({ error: 'captcha_failed' }, 400)
         const key = `find:${await blindIndex('ip', clientIp(req))}`
-        if (await recent(db, key) >= LIMIT.find) return json({ error: 'too_many_attempts' }, 429)
-        await db.from('login_attempts').insert({ key })
+        const mailKey = `mail:${await blindIndex('email', email.toLowerCase())}`
+        if (await recent(db, key) >= LIMIT.find || await mailFlood(db, mailKey)) return json({ error: 'too_many_attempts' }, 429)
+        await db.from('login_attempts').insert([{ key }, { key: mailKey }])
         const { data } = await db.rpc('login_id_by_email', { p_email: email })
         const row = data?.[0]
         if (row) {
-          const id = await decrypt(row.user_id, 'login_id', row.id_enc)
-          await sendMail(email, '[덕친소] 가입하신 아이디를 알려 드려요', `덕친소 아이디: ${id}\n\n직접 요청하지 않았다면 이 메일은 무시해 주세요.`)
+          const code = emailCode()
+          const { error: saveErr } = await db.from('email_codes').upsert({
+            email_hmac: await blindIndex('find', row.user_id), code_hmac: await blindIndex('find_code', `${row.user_id}:${code}`),
+            expires_at: new Date(Date.now() + CODE_TTL_SEC * 1000).toISOString(), tries: 0,
+          })
+          if (saveErr) throw saveErr
+          await sendMail(email, '[덕친소] 아이디 찾기 인증 코드',
+            `인증 코드: ${code}\n\n5분 안에 아이디 찾기 화면에 입력하면 아이디가 화면에 나타나요.\n직접 요청하지 않았다면 이 메일은 무시해 주세요.`)
         } else if ((await db.rpc('email_registered', { p_email: email })).data) {
           // 가입은 됐지만 아이디가 없는 계정(구글 등 간편 로그인, 아이디 만들기 전 이메일 가입). 전에는 아무 메일도 안 가서 "안 온다"로 보였다
           await sendMail(email, '[덕친소] 이 이메일로 가입한 계정에는 아이디가 없어요',
@@ -239,7 +262,34 @@ Deno.serve(async (req) => {
             + '- 이메일로 가입했다면: 회원 로그인 화면의 아이디 칸에 이 이메일 주소를 넣고 로그인한 뒤 아이디를 만들 수 있어요.\n\n'
             + '직접 요청하지 않았다면 이 메일은 무시해 주세요.')
         }
-        return json({ ok: true, mailReady: true })
+        return json({ ok: true, mailReady: true, expiresIn: CODE_TTL_SEC })
+      }
+
+      // 아이디 찾기 2단계: 이메일 + 코드 → 아이디를 화면에만 돌려준다(저장·메일 없음).
+      // 함께 30분짜리 표를 줘서 바로 비밀번호를 바꿀 때 코드를 다시 받지 않게 한다
+      case 'find_verify': {
+        const email = String(body.email ?? '').trim()
+        const code = String(body.code ?? '').trim().toUpperCase()
+        if (!EMAIL.test(email) || !code) return json({ error: 'bad_request' }, 400)
+        const key = `findv:${await blindIndex('ip', clientIp(req))}`
+        if (await recent(db, key) >= LIMIT.ip) return json({ error: 'too_many_attempts' }, 429)
+        await db.from('login_attempts').insert({ key })
+        const { data } = await db.rpc('login_id_by_email', { p_email: email })
+        const row = data?.[0]
+        const codeKey = row ? await blindIndex('find', row.user_id) : null
+        const { data: c } = codeKey
+          ? await db.from('email_codes').select('code_hmac, expires_at, tries').eq('email_hmac', codeKey).maybeSingle()
+          : { data: null }
+        if (!row || !c || new Date(c.expires_at) <= new Date() || c.tries >= LIMIT.codeTries) return json({ error: 'email_code_expired' }, 400)
+        if (c.code_hmac !== await blindIndex('find_code', `${row.user_id}:${code}`)) {
+          await db.from('email_codes').update({ tries: c.tries + 1 }).eq('email_hmac', codeKey)
+          return json({ error: 'email_code_invalid' }, 400)
+        }
+        await db.from('email_codes').delete().eq('email_hmac', codeKey)
+        return json({
+          loginId: await decrypt(row.user_id, 'login_id', row.id_enc),
+          ticket: await signState({ purpose: 'reset', uid: row.user_id }, 1800),
+        })
       }
     }
     return json({ error: 'bad_request' }, 400)

@@ -120,15 +120,18 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     async myLoginId() {
       return (await fn<{ loginId: string | null }>('login-id', { action: 'me' })).loginId
     },
-    async findLoginId(email) {
-      return fn<{ mailReady: boolean }>('login-id', { action: 'find', email })
+    // 아이디·비밀번호 찾기는 모두 login-id 함수 (캡차 서버 검증·이메일별 횟수 제한·메일 인증 코드, docs/아이디_비밀번호_찾기_설계.md)
+    async findLoginIdCode(email, captchaToken) {
+      return fn<{ mailReady: boolean }>('login-id', { action: 'find_code', email, captchaToken })
     },
-    // Supabase 기본 재설정 메일(링크) 대신 자체 함수: 아이디·이메일 일치 확인 + 메일 코드 + 횟수 제한 + 전체 로그아웃
-    async requestPasswordReset(loginId, email) {
-      await fn('login-id', { action: 'reset_code', loginId, email })
+    async findLoginIdVerify(email, code) {
+      return fn<{ loginId: string; ticket: string }>('login-id', { action: 'find_verify', email, code })
     },
-    async resetPasswordWithCode(loginId, email, code, password) {
-      await fn('login-id', { action: 'reset_verify', loginId, email, code, password })
+    async requestPasswordReset(loginId, email, captchaToken) {
+      await fn('login-id', { action: 'reset_code', loginId, email, captchaToken })
+    },
+    async resetPasswordWithCode(loginId, email, proof, password) {
+      await fn('login-id', { action: 'reset_verify', loginId, email, ...proof, password })
     },
     async updatePassword(password) {
       const { error } = await sb.auth.updateUser({ password })

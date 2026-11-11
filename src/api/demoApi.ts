@@ -180,7 +180,8 @@ export function createDemoApi(): Api {
       save()
     },
     async myLoginId() { return me().loginId },
-    async findLoginId() { await wait(); return { mailReady: false } },
+    async findLoginIdCode() { await wait(); return { mailReady: true } },
+    async findLoginIdVerify() { await wait(); return { loginId: 'demo_user', ticket: 'demo' } }, // 데모: 어떤 코드든 통과
     async requestPasswordReset() { await wait() },
     async resetPasswordWithCode() { await wait() }, // 데모: 메일이 없어 어떤 코드든 통과
     async updatePassword(password) { await wait(); me().password = password; save() },
