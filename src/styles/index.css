@@ -78,12 +78,25 @@
 /* 로고 진입: 티켓 말풍선이 톡 → 이퀄라이저 막대가 솟음 → 절취선이 뜯기며 꼬투리가 날아가고 → 뜯긴 자리에서 글자가 미끄러져 나온다 */
 @keyframes logo-pop { 0% { transform: scale(0); } 70% { transform: scale(1.12); } 100% { transform: scale(1); } }
 @keyframes logo-eq { 0% { transform: scaleY(0); } 50% { transform: scaleY(1.5); } 75% { transform: scaleY(0.8); } 100% { transform: scaleY(1); } }
-/* 꼬투리 뜯기: 왼쪽 아래 모서리를 축으로 한 방향(시계)으로만 젖혀 V 자로 찢어진 뒤 날아간다.
-   전에는 왼쪽 가운데 축으로 좌우로 흔들려(음의 각도) 꼬투리 모서리가 몸통 쪽으로 넘어오고 틈이 가는 선으로 보였다 */
-@keyframes logo-tear {
-  0% { transform: none; } 14% { transform: rotate(9deg); } 26% { transform: rotate(5deg); }
-  100% { transform: translate(110px, -150px) rotate(48deg); opacity: 0; }
+/* 꼬투리: 위에서 아래로 찢어진 뒤, 원통처럼 휜 종이가 가로로 누워 낙엽처럼 좌우로 왔다갔다하며 떨어진다.
+   세 겹으로 나눔 (단위는 로고 viewBox 256 기준, 기준점도 viewBox 좌표 → 모양이 휘어도 기준점이 안 움직인다)
+   - 뜯기     (0.9초~, 0.7초) Wordmark.tsx 의 SVG animate: 찢어지는 지점이 위에서 아래로 멈춤 없이 내려가며 그 위쪽만 바깥으로 젖혀짐.
+              끝 모양이 (166,188) 축 13° 회전과 같아서, 끝나는 순간 li-stub 의 rotate(13deg)로 바꿔 끼워도 보이지 않는다
+              (음의 각도는 모서리가 몸통 쪽으로 넘어와 선이 보여서 안 씀)
+   - li-sway  (1.6초~, 1.4초) 좌우 왕복: 꼬투리 가운데(199,116)를 축으로 가로로 눕고, 갈 때마다 폭이 넓어짐(2.5 왕복).
+                                    오른쪽 끝에선 오른쪽 끝이, 왼쪽 끝에선 왼쪽 끝이 들린다(낙엽처럼)
+   - li-fall  (1.6초~, 1.4초) 아래로 일정하게 내려가며 마지막 반 왕복 동안 흐려짐
+   원통 곡선(종이가 휘는 것)은 Wordmark.tsx 의 SVG animate 가 같은 시점에 맡는다 */
+@keyframes logo-tear { to { transform: rotate(13deg); } }
+@keyframes logo-sway {
+  0% { transform: none; animation-timing-function: ease-in-out; }
+  20% { transform: translateX(50px) rotate(62deg); animation-timing-function: ease-in-out; }
+  40% { transform: translateX(-80px) rotate(97deg); animation-timing-function: ease-in-out; }
+  60% { transform: translateX(110px) rotate(55deg); animation-timing-function: ease-in-out; }
+  80% { transform: translateX(-140px) rotate(104deg); animation-timing-function: ease-in-out; }
+  100% { transform: translateX(170px) rotate(50deg); }
 }
+@keyframes logo-fall { 0% { transform: none; } 80% { opacity: 1; } 100% { transform: translateY(470px); opacity: 0; } }
 /* 뜯기는 순간(900ms) 한 덩어리 로고 → 조각으로 바꿔 끼운다. 모양이 같아 바뀌는 순간은 보이지 않는다 */
 @keyframes logo-off { to { opacity: 0; } }
 @keyframes logo-on { from { opacity: 0; } to { opacity: 1; } }
@@ -93,10 +106,13 @@
 .logo-intro .li-bar { transform-box: fill-box; transform-origin: center; animation: logo-eq 420ms 300ms ease-out both; }
 .logo-intro .li-bar:nth-child(2) { animation-delay: 380ms; }
 .logo-intro .li-bar:nth-child(3) { animation-delay: 460ms; }
-.logo-intro .li-stub { transform-box: fill-box; transform-origin: 0% 100%; animation: logo-tear 800ms 900ms cubic-bezier(.5,0,.75,.4) both; }
+.logo-intro .li-stub { transform-box: view-box; transform-origin: 166px 188px; animation: logo-tear 0s 1600ms both; }
+.logo-intro .li-sway { transform-box: view-box; transform-origin: 199px 116px; animation: logo-sway 1400ms 1600ms both; }
+.logo-intro .li-fall { transform-box: view-box; animation: logo-fall 1400ms 1600ms linear both; }
 .logo-intro .li-whole { animation: logo-off 0s 900ms both; }
 .logo-intro .li-pieces { animation: logo-on 0s 900ms both; }
-.logo-intro-text { animation: logo-text 500ms 1180ms cubic-bezier(.2,.85,.25,1) both; }
+/* 글자는 꼬투리가 첫 왕복을 마치고 로고 아래로 내려간 뒤(낙하 ~36%) 나온다 → 떨어지는 꼬투리가 글자를 가리지 않음 */
+.logo-intro-text { animation: logo-text 500ms 2100ms cubic-bezier(.2,.85,.25,1) both; }
 @media (prefers-reduced-motion: reduce) {
   .logo-intro, .logo-intro *, .logo-intro-text { animation: none !important; }
 }

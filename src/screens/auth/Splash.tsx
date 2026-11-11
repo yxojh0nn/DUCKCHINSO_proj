@@ -9,7 +9,7 @@ export default function Splash() {
   const session = useSession()
   useEffect(() => {
     if (session.isLoading) return
-    const t = setTimeout(() => nav(session.data ? '/calendar' : '/login', { replace: true }), 2200)
+    const t = setTimeout(() => nav(session.data ? '/calendar' : '/login', { replace: true }), 3250) // 진입 애니메이션(꼬투리가 사라지는 3초) + 잠깐 머무름
     return () => clearTimeout(t)
   }, [session.isLoading, session.data, nav])
   return (
