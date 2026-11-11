@@ -162,6 +162,7 @@ export type Message = {
   body: string
   imageUrl: string | null
   createdAt: string
+  deleted?: boolean // 보낸 사람이 지움 → body 는 '삭제된 메시지예요'
 }
 
 export type Post = {
@@ -266,6 +267,7 @@ export interface Api {
   sendText(roomId: string, body: string): Promise<void>
   sendImage(roomId: string, file: Blob): Promise<void>
   markRead(roomId: string): Promise<void>
+  deleteMessage(id: string): Promise<void> // 내가 보낸 것만 (서버 delete_my_message)
   subscribe(cb: (e: RealtimeEvent) => void): () => void
 
   // 커뮤니티
