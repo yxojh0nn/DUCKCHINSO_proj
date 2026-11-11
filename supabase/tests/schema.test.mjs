@@ -24,7 +24,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -289,10 +289,14 @@ assert.ok((await db.query(`select 1 from public.messages m join public.chat_memb
 await assert.rejects(as('b', `select public.admin_resolve_ticket_tip($1, false)`, [tips[0].id]), /not_found/) // 이미 처리됨
 
 // 운영자 전체 사용자: 검색·전체 수·로그인 방식, 운영자만
+// 회원·비회원 칸 분리: 기본은 회원만, guests=true 면 비회원만
 const users = (await as('b', `select * from public.admin_users('', 50, 0)`)).rows
-assert.ok(users.length >= 3); assert.equal(Number(users[0].total), users.length)
+assert.ok(users.length >= 2); assert.equal(Number(users[0].total), users.length)
+assert.ok(users.every((u) => !u.is_guest))
 assert.equal(users.find((u) => u.id === ids.d).login, 'email')
-assert.equal(users.find((u) => u.id === ids.c).login, 'guest')
+const guestRows = (await as('b', `select * from public.admin_users('', 50, 0, true)`)).rows
+assert.ok(guestRows.length >= 1 && guestRows.every((u) => u.is_guest))
+assert.equal(guestRows.find((u) => u.id === ids.c).login, 'guest')
 assert.equal(users.find((u) => u.id === ids.b).is_admin, true)
 const dNick = users.find((u) => u.id === ids.d).nickname
 assert.deepEqual((await as('b', `select id from public.admin_users($1)`, [dNick])).rows.map((r) => r.id), [ids.d])

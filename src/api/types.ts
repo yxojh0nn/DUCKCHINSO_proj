@@ -303,7 +303,7 @@ export interface Api {
   adminDeleteWord(allowed: boolean, word: string): Promise<void>
   adminTicketTips(): Promise<AdminTicketTip[]> // 확인 대기 전체 + 최근 처리분
   adminResolveTicketTip(id: string, approve: boolean): Promise<void>
-  adminUsers(q: string, page: number): Promise<{ users: AdminUser[]; total: number }> // 50명씩
+  adminUsers(q: string, page: number, guests?: boolean): Promise<{ users: AdminUser[]; total: number }> // 50명씩. guests: 비회원 칸
   adminUserStats(): Promise<AdminUserStats>
   adminUser(id: string): Promise<{ user: AdminUserDetail | null; sanctions: AdminSanctionRecord[] }>
   adminDeletePost(postId: string, reason: string): Promise<void> // 사유와 함께 지우고 작성자에게 알림
