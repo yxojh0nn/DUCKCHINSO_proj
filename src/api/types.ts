@@ -300,6 +300,7 @@ export interface Api {
   adminSanction(userId: string, level: SanctionLevel, reason: string, days?: number): Promise<void>
   adminInquiries(): Promise<AdminInquiry[]> // 답변 대기 전체 + 최근 답변분
   adminAnswerInquiry(id: string, answer: string): Promise<{ mailed: boolean }>
+  adminDeleteInquiry(id: string): Promise<void> // 답변 완료 문의만 (대기 중이면 not_answered)
   adminWords(): Promise<{ banned: BannedWord[]; allowed: string[] }>
   adminAddWord(input: { allowed: true; word: string } | ({ allowed?: false } & BannedWord)): Promise<void>
   adminDeleteWord(allowed: boolean, word: string): Promise<void>
@@ -323,6 +324,7 @@ export const errorText = (e: unknown) => {
     limit_reached: '선택할 수 있는 개수를 넘었어요.',
     account_restricted: '이용이 제한된 계정이에요. 문의하기로 연락해 주세요.',
     not_found: '이미 처리됐거나 사라진 항목이에요.',
+    not_answered: '답변을 마친 문의만 삭제할 수 있어요.',
     forbidden: '운영자만 할 수 있어요.',
     kopis_unavailable: 'KOPIS에서 공연 정보를 받지 못했어요. 잠시 후 다시 시도해 주세요.',
     word_exists: '이미 목록에 있는 단어예요.',

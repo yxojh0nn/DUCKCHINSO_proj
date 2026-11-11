@@ -130,6 +130,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     async updatePassword(password) {
       const { error } = await sb.auth.updateUser({ password })
       if (error) throw error
+      await sb.auth.signOut({ scope: 'others' }) // 비밀번호를 바꾸면 다른 기기 로그인은 끊는다 (도용 대비)
     },
     async signOut() {
       await sb.auth.signOut()
@@ -355,8 +356,8 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       ok(await sb.rpc('mark_room_read', { r: roomId }))
     },
     subscribe(cb) {
-      // RLS가 적용되므로 내가 볼 수 있는 행의 변경만 도착한다
-      const ch = sb.channel('me')
+      // RLS가 적용되므로 내가 볼 수 있는 행의 변경만 도착한다. 채널은 구독마다 따로 (공용 이름 'me' 를 쓰지 않는다, 보안 점검 L4)
+      const ch = sb.channel(`user:${crypto.randomUUID()}`)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (p) => cb({ type: 'message', roomId: (p.new as Row).room_id }))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests' }, () => cb({ type: 'request' }))
         .subscribe()
@@ -433,23 +434,16 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     async adminGetConcert(id) {
       return adminConcert(ok(await sb.from('concerts').select(ADMIN_CONCERT).eq('id', id).single()) as Row)
     },
+    // 운영자 쓰기는 모두 서버 함수로 (표 직접 쓰기 권한 없음, 마이그 28·29). 기획사 목록 쌓기도 함수 안에서
     async adminPublishConcert(id, input) {
-      const c = ok(await sb.from('concerts').update({ status: 'published', ticket_open_at: input.ticketOpenAt })
-        .eq('id', id).select('promoter').single()) as Row
-      ok(await sb.from('concert_artists').delete().eq('concert_id', id))
-      if (input.artistIds.length) ok(await sb.from('concert_artists').insert(input.artistIds.map((a) => ({ concert_id: id, artist_id: a }))))
-      // 게시한 공연의 기획사를 J-pop 기획사로 쌓는다 → 다음 수집부터 판별 근거(+1)
-      const names = String(c.promoter ?? '').split(',').map((s) => s.trim()).filter((s) => s.length >= 2 && s.length <= 60)
-      if (names.length) ok(await sb.from('jpop_promoters').upsert(names.map((name) => ({ name })), { onConflict: 'name', ignoreDuplicates: true }))
+      ok(await sb.rpc('admin_publish_concert', { p_id: id, p_artist_ids: input.artistIds, p_ticket_open_at: input.ticketOpenAt }))
     },
     async adminHideConcert(id) {
-      ok(await sb.from('concerts').update({ status: 'hidden' }).eq('id', id))
+      ok(await sb.rpc('admin_hide_concert', { p_id: id }))
     },
     async adminSearchInbox(q) {
-      const term = q.trim().replace(/[%_\\]/g, '')
-      if (!term) return []
-      const rows = ok(await sb.from('kopis_inbox').select('kopis_id, title, venue, start_date, end_date')
-        .ilike('title', `%${term}%`).order('start_date').limit(50)) as Row[]
+      if (!q.trim()) return []
+      const rows = ok(await sb.rpc('admin_search_inbox', { q })) as Row[]
       const ids = rows.map((r) => r.kopis_id)
       const known = ids.length ? ok(await sb.from('concerts').select('id, kopis_id, status').in('kopis_id', ids)) as Row[] : []
       return rows.map((r) => {
@@ -536,6 +530,9 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
         answers: r.answers ?? {}, body: r.body, status: r.status, answer: r.answer, answeredAt: r.answered_at, createdAt: r.created_at,
       }))
     },
+    async adminDeleteInquiry(id) {
+      ok(await sb.rpc('admin_delete_inquiry', { p_id: id }))
+    },
     async adminAnswerInquiry(id, answer) {
       const { data, error } = await sb.functions.invoke('answer-inquiry', { body: { inquiryId: id, answer } })
       if (error) {
@@ -545,28 +542,22 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       return { mailed: !!(data as { mailed?: boolean })?.mailed }
     },
     async adminSaveArtist(input) {
-      const row = { name: input.name.trim(), name_ja: input.nameJa?.trim() || null, name_en: input.nameEn?.trim() || null,
-        aliases: [...new Set(input.aliases.map((a) => a.trim()).filter(Boolean))].slice(0, 30) } // 출처(source)는 서버 트리거가 admin 으로 정한다
-      const saved = input.id
-        ? ok(await sb.from('artists').update(row).eq('id', input.id).select('id').single()) as Row
-        : ok(await sb.from('artists').insert(row).select('id').single()) as Row
-      return saved.id
+      // 출처(source)·작성자는 서버 트리거가 정한다
+      return ok(await sb.rpc('admin_save_artist', {
+        p_id: input.id ?? null, p_name: input.name, p_name_ja: input.nameJa ?? null, p_name_en: input.nameEn ?? null,
+        p_aliases: [...new Set(input.aliases.map((a) => a.trim()).filter(Boolean))].slice(0, 30),
+      })) as string
     },
     async adminWords() {
-      const [banned, allowed] = await Promise.all([
-        sb.from('banned_words').select('word, match, category').order('created_at', { ascending: false }),
-        sb.from('allowed_words').select('word').order('created_at', { ascending: false }),
-      ])
-      return { banned: ok(banned) as BannedWord[], allowed: (ok(allowed) as Row[]).map((r) => r.word) }
+      return ok(await sb.rpc('admin_words')) as { banned: BannedWord[]; allowed: string[] }
     },
     async adminAddWord(input) {
-      const { error } = input.allowed
-        ? await sb.from('allowed_words').insert({ word: input.word })
-        : await sb.from('banned_words').insert({ word: input.word, match: input.match, category: input.category })
-      if (error) throw new Error(error.code === '23505' ? 'word_exists' : error.message)
+      ok(await sb.rpc('admin_add_word', input.allowed
+        ? { p_word: input.word, p_allowed: true }
+        : { p_word: input.word, p_allowed: false, p_match: input.match, p_category: input.category }))
     },
     async adminDeleteWord(allowed, word) {
-      ok(await sb.from(allowed ? 'allowed_words' : 'banned_words').delete().eq('word', word))
+      ok(await sb.rpc('admin_delete_word', { p_allowed: allowed, p_word: word }))
     },
     async adminTestText(text) {
       const r = (ok(await sb.rpc('admin_test_text', { t: text })) as Row[])[0]

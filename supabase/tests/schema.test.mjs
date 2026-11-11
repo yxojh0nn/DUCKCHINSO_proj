@@ -24,7 +24,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql', '20261111000030_inquiry_delete_and_hardening.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -142,16 +142,24 @@ await as('a', `insert into public.messages (room_id, sender_id, body) values ($1
 const con = (await db.query(`insert into public.concerts (title, venue_name, venue_query, status, promoter) values ('검수 공연', 'v', 'v', 'review', '테스트기획') returning id`)).rows[0].id
 await db.query(`insert into public.kopis_inbox (kopis_id, title) values ('PF1', 'Regallily Asia Tour')`)
 assert.equal((await as('c', `select * from public.concerts where id = $1`, [con])).rows.length, 0)
-assert.equal((await as('c', `select * from public.kopis_inbox`)).rows.length, 0)
-assert.equal((await as('c', `update public.concerts set status = 'published' where id = $1`, [con])).affectedRows, 0)
-await assert.rejects(as('c', `insert into public.jpop_promoters (name) values ('가짜기획')`))
-await assert.rejects(as('c', `insert into public.artists (name, source) values ('가짜', 'admin')`))
+// 3단계(마이그 29): 운영 표는 표 권한 자체가 없다 → RLS 이전에 permission denied
+await assert.rejects(as('c', `select * from public.kopis_inbox`), /permission denied/)
+await assert.rejects(as('c', `update public.concerts set status = 'published' where id = $1`, [con]), /permission denied/)
+await assert.rejects(as('c', `insert into public.jpop_promoters (name) values ('가짜기획')`), /permission denied/)
+await assert.rejects(as('c', `insert into public.artists (name, source) values ('가짜', 'admin')`), /permission denied/)
+await assert.rejects(as('c', `select * from public.admin_search_inbox('Regal')`), /forbidden/)
+await assert.rejects(as('c', `select public.admin_publish_concert($1, '{}', null)`, [con]), /forbidden/)
 await db.query(`insert into public.admins (user_id) values ($1)`, [ids.b])
-assert.equal((await as('b', `select * from public.kopis_inbox`)).rows.length, 1)
-assert.equal((await as('b', `update public.concerts set status = 'published', source = 'admin' where id = $1`, [con])).affectedRows, 1)
-await as('b', `insert into public.concert_artists (concert_id, artist_id) values ($1, $2)`, [con, art.rows[0].id])
-await as('b', `insert into public.jpop_promoters (name) values ('테스트기획')`)
-await as('b', `update public.artists set aliases = '{레갈릴리}', source = 'admin' where id = $1`, [art.rows[1].id])
+// 운영자도 표에 직접은 못 쓰고, 운영자 함수로만
+await assert.rejects(as('b', `update public.concerts set status = 'published' where id = $1`, [con]), /permission denied/)
+await assert.rejects(as('b', `select * from public.kopis_inbox`), /permission denied/)
+assert.equal((await as('b', `select * from public.admin_search_inbox('regal')`)).rows.length, 1)
+await as('b', `select public.admin_publish_concert($1, $2, null)`, [con, [art.rows[0].id]])
+assert.equal((await db.query(`select status from public.concerts where id = $1`, [con])).rows[0].status, 'published')
+assert.equal((await db.query(`select count(*)::int n from public.concert_artists where concert_id = $1`, [con])).rows[0].n, 1)
+assert.equal((await db.query(`select count(*)::int n from public.jpop_promoters where name = '테스트기획'`)).rows[0].n, 1) // 게시한 공연의 기획사가 쌓인다
+assert.equal((await as('b', `select public.admin_save_artist($1, 'Ado', null, null, '{레갈릴리}') as id`, [art.rows[1].id])).rows[0].id, art.rows[1].id)
+assert.deepEqual((await db.query(`select aliases from public.artists where id = $1`, [art.rows[1].id])).rows[0].aliases, ['레갈릴리'])
 assert.equal((await as('c', `select * from public.concerts where id = $1`, [con])).rows.length, 1) // 게시 후에는 모두에게 보인다
 
 // 신고·제재: 운영자 함수는 일반 사용자가 부르면 거절된다
@@ -219,13 +227,22 @@ await assert.rejects(as('a', `select * from public.message_originals`)) // 당�
 await as('a', `insert into public.reports (reporter, message_id, reason) values ($1, $2, 'abuse')`, [ids.a, masked[0].id])
 assert.equal((await db.query(`select content_snapshot from public.reports where message_id = $1`, [masked[0].id])).rows[0].content_snapshot, masked[0].orig)
 // 목록은 운영자만 읽고 고친다. 넣을 때 정규화된다
-assert.equal((await as('c', `select * from public.banned_words`)).rows.length, 0)
-await assert.rejects(as('c', `insert into public.banned_words (word) values ('x')`))
+await assert.rejects(as('c', `select * from public.banned_words`), /permission denied/)
+await assert.rejects(as('c', `insert into public.banned_words (word) values ('x')`), /permission denied/)
 await assert.rejects(as('c', `select * from public.admin_test_text('x')`), /forbidden/)
-await as('b', `insert into public.banned_words (word) values (' 발 표 ')`)
+await assert.rejects(as('c', `select public.admin_words()`), /forbidden/)
+await assert.rejects(as('c', `select public.admin_add_word('x', false)`), /forbidden/)
+await as('b', `select public.admin_add_word(' 발 표 ', false)`)
+await assert.rejects(as('b', `select public.admin_add_word('발표', false)`), /word_exists/) // 정규화 후 같은 단어
 assert.equal((await as('b', `select * from public.admin_test_text('7시 발표')`)).rows[0].word, '발표')
-// 단어가 늘어도 이미 있는 글을 운영자가 가릴 수 있다 (바뀐 칸만 검사)
-await as('b', `update public.posts set status = 'hidden' where id = $1`, [okPost])
+const words = (await as('b', `select public.admin_words() as w`)).rows[0].w
+assert.ok(words.banned.some((x) => x.word === '발표')); assert.ok(Array.isArray(words.allowed))
+await as('b', `select public.admin_add_word('발표회', true)`)
+await as('b', `select public.admin_delete_word(true, '발표회')`)
+assert.ok(!(await as('b', `select public.admin_words() as w`)).rows[0].w.allowed.includes('발표회'))
+// 단어가 늘어도 이미 있는 글을 가릴 수 있다 (바뀐 칸만 검사). 운영자도 글 표에 직접 쓰진 못하고, 숨김은 운영자 함수(서버 권한)로 한다
+await assert.rejects(as('b', `update public.posts set status = 'hidden' where id = $1`, [okPost]), /permission denied/)
+await db.query(`update public.posts set status = 'hidden' where id = $1`, [okPost])
 await db.query(`delete from public.reports where message_id = $1`, [masked[0].id])
 
 // 로그인 아이디: 이메일 가입자만 아이디 만들기 대상. 네이버·카카오(external_ids)·아이디 있음은 제외
@@ -357,8 +374,8 @@ await assert.rejects(as('c', `select public.edit_comment($1, 'x')`, [ec]), /memb
 const ep = (await as('d', `insert into public.posts (author_id, title, body) values ($1, '남의 글 테스트', '본문') returning id`, [ids.d])).rows[0].id
 ids.e = (await db.query(`insert into auth.users (email) values ('e@x.com') returning id`)).rows[0].id
 await db.query(`update public.profiles set is_guest = false, community_agreed_at = now(), profile_setup_done = true where id = $1`, [ids.e])
-assert.equal((await as('e', `update public.posts set title = 'hack' where id = $1`, [ep])).affectedRows, 0)
-assert.equal((await as('d', `update public.posts set title = 'direct' where id = $1`, [ep])).affectedRows, 0) // 본인도 표 직접 수정은 불가 (상태·추천 수 보호)
+await assert.rejects(as('e', `update public.posts set title = 'hack' where id = $1`, [ep]), /permission denied/)
+await assert.rejects(as('d', `update public.posts set title = 'direct' where id = $1`, [ep]), /permission denied/) // 본인도 표 직접 수정은 불가 (상태·추천 수 보호, 마이그 29 로 권한 자체 회수)
 await assert.rejects(as('e', `update public.comments set body = 'hack' where id = $1`, [ec]), /permission denied/)
 await assert.rejects(as('e', `select public.edit_post($1, 'x', 'x', '{}')`, [ep]), /not_found/)
 await assert.rejects(as('d', `select public.edit_post($1, '씨발', '본문', '{}')`, [ep]), /blocked_word/)
@@ -394,9 +411,11 @@ const consentsBefore = await consentCount()
 await as('d', `select public.agree_community('v2')`)
 assert.equal(await consentCount(), consentsBefore + 1)
 // M7·M8: 운영자(b)가 musicbrainz 라고 보내도 admin 으로 저장되고, 누가 했는지 남는다. 운영 기록은 앱에서 못 읽는다
-const fakeArt = (await as('b', `insert into public.artists (name, source) values ('출처 위조', 'musicbrainz') returning id, source, created_by`)).rows[0]
+await assert.rejects(as('b', `insert into public.artists (name, source) values ('출처 위조', 'musicbrainz')`), /permission denied/) // 3단계: 표 직접 쓰기 불가
+const fakeArtId = (await as('b', `select public.admin_save_artist(null, '출처 위조', null, null, '{}') as id`)).rows[0].id
+const fakeArt = (await db.query(`select id, source, created_by from public.artists where id = $1`, [fakeArtId])).rows[0]
 assert.equal(fakeArt.source, 'admin'); assert.equal(fakeArt.created_by, ids.b)
-await as('b', `update public.concerts set ticket_open_at = now() where id = $1`, [cUp])
+await as('b', `select public.admin_publish_concert($1, '{}', now())`, [cUp])
 const stamped = (await db.query(`select source, updated_by from public.concerts where id = $1`, [cUp])).rows[0]
 assert.equal(stamped.source, 'admin'); assert.equal(stamped.updated_by, ids.b)
 const audits = (await db.query(`select table_name, action from public.admin_audit_log where actor = $1`, [ids.b])).rows
@@ -424,6 +443,28 @@ await as('e', `update public.profiles set notify_like = false where id = $1`, [i
 const eRooms = (await as('e', `select room_id, kind, can_send from public.list_my_rooms()`)).rows
 assert.equal(eRooms.find((r) => r.room_id === dm).can_send, false)
 assert.equal(eRooms.find((r) => r.kind === 'support').can_send, true)
+// ── 마이그 30 ──
+// 답변 완료 문의만 운영자가 지운다. 대기 중은 거절, 일반 회원은 forbidden, 지운 사실은 운영 기록에
+const eInq = (await db.query(`select id from public.inquiries where user_id = $1 order by created_at desc limit 1`, [ids.e])).rows[0].id
+await assert.rejects(as('b', `select public.admin_delete_inquiry($1)`, [eInq]), /not_answered/)
+await db.query(`update public.inquiries set status = 'answered', answer = '답변', answered_at = now() where id = $1`, [eInq])
+await assert.rejects(as('d', `select public.admin_delete_inquiry($1)`, [eInq]), /forbidden/)
+await as('b', `select public.admin_delete_inquiry($1)`, [eInq])
+assert.equal((await db.query(`select count(*)::int n from public.inquiries where id = $1`, [eInq])).rows[0].n, 0)
+assert.equal((await db.query(`select count(*)::int n from public.admin_audit_log where table_name = 'inquiries' and action = 'delete' and actor = $1`, [ids.b])).rows[0].n, 1)
+await assert.rejects(as('b', `select public.admin_delete_inquiry($1)`, [eInq]), /not_found/)
+// 남의 차단 관계는 함수로도 알아낼 수 없다 (당사자만 true)
+await db.query(`insert into public.blocks (blocker, blocked) values ($1, $2)`, [ids.d, ids.e])
+assert.equal((await as('d', `select public.is_blocked_between($1, $2) as v`, [ids.d, ids.e])).rows[0].v, true)
+assert.equal((await as('b', `select public.is_blocked_between($1, $2) as v`, [ids.d, ids.e])).rows[0].v, false)
+await db.query(`delete from public.blocks where blocker = $1 and blocked = $2`, [ids.d, ids.e])
+// 비로그인(anon) 요청은 회원 전용 함수를 못 부른다. 공연 공개 정책이 쓰는 is_admin() 은 그대로
+await db.exec(`reset role; select set_config('request.uid', '', false); set role anon`)
+try {
+  await assert.rejects(db.query(`select public.my_profile()`), /permission denied/)
+  await assert.rejects(db.query(`select public.is_member()`), /permission denied/)
+  assert.ok((await db.query(`select count(*) from public.concerts where status = 'published'`)).rows.length)
+} finally { await db.exec('reset role') }
 // 알림 종류별 설정: 본인이 바꿀 수 있다
 await as('d', `update public.profiles set notify_like = false, notify_concert = false where id = $1`, [ids.d])
 assert.deepEqual((await db.query(`select notify_friend, notify_like, notify_comment, notify_concert from public.profiles where id = $1`, [ids.d])).rows[0],

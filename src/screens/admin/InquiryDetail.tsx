@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, errorText, type AdminInquiry } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { Button } from '@/components/ui/Button'
+import { Confirm } from '@/components/ui/Confirm'
 import { Empty } from '@/components/ui/Empty'
 import { TextArea } from '@/components/ui/Field'
 import { fmtDateTime } from '@/lib/date'
@@ -26,6 +27,17 @@ function InquiryForm({ i }: { i: AdminInquiry }) {
   const qc = useQueryClient()
   const [answer, setAnswer] = useState('')
   const [busy, setBusy] = useState(false)
+  const [del, setDel] = useState(false)
+  // 답변 완료 문의 삭제: 사용자 대화방의 답변 메시지는 남는다. 누가 지웠는지는 운영 기록에 남는다
+  const remove = async () => {
+    setDel(false)
+    try {
+      await api.adminDeleteInquiry(i.id)
+      await qc.invalidateQueries({ queryKey: adminKeys.inquiries })
+      toast('문의를 삭제했어요')
+      nav('/admin/inquiries', { replace: true })
+    } catch (e) { toast(errorText(e)) }
+  }
   const send = async () => {
     if (!answer.trim() || busy) return
     setBusy(true)
@@ -58,6 +70,9 @@ function InquiryForm({ i }: { i: AdminInquiry }) {
         <section className="mt-6 border-t border-hairline px-5 pt-5">
           <p className="t-sub text-graphite">보낸 답변{i.answeredAt ? ` · ${fmtDateTime(i.answeredAt)}` : ''}</p>
           <p className="mt-1 whitespace-pre-wrap break-words t-body">{i.answer}</p>
+          <Button block variant="secondary" className="mt-8" onClick={() => setDel(true)}>문의 삭제</Button>
+          <Confirm open={del} title="이 문의를 삭제할까요?" message="운영자 문의 목록에서 지워지고 되돌릴 수 없어요. 사용자의 운영팀 대화방에 보낸 답변은 그대로 남아요."
+            confirmLabel="삭제" danger onClose={() => setDel(false)} onConfirm={remove} />
         </section>
       ) : (
         <section className="mt-6 flex flex-1 flex-col border-t border-hairline px-5 pb-[max(24px,env(safe-area-inset-bottom))] pt-5">
