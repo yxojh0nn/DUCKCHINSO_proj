@@ -225,10 +225,12 @@ export interface Api {
   completeSocialLogin(tokenHash: string): Promise<void> // 네이버·카카오: 서버 함수가 준 일회용 토큰으로 세션 받기
   setLoginId(loginId: string): Promise<void>
   myLoginId(): Promise<string | null>
-  findLoginId(email: string): Promise<{ mailReady: boolean }>
-  // 비밀번호 찾기: 아이디 + 가입 이메일이 맞으면 그 이메일로 인증 코드 → 코드 + 새 비밀번호 (login-id 함수)
-  requestPasswordReset(loginId: string, email: string): Promise<void>
-  resetPasswordWithCode(loginId: string, email: string, code: string, password: string): Promise<void>
+  // 아이디 찾기: 캡차 + 이메일 → 인증 코드 메일 → 코드가 맞으면 아이디를 화면에만 (ticket: 바로 비밀번호를 바꿀 때 코드 대신)
+  findLoginIdCode(email: string, captchaToken?: string): Promise<{ mailReady: boolean }>
+  findLoginIdVerify(email: string, code: string): Promise<{ loginId: string; ticket: string }>
+  // 비밀번호 찾기: 캡차 + 아이디 + 가입 이메일이 맞으면 그 이메일로 인증 코드 → 코드(또는 아이디 찾기의 ticket) + 새 비밀번호
+  requestPasswordReset(loginId: string, email: string, captchaToken?: string): Promise<void>
+  resetPasswordWithCode(loginId: string, email: string, proof: { code: string } | { ticket: string }, password: string): Promise<void>
   updatePassword(password: string): Promise<void>
   signOut(): Promise<void>
   deleteAccount(): Promise<void>
@@ -339,6 +341,7 @@ export const errorText = (e: unknown) => {
     password_rule: '비밀번호는 영문과 숫자를 섞어 8~72자로 정해 주세요.',
     email_code_expired: '인증 코드가 만료됐어요. 인증 메일을 다시 받아 주세요.',
     email_ticket_expired: '메일 인증 시간이 지났어요. 다시 인증해 주세요.',
+    captcha_failed: '로봇이 아닌지 확인하지 못했어요. 확인을 다시 해 주세요.',
     mail_not_ready: '인증 메일을 보내지 못했어요. 잠시 후 다시 시도해 주세요.',
     invalid_login: '아이디 또는 비밀번호가 올바르지 않습니다.',
     too_many_attempts: '시도가 너무 많아요. 10분 뒤에 다시 해 주세요.',
