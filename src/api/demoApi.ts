@@ -23,8 +23,8 @@ type Acc = Profile & {
 type Req = { id: string; from: string; to: string; status: 'pending' | 'accepted' | 'declined'; createdAt: number; expiresAt: number }
 type RoomRow = { id: string; kind: 'dm' | 'support'; members: string[]; lastRead: Record<string, number>; createdAt: number }
 type MsgRow = Omit<Message, 'createdAt'> & { createdAt: number }
-type PostRow = { id: string; authorId: string; title: string; body: string; tags: string[]; imageUrls: string[]; likes: string[]; createdAt: number; concertId?: string | null }
-type CommentRow = { id: string; postId: string; authorId: string; body: string; createdAt: number; parentId?: string | null; replyTo?: string | null }
+type PostRow = { id: string; authorId: string; title: string; body: string; tags: string[]; imageUrls: string[]; likes: string[]; createdAt: number; concertId?: string | null; edited?: boolean }
+type CommentRow = { id: string; postId: string; authorId: string; body: string; createdAt: number; parentId?: string | null; replyTo?: string | null; edited?: boolean }
 type DB = {
   session: string | null
   accounts: Record<string, Acc>
@@ -127,7 +127,7 @@ export function createDemoApi(): Api {
   const toPost = (p: PostRow, uid: string): Post => ({
     id: p.id, author: card(p.authorId), title: p.title, body: p.body, tags: p.tags, imageUrls: p.imageUrls,
     likeCount: p.likes.length, commentCount: db.comments.filter((c) => c.postId === p.id).length,
-    likedByMe: p.likes.includes(uid), createdAt: iso(p.createdAt), concertId: p.concertId ?? null,
+    likedByMe: p.likes.includes(uid), createdAt: iso(p.createdAt), concertId: p.concertId ?? null, edited: !!p.edited,
   })
 
   const api: Api = {
@@ -264,7 +264,7 @@ export function createDemoApi(): Api {
       const p = pending(my, uid)
       return {
         ...card(uid), bannerUrl: a?.bannerUrl ?? null, isGuest: a?.isGuest ?? false, profileSetupDone: true,
-        communityAgreedAt: null, notifyEnabled: false, ...prefsOf(uid),
+        communityAgreedAt: null, notifyEnabled: false, ...prefsOf(uid), upcomingCount: 0, // 데모는 관심 공연을 가리지 않는다
         relation: uid === my ? 'self' : f ? 'friend' : p ? (p.from === my ? 'sent' : 'received') : 'none',
         roomId: f?.roomId ?? null,
       }
@@ -446,11 +446,23 @@ export function createDemoApi(): Api {
     async listComments(pid) {
       const a = me()
       return db.comments.filter((c) => c.postId === pid && !blockedBetween(a.id, c.authorId))
-        .map((c) => ({ id: c.id, postId: c.postId, author: card(c.authorId), body: c.body, createdAt: iso(c.createdAt), parentId: c.parentId ?? null, replyTo: c.replyTo ? { id: c.replyTo, nickname: card(c.replyTo).nickname } : null }))
+        .map((c) => ({ id: c.id, postId: c.postId, author: card(c.authorId), body: c.body, createdAt: iso(c.createdAt), edited: !!c.edited, parentId: c.parentId ?? null, replyTo: c.replyTo ? { id: c.replyTo, nickname: card(c.replyTo).nickname } : null }))
     },
     async addComment(pid, body, reply) {
       const parent = reply && db.comments.find((c) => c.id === reply.parentId)
       db.comments.push({ id: id(), postId: pid, authorId: me().id, body, createdAt: Date.now(), parentId: parent ? parent.parentId ?? parent.id : null, replyTo: reply?.toUserId ?? null })
+      save()
+    },
+    async editPost(pid, { title, body, tags }) {
+      const p = db.posts.find((x) => x.id === pid && x.authorId === me().id)
+      if (!p) throw new Error('not_found')
+      Object.assign(p, { title, body, tags, edited: true })
+      save()
+    },
+    async editComment(cid, body) {
+      const c = db.comments.find((x) => x.id === cid && x.authorId === me().id)
+      if (!c) throw new Error('not_found')
+      Object.assign(c, { body, edited: true })
       save()
     },
 

@@ -33,12 +33,14 @@ export default function PostDetail() {
   const [text, setText] = useState('')
   const [replyTo, setReplyTo] = useState<{ parentId: string; userId: string; nickname: string } | null>(null) // 답글 대상
   const [sending, setSending] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null) // 내 댓글 수정 중
 
   if (post.isError) return (<><AppHeader back /><Empty title="글을 볼 수 없어요" body="삭제됐거나 볼 수 없는 글이에요." /></>)
   const p = post.data
   const mine = p && me && p.author.id === me.id
 
   const like = async () => {
+    if (me?.isGuest) return toast(errorText('members_only')) // 서버 toggle_post_like 도 막는다
     try {
       await api.toggleLike(id)
       await Promise.all([qc.invalidateQueries({ queryKey: keys.post(id) }), qc.invalidateQueries({ queryKey: ['posts'] })])
@@ -50,8 +52,10 @@ export default function PostDetail() {
     if (!body || sending) return
     setSending(true)
     try {
-      await api.addComment(id, body, replyTo ? { parentId: replyTo.parentId, toUserId: replyTo.userId } : undefined)
+      if (editingId) await api.editComment(editingId, body)
+      else await api.addComment(id, body, replyTo ? { parentId: replyTo.parentId, toUserId: replyTo.userId } : undefined)
       setText('')
+      setEditingId(null)
       setReplyTo(null)
       await Promise.all([qc.invalidateQueries({ queryKey: keys.comments(id) }), qc.invalidateQueries({ queryKey: keys.post(id) })])
     } catch (err) { toast(errorText(err)) } finally { setSending(false) }
@@ -69,7 +73,7 @@ export default function PostDetail() {
       {p && (
         <article className="px-5 pt-3">
           <h1 className="t-title">{p.title}</h1>
-          <p className="mt-1 t-cap text-graphite">{fmtRelative(p.createdAt)}</p>
+          <p className="mt-1 t-cap text-graphite">{fmtRelative(p.createdAt)}{p.edited && ' · 수정됨'}</p>
           <p className="mt-4 whitespace-pre-wrap t-body">{p.body}</p>
           {p.imageUrls.map((u) => <img key={u} src={u} alt="첨부 사진" className="mt-3 w-full rounded-[12px] bg-mist" />)}
           {p.tags.length > 0 && <p className="mt-4 t-sub text-graphite">{p.tags.map((t) => `#${t}`).join(' ')}</p>}
@@ -89,13 +93,17 @@ export default function PostDetail() {
           <li key={c.id} className={`flex gap-3 py-3 pr-5 ${c.parentId ? 'pl-14' : 'pl-5'}`}>
             <Link to={`/profile/${c.author.id}`}><Avatar url={c.author.avatarUrl} name={c.author.nickname} size={c.parentId ? 26 : 32} /></Link>
             <div className="min-w-0 flex-1">
-              <p className="t-sub"><span className="font-semibold">{c.author.nickname}</span> <span className="text-graphite">{fmtRelative(c.createdAt)}</span></p>
+              <p className="t-sub"><span className="font-semibold">{c.author.nickname}</span> <span className="text-graphite">{fmtRelative(c.createdAt)}{c.edited && ' · 수정됨'}</span></p>
               <p className="mt-0.5 whitespace-pre-wrap t-body">
                 {c.replyTo && <span className="mr-1 font-semibold text-graphite">@{c.replyTo.nickname}</span>}{c.body}
               </p>
-              {me && (
-                <button onClick={() => { setReplyTo({ parentId: c.parentId ?? c.id, userId: c.author.id, nickname: c.author.nickname }); document.getElementById('comment-input')?.focus() }}
+              {me && !me.isGuest && (
+                <button onClick={() => { setEditingId(null); setReplyTo({ parentId: c.parentId ?? c.id, userId: c.author.id, nickname: c.author.nickname }); document.getElementById('comment-input')?.focus() }}
                   className="mt-0.5 h-8 t-cap font-semibold text-graphite">답글</button>
+              )}
+              {me && c.author.id === me.id && (
+                <button onClick={() => { setEditingId(c.id); setReplyTo(null); setText(c.body); document.getElementById('comment-input')?.focus() }}
+                  className="ml-3 mt-0.5 h-8 t-cap font-semibold text-graphite">수정</button>
               )}
             </div>
             {me && c.author.id !== me.id && (
@@ -105,7 +113,16 @@ export default function PostDetail() {
         ))}
       </ul>
 
+      {me?.isGuest ? (
+        <p className="sticky bottom-0 border-t border-hairline bg-paper px-5 py-3 pb-[max(12px,env(safe-area-inset-bottom))] t-sub text-graphite">댓글·추천은 회원으로 로그인하면 쓸 수 있어요.</p>
+      ) : (
       <form onSubmit={comment} className="sticky bottom-0 border-t border-hairline bg-paper px-4 py-2 pb-[max(8px,env(safe-area-inset-bottom))]">
+        {editingId && (
+          <p className="flex items-center gap-2 pb-1.5 pl-1 t-sub text-graphite">
+            <span className="min-w-0 flex-1 truncate">댓글 수정 중</span>
+            <button type="button" onClick={() => { setEditingId(null); setText('') }} className="h-8 px-2 font-semibold">취소</button>
+          </p>
+        )}
         {replyTo && (
           <p className="flex items-center gap-2 pb-1.5 pl-1 t-sub text-graphite">
             <span className="min-w-0 flex-1 truncate"><b className="text-ink">@{replyTo.nickname}</b> 님에게 답글</span>
@@ -113,16 +130,18 @@ export default function PostDetail() {
           </p>
         )}
         <div className="flex items-center gap-2">
-        <input id="comment-input" value={text} onChange={(e) => setText(e.target.value)} maxLength={1000} placeholder={replyTo ? '답글 남기기' : '댓글 남기기'} aria-label={replyTo ? '답글' : '댓글'}
+        <input id="comment-input" value={text} onChange={(e) => setText(e.target.value)} maxLength={1000} placeholder={editingId ? '댓글 수정' : replyTo ? '답글 남기기' : '댓글 남기기'} aria-label={replyTo ? '답글' : '댓글'}
           className="h-10 flex-1 rounded-full bg-mist px-4 outline-none t-body" />
         <button type="submit" disabled={!text.trim() || sending} aria-label="댓글 보내기" className="disabled:opacity-30"><IconSend size={34} /></button>
         </div>
       </form>
+      )}
 
       <Sheet open={menu} onClose={() => setMenu(false)} actions={p ? (mine ? [
+        { label: '글 수정', onClick: () => { setMenu(false); nav(`/community/write?edit=${p.id}`) } },
         { label: '글 삭제', danger: true, onClick: () => { setMenu(false); setDel(true) } },
       ] : [
-        { label: '친구 요청 보내기', onClick: () => { setMenu(false); actions.request(p.author.id) } },
+        ...(me?.isGuest ? [] : [{ label: '친구 요청 보내기', onClick: () => { setMenu(false); actions.request(p.author.id) } }]),
         { label: '상세 프로필 보기', onClick: () => nav(`/profile/${p.author.id}`) },
         { label: '신고하기', danger: true, onClick: () => { setMenu(false); setReport({ postId: p.id }) } },
         // 운영자 권한: 신고 없이 바로 삭제 (DB 함수가 운영자인지 다시 확인한다)
