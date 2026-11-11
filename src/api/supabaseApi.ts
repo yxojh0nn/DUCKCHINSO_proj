@@ -185,10 +185,9 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       if (patch.profileSetupDone !== undefined) row.profile_setup_done = patch.profileSetupDone
       if (patch.notifyEnabled !== undefined) row.notify_enabled = patch.notifyEnabled
       for (const [k, v] of Object.entries(patch.notify ?? {})) row[`notify_${k}`] = v
-      if (patch.communityAgreed) {
-        row.community_agreed_at = new Date().toISOString()
-        ok(await sb.from('consents').insert({ user_id: id, item: 'community', version: CONSENT_VERSION, agreed: true }))
-      }
+      // 동의 시각은 서버가 동의 기록과 함께 찍는다 (직접 수정 권한 없음)
+      if (patch.communityAgreed) ok(await sb.rpc('agree_community', { ver: CONSENT_VERSION }))
+      if (!Object.keys(row).length) return
       const { error } = await sb.from('profiles').update(row).eq('id', id)
       if (error) throw new Error(error.code === '23505' ? '이미 쓰고 있는 닉네임이에요.'
         : error.message.includes('profiles_nickname_chars') ? '닉네임에는 한글·일본어·영문·숫자와 공백 _ . - 만 쓸 수 있어요.' : error.message)
@@ -336,8 +335,12 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       const urls = await signedChatUrls(rows)
       return rows.reverse().map((m): Message => ({
         id: m.id, roomId: m.room_id, senderId: m.sender_id, kind: m.kind, body: m.body,
-        imageUrl: m.image_path ? urls.get(m.image_path) ?? null : null, createdAt: m.created_at,
+        imageUrl: m.image_path ? urls.get(m.image_path) ?? null : null, createdAt: m.created_at, deleted: !!m.deleted_at,
       }))
+    },
+    async deleteMessage(id) {
+      const path = ok(await sb.rpc('delete_my_message', { m: id })) as string | null
+      if (path) await sb.storage.from('chat-media').remove([path]) // 사진 파일도 지운다 (실패해도 화면에는 이미 삭제됨)
     },
     async sendText(roomId, body) {
       ok(await sb.from('messages').insert({ room_id: roomId, sender_id: await uid(), kind: 'text', body }))
@@ -431,7 +434,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       return adminConcert(ok(await sb.from('concerts').select(ADMIN_CONCERT).eq('id', id).single()) as Row)
     },
     async adminPublishConcert(id, input) {
-      const c = ok(await sb.from('concerts').update({ status: 'published', source: 'admin', ticket_open_at: input.ticketOpenAt })
+      const c = ok(await sb.from('concerts').update({ status: 'published', ticket_open_at: input.ticketOpenAt })
         .eq('id', id).select('promoter').single()) as Row
       ok(await sb.from('concert_artists').delete().eq('concert_id', id))
       if (input.artistIds.length) ok(await sb.from('concert_artists').insert(input.artistIds.map((a) => ({ concert_id: id, artist_id: a }))))
@@ -543,7 +546,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     },
     async adminSaveArtist(input) {
       const row = { name: input.name.trim(), name_ja: input.nameJa?.trim() || null, name_en: input.nameEn?.trim() || null,
-        aliases: [...new Set(input.aliases.map((a) => a.trim()).filter(Boolean))].slice(0, 30), source: 'admin' }
+        aliases: [...new Set(input.aliases.map((a) => a.trim()).filter(Boolean))].slice(0, 30) } // 출처(source)는 서버 트리거가 admin 으로 정한다
       const saved = input.id
         ? ok(await sb.from('artists').update(row).eq('id', input.id).select('id').single()) as Row
         : ok(await sb.from('artists').insert(row).select('id').single()) as Row

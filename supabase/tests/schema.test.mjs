@@ -24,7 +24,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -46,7 +46,8 @@ const as = async (k, sql, params = []) => {
 const art = await db.query(`insert into public.artists (name) values ('YOASOBI'), ('Ado') returning id`)
 for (const k of ['a', 'b', 'c']) {
   await as(k, `insert into public.user_artists (user_id, artist_id) values ($1, $2)`, [ids[k], art.rows[0].id])
-  await as(k, `update public.profiles set profile_setup_done = true, community_agreed_at = now() where id = $1`, [ids[k]])
+  await as(k, `update public.profiles set profile_setup_done = true where id = $1`, [ids[k]])
+  await as(k, `select public.agree_community('v1')`) // 동의 시각은 서버 함수로만 (I2)
 }
 // cannot escalate status
 await assert.rejects(as('a', `update public.profiles set status = 'banned' where id = $1`, [ids.b]))
@@ -385,6 +386,44 @@ await assert.rejects(as('g', `update public.profiles set avatar_url = 'https://e
 await as('g', `update public.profiles set bio = '소개', last_seen_at = now() where id = $1`, [g])
 await db.exec(`select set_config('request.uid', '', false)`) // SQL Editor 처럼 로그인 사용자 없음
 await db.query(`update public.profiles set nickname = '익명의 팬0001' where id = $1`, [g])
+// ── 2단계 (마이그 27) ──
+// I2: 동의 시각은 직접 못 바꾸고, 함수는 동의 기록과 함께 찍는다
+await assert.rejects(as('d', `update public.profiles set community_agreed_at = now() where id = $1`, [ids.d]), /permission denied/)
+const consentCount = async () => (await db.query(`select count(*)::int n from public.consents where user_id = $1 and item = 'community'`, [ids.d])).rows[0].n
+const consentsBefore = await consentCount()
+await as('d', `select public.agree_community('v2')`)
+assert.equal(await consentCount(), consentsBefore + 1)
+// M7·M8: 운영자(b)가 musicbrainz 라고 보내도 admin 으로 저장되고, 누가 했는지 남는다. 운영 기록은 앱에서 못 읽는다
+const fakeArt = (await as('b', `insert into public.artists (name, source) values ('출처 위조', 'musicbrainz') returning id, source, created_by`)).rows[0]
+assert.equal(fakeArt.source, 'admin'); assert.equal(fakeArt.created_by, ids.b)
+await as('b', `update public.concerts set ticket_open_at = now() where id = $1`, [cUp])
+const stamped = (await db.query(`select source, updated_by from public.concerts where id = $1`, [cUp])).rows[0]
+assert.equal(stamped.source, 'admin'); assert.equal(stamped.updated_by, ids.b)
+const audits = (await db.query(`select table_name, action from public.admin_audit_log where actor = $1`, [ids.b])).rows
+assert.ok(audits.some((r) => r.table_name === 'artists' && r.action === 'insert'))
+assert.ok(audits.some((r) => r.table_name === 'concerts' && r.action === 'update'))
+await assert.rejects(as('b', `select * from public.admin_audit_log`), /permission denied/)
+await db.exec(`select set_config('request.uid', '', false)`) // 수집 함수처럼 로그인 사용자 없음 → 보낸 출처 그대로
+await db.query(`update public.artists set name = '수집 갱신', source = 'musicbrainz' where id = $1`, [fakeArt.id])
+assert.equal((await db.query(`select source from public.artists where id = $1`, [fakeArt.id])).rows[0].source, 'musicbrainz')
+// L7: 내 메시지만 지운다. 화면엔 '삭제된 메시지예요', 원문은 운영자용으로 남아 나중에 신고해도 스냅숏에 원문이 들어간다
+const dMsg = (await db.query(`select id from public.messages where room_id = $1 and sender_id = $2 and body = 'active dm'`, [dm, ids.d])).rows[0].id
+await assert.rejects(as('e', `select public.delete_my_message($1)`, [dMsg]), /not_found/)
+assert.equal((await as('d', `select public.delete_my_message($1) as p`, [dMsg])).rows[0].p, null)
+const gone = (await db.query(`select body, deleted_at from public.messages where id = $1`, [dMsg])).rows[0]
+assert.equal(gone.body, '삭제된 메시지예요'); assert.ok(gone.deleted_at)
+await assert.rejects(as('d', `select public.delete_my_message($1)`, [dMsg]), /not_found/)
+await db.query(`insert into public.reports (reporter, message_id, reason) values ($1, $2, 'abuse')`, [ids.e, dMsg])
+assert.equal((await db.query(`select content_snapshot from public.reports where message_id = $1`, [dMsg])).rows[0].content_snapshot, 'active dm')
+await db.query(`delete from public.reports where message_id = $1`, [dMsg])
+// 정지 계정(e): 사용자 검색·추천 0건, 프로필 수정 불가(알림 설정은 됨), 친구 DM 방은 보낼 수 없음 표시, 운영팀 방은 가능
+assert.equal((await as('e', `select * from public.search_users('')`)).rows.length, 0)
+assert.equal((await as('e', `select * from public.recommend_friends(10)`)).rows.length, 0)
+await assert.rejects(as('e', `update public.profiles set bio = '이의 있음' where id = $1`, [ids.e]), /account_restricted/)
+await as('e', `update public.profiles set notify_like = false where id = $1`, [ids.e])
+const eRooms = (await as('e', `select room_id, kind, can_send from public.list_my_rooms()`)).rows
+assert.equal(eRooms.find((r) => r.room_id === dm).can_send, false)
+assert.equal(eRooms.find((r) => r.kind === 'support').can_send, true)
 // 알림 종류별 설정: 본인이 바꿀 수 있다
 await as('d', `update public.profiles set notify_like = false, notify_concert = false where id = $1`, [ids.d])
 assert.deepEqual((await db.query(`select notify_friend, notify_like, notify_comment, notify_concert from public.profiles where id = $1`, [ids.d])).rows[0],

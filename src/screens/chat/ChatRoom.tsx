@@ -14,13 +14,17 @@ import { toast } from '@/store/ui'
 
 const GREETING = '안녕하세요! 반가워요 :) 같이 덕질해요'
 
-function Bubble({ m, mine }: { m: Message; mine: boolean }) {
+// 내 메시지는 눌러서 삭제 메뉴를 연다 (onPick). 지운 메시지는 흐리게 '삭제된 메시지예요'
+function Bubble({ m, mine, onPick }: { m: Message; mine: boolean; onPick?: () => void }) {
   if (m.kind === 'system') return <p className="mx-auto my-3 max-w-[80%] text-center t-cap text-graphite">{m.body}</p>
+  const content = m.deleted
+    ? <p className="max-w-[72%] rounded-[18px] border border-hairline px-3.5 py-2 t-body text-graphite">{m.body}</p>
+    : m.kind === 'image' && m.imageUrl
+      ? <img src={m.imageUrl} alt="보낸 사진" className="max-h-64 max-w-[65%] rounded-[16px] bg-mist object-cover" />
+      : <p className={`max-w-[72%] whitespace-pre-wrap break-words rounded-[18px] px-3.5 py-2 t-body ${mine ? 'bg-ink text-paper' : 'bg-mist'}`}>{m.body}</p>
   return (
     <div className={`flex items-end gap-1.5 ${mine ? 'flex-row-reverse' : ''}`}>
-      {m.kind === 'image' && m.imageUrl
-        ? <img src={m.imageUrl} alt="보낸 사진" className="max-h-64 max-w-[65%] rounded-[16px] bg-mist object-cover" />
-        : <p className={`max-w-[72%] whitespace-pre-wrap break-words rounded-[18px] px-3.5 py-2 t-body ${mine ? 'bg-ink text-paper' : 'bg-mist'}`}>{m.body}</p>}
+      {onPick ? <button onClick={onPick} aria-label="내 메시지 메뉴" className={`flex max-w-full ${mine ? 'justify-end' : ''} text-left`}>{content}</button> : content}
       <span className="shrink-0 pb-0.5 text-[10px] text-graphite num">{fmtTime(m.createdAt)}</span>
     </div>
   )
@@ -38,6 +42,7 @@ export default function ChatRoom() {
   const [menu, setMenu] = useState(false)
   const [report, setReport] = useState(false)
   const [sending, setSending] = useState(false)
+  const [picked, setPicked] = useState<Message | null>(null) // 삭제 메뉴를 연 내 메시지
   const scroller = useRef<HTMLDivElement>(null)
 
   const list = messages.data ?? []
@@ -84,7 +89,8 @@ export default function ChatRoom() {
           return (
             <div key={m.id}>
               {newDay && <p className="my-3 text-center t-cap text-graphite">{fmtDay(m.createdAt)}</p>}
-              <Bubble m={m} mine={!!me && m.senderId === me.id} />
+              <Bubble m={m} mine={!!me && m.senderId === me.id}
+                onPick={me && m.senderId === me.id && !m.deleted && m.kind !== 'system' ? () => setPicked(m) : undefined} />
               {m.senderId === null && m.kind === 'text' && <p className="ml-1 mt-0.5 t-cap text-graphite">덕친소 운영팀</p>}
             </div>
           )
@@ -114,6 +120,9 @@ export default function ChatRoom() {
         </form>
       )}
 
+      <Sheet open={!!picked} onClose={() => setPicked(null)} message="삭제하면 상대 화면에도 '삭제된 메시지예요'로 바뀌어요." actions={[
+        { label: '메시지 삭제', danger: true, onClick: () => { const m = picked; setPicked(null); if (m) send(() => api.deleteMessage(m.id)) } },
+      ]} />
       {partner?.id && (
         <>
           <Sheet open={menu} onClose={() => setMenu(false)} title={partner.nickname} actions={[

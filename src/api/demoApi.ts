@@ -401,6 +401,12 @@ export function createDemoApi(): Api {
       const room = db.rooms.find((r) => r.id === roomId)
       if (room) { room.lastRead[me().id] = Date.now(); save() }
     },
+    async deleteMessage(mid) {
+      const m = db.messages.find((x) => x.id === mid && x.senderId === me().id && !x.deleted)
+      if (!m) throw new Error('not_found')
+      Object.assign(m, { kind: 'text', body: '삭제된 메시지예요', imageUrl: null, deleted: true })
+      save()
+    },
     subscribe(cb) { listeners.add(cb); return () => listeners.delete(cb) },
 
     async listPosts(filter) {
