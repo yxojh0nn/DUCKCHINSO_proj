@@ -24,7 +24,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql', '20261111000030_inquiry_delete_and_hardening.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql', '20261111000030_inquiry_delete_and_hardening.sql', '20261111000031_nickname_validate.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -85,6 +85,10 @@ assert.equal((await as('a', `delete from storage.objects where name = $1`, [`${i
 // 닉네임 허용 문자
 await assert.rejects(as('a', `update public.profiles set nickname = '"><img>' where id = $1`, [ids.a]), /profiles_nickname_chars/)
 await as('a', `update public.profiles set nickname = 'あいう 팬_1' where id = $1`, [ids.a])
+await assert.rejects(as('a', `update public.profiles set nickname = '덕친😀' where id = $1`, [ids.a]), /profiles_nickname_chars/) // 이모지 불가
+// 마이그 31: 규칙이 기존 행까지 적용됨(검증 완료). 가입 때 자동 닉네임(익명의 팬0000·덕친0000)은 규칙에 맞는다
+assert.equal((await db.query(`select convalidated from pg_constraint where conname = 'profiles_nickname_chars'`)).rows[0].convalidated, true)
+assert.equal((await db.query(`select count(*)::int n from public.profiles where nickname !~ '^[가-힣ㄱ-ㅎㅏ-ㅣぁ-ゖァ-ヺー一-龯A-Za-z0-9 _.\\-]+$'`)).rows[0].n, 0)
 
 // friend flow
 const req = await as('a', `select public.send_friend_request($1) as id`, [ids.b])

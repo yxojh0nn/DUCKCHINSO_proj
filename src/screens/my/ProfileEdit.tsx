@@ -8,6 +8,7 @@ import { IconPhoto } from '@/components/icons'
 import { Avatar } from '@/components/ui/Avatar'
 import { TextArea, TextField } from '@/components/ui/Field'
 import { keys, useMe } from '@/lib/queries'
+import { nicknameError } from '@/lib/settings'
 import { toast } from '@/store/ui'
 
 // 프로필 편집: 배너·프로필 사진, 닉네임, 소개글
@@ -22,7 +23,8 @@ export default function ProfileEdit() {
   const [busy, setBusy] = useState(false)
   if (!me) return null
 
-  const nickOk = nickname.trim().length >= 2 && nickname.trim().length <= 20
+  const nickErr = nicknameError(nickname)
+  const nickOk = !nickErr
   const save = async () => {
     if (!nickOk || busy) return
     setBusy(true)
@@ -62,7 +64,7 @@ export default function ProfileEdit() {
       </>)}
       <div className="space-y-6 px-5 pb-10 pt-6">
         <TextField label="닉네임" value={nickname} maxLength={20} onChange={(e) => setNickname(e.target.value)} readOnly={me.isGuest}
-          error={!nickOk ? '2~20자로 정해 주세요.' : undefined} hint={me.isGuest ? '비회원 닉네임은 자동으로 정해져요. 닉네임·사진은 회원으로 로그인하면 바꿀 수 있어요.' : undefined} />
+          error={nickErr} hint={me.isGuest ? '비회원 닉네임은 자동으로 정해져요. 닉네임·사진은 회원으로 로그인하면 바꿀 수 있어요.' : undefined} />
         <TextArea label="소개글" placeholder="당신의 덕력을 뽐내보세요!" rows={4} maxLength={150} value={bio} onChange={(e) => setBio(e.target.value)} hint={`${bio.length}/150`} />
       </div>
     </>
