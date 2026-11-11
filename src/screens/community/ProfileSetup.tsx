@@ -55,7 +55,7 @@ export default function ProfileSetup() {
   }
 
   const steps = [
-    { title: '프로필을 만들어 주세요', desc: '닉네임과 사진, 소개글은 다른 사람에게 보여요. 나중에 MY에서 바꿀 수 있어요.' },
+    { title: '프로필을 만들어 주세요', desc: me?.isGuest ? '소개글은 다른 사람에게 보여요. 나중에 MY에서 바꿀 수 있어요.' : '닉네임과 사진, 소개글은 다른 사람에게 보여요. 나중에 MY에서 바꿀 수 있어요.' },
     { title: '좋아하는 아티스트', desc: '최대 5명까지 고를 수 있어요. 비슷한 취향의 덕친을 추천해 드려요.' },
     { title: '좋아하는 장르', desc: 'J-pop 안에서 즐겨 듣는 장르를 골라 주세요.' },
   ]
@@ -73,12 +73,14 @@ export default function ProfileSetup() {
       <div className="mt-4 flex-1">
         {step === 0 && me && (
           <div className="px-5">
-            <ImageButton label="프로필 사진 고르기" onPick={([b]) => { if (me?.isGuest) return toast(errorText('members_only')); setAvatar(b); setPreview(URL.createObjectURL(b)) }} className="relative mx-auto mt-2 block">
+            {/* 비회원: 닉네임·사진 고정 (서버 guest_profile_lock 도 막는다) */}
+            {me.isGuest ? <div className="mx-auto mt-2 w-fit"><Avatar url={me.avatarUrl} name={me.nickname} size={96} /></div> : (
+            <ImageButton label="프로필 사진 고르기" onPick={([b]) => { setAvatar(b); setPreview(URL.createObjectURL(b)) }} className="relative mx-auto mt-2 block">
               <Avatar url={preview ?? me.avatarUrl} name={nickname || me.nickname} size={96} />
               <span className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-ink text-paper"><IconPhoto size={17} /></span>
-            </ImageButton>
-            <TextField className="mt-6" label="닉네임" value={nickname} maxLength={20} onChange={(e) => setNickname(e.target.value)}
-              error={!nickOk ? '2~20자로 정해 주세요.' : undefined} hint="다른 사람에게 보이는 이름이에요." />
+            </ImageButton>)}
+            <TextField className="mt-6" label="닉네임" value={nickname} maxLength={20} onChange={(e) => setNickname(e.target.value)} readOnly={me.isGuest}
+              error={!nickOk ? '2~20자로 정해 주세요.' : undefined} hint={me.isGuest ? '비회원 닉네임은 자동으로 정해져요. 닉네임·사진은 회원으로 로그인하면 바꿀 수 있어요.' : '다른 사람에게 보이는 이름이에요.'} />
             <TextArea className="mt-6" label="소개글" placeholder="당신의 덕력을 뽐내보세요!" rows={3} maxLength={150} value={bio} onChange={(e) => setBio(e.target.value)}
               hint={`${bio.length}/150`} />
           </div>

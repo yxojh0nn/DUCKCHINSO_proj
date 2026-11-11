@@ -24,7 +24,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -71,7 +71,8 @@ assert.equal((await as('c', `select public.is_admin() as v`)).rows[0].v, false)
 // 남의 프로필: 공개 칸만. 마지막 접속 시각은 못 읽고, 내 것은 my_profile() 로 전부
 await assert.rejects(as('c', `select last_seen_at from public.profiles`), /permission denied/)
 await assert.rejects(as('c', `select * from public.profiles`), /permission denied/)
-assert.equal((await as('c', `select id, nickname from public.profiles`)).rows.length, 3)
+assert.deepEqual((await as('c', `select id from public.profiles`)).rows.map((r) => r.id), [ids.c]) // 비회원: 아직 글·댓글 쓴 사람이 없으면 자기만
+assert.equal((await as('a', `select id, nickname from public.profiles`)).rows.length, 3) // 회원: 전원
 const mine = (await as('a', `select * from public.my_profile()`)).rows
 assert.equal(mine.length, 1); assert.equal(mine[0].id, ids.a); assert.ok('last_seen_at' in mine[0])
 // 취향 표는 본인 것만 직접 읽힌다
@@ -122,6 +123,10 @@ const pid = post.rows[0].id
 assert.equal((await as('a', `select public.toggle_post_like($1) as v`, [pid])).rows[0].v, true)
 assert.equal((await as('a', `select public.toggle_post_like($1) as v`, [pid])).rows[0].v, false)
 await as('a', `insert into public.comments (post_id, author_id, body) values ($1, $2, 'c')`, [pid, ids.a])
+// 비회원은 글·댓글 작성자만 보인다 (b 는 아무것도 안 써서 안 보임). 글 목록의 작성자 이름은 그대로 나온다
+assert.deepEqual((await as('c', `select id from public.profiles`)).rows.map((r) => r.id).sort(), [ids.a, ids.c].sort())
+assert.equal((await as('c', `select a.nickname from public.posts p join public.profiles a on a.id = p.author_id where p.id = $1`, [pid])).rows.length, 1)
+assert.equal((await as('c', `select * from public.profile_card($1)`, [ids.b])).rows.length, 1) // 링크로 여는 상세 프로필은 된다
 // b blocked a → b doesn't see a's comment
 assert.equal((await as('b', `select * from public.comments`)).rows.length, 0)
 
@@ -284,10 +289,14 @@ assert.ok((await db.query(`select 1 from public.messages m join public.chat_memb
 await assert.rejects(as('b', `select public.admin_resolve_ticket_tip($1, false)`, [tips[0].id]), /not_found/) // 이미 처리됨
 
 // 운영자 전체 사용자: 검색·전체 수·로그인 방식, 운영자만
+// 회원·비회원 칸 분리: 기본은 회원만, guests=true 면 비회원만
 const users = (await as('b', `select * from public.admin_users('', 50, 0)`)).rows
-assert.ok(users.length >= 3); assert.equal(Number(users[0].total), users.length)
+assert.ok(users.length >= 2); assert.equal(Number(users[0].total), users.length)
+assert.ok(users.every((u) => !u.is_guest))
 assert.equal(users.find((u) => u.id === ids.d).login, 'email')
-assert.equal(users.find((u) => u.id === ids.c).login, 'guest')
+const guestRows = (await as('b', `select * from public.admin_users('', 50, 0, true)`)).rows
+assert.ok(guestRows.length >= 1 && guestRows.every((u) => u.is_guest))
+assert.equal(guestRows.find((u) => u.id === ids.c).login, 'guest')
 assert.equal(users.find((u) => u.id === ids.b).is_admin, true)
 const dNick = users.find((u) => u.id === ids.d).nickname
 assert.deepEqual((await as('b', `select id from public.admin_users($1)`, [dNick])).rows.map((r) => r.id), [ids.d])
@@ -354,6 +363,28 @@ await assert.rejects(as('e', `select public.edit_post($1, 'x', 'x', '{}')`, [ep]
 await assert.rejects(as('d', `select public.edit_post($1, '씨발', '본문', '{}')`, [ep]), /blocked_word/)
 await db.query(`update public.posts set status = 'hidden' where id = $1`, [ep])
 await assert.rejects(as('d', `select public.edit_post($1, '가려진 글 수정', '본문', '{}')`, [ep]), /not_found/) // 운영자가 가린 글은 못 고친다
+// 정지 계정: 캘린더(관심 공연·아티스트)와 문의는 되고, 친구·DM·커뮤니티는 안 된다
+const dmReq = (await as('d', `select public.send_friend_request($1) as id`, [ids.e])).rows[0].id
+const dm = (await as('e', `select public.respond_friend_request($1, true) as r`, [dmReq])).rows[0].r
+await db.query(`update public.profiles set status = 'banned' where id = $1`, [ids.e])
+await as('e', `insert into public.favorites (user_id, concert_id) values ($1, $2)`, [ids.e, cUp])
+await as('e', `insert into public.user_artists (user_id, artist_id) values ($1, $2)`, [ids.e, art.rows[0].id])
+const eSupport = (await as('e', `select public.ensure_support_room() as r`)).rows[0].r
+await as('e', `insert into public.inquiries (user_id, category, body) values ($1, 'account', '제재 이의 제기')`, [ids.e])
+await as('e', `insert into public.messages (room_id, sender_id, body) values ($1, $2, '문의 추가')`, [eSupport, ids.e])
+await assert.rejects(as('e', `insert into public.messages (room_id, sender_id, body) values ($1, $2, 'dm')`, [dm, ids.e])) // 친구 DM 은 막힘
+await assert.rejects(as('e', `select public.send_friend_request($1)`, [ids.b]), /account_restricted/)
+await assert.rejects(as('e', `insert into public.comments (post_id, author_id, body) values ($1, $2, 'x')`, [rp, ids.e]))
+await as('d', `insert into public.messages (room_id, sender_id, body) values ($1, $2, 'active dm')`, [dm, ids.d]) // 상대(활성 회원)는 그대로
+// 비회원: 닉네임·사진·배너는 못 바꾸고 소개글은 된다. 운영자 SQL 정리(본인이 아닌 변경)는 된다
+const g = (await db.query(`insert into auth.users (is_anonymous) values (true) returning id`)).rows[0].id
+ids.g = g
+await assert.rejects(as('g', `update public.profiles set nickname = '새닉네임' where id = $1`, [g]), /members_only/)
+await assert.rejects(as('g', `update public.profiles set banner_url = 'https://evil.example/x.png' where id = $1`, [g]), /members_only/)
+await assert.rejects(as('g', `update public.profiles set avatar_url = 'https://evil.example/x.png' where id = $1`, [g]), /members_only/)
+await as('g', `update public.profiles set bio = '소개', last_seen_at = now() where id = $1`, [g])
+await db.exec(`select set_config('request.uid', '', false)`) // SQL Editor 처럼 로그인 사용자 없음
+await db.query(`update public.profiles set nickname = '익명의 팬0001' where id = $1`, [g])
 // 알림 종류별 설정: 본인이 바꿀 수 있다
 await as('d', `update public.profiles set notify_like = false, notify_concert = false where id = $1`, [ids.d])
 assert.deepEqual((await db.query(`select notify_friend, notify_like, notify_comment, notify_concert from public.profiles where id = $1`, [ids.d])).rows[0],

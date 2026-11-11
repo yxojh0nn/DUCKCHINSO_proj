@@ -483,8 +483,8 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     async adminResolveTicketTip(id, approve) {
       ok(await sb.rpc('admin_resolve_ticket_tip', { tip: id, approve }))
     },
-    async adminUsers(q, page) {
-      const rows = ok(await sb.rpc('admin_users', { q, lim: 50, off: page * 50 })) as Row[]
+    async adminUsers(q, page, guests = false) {
+      const rows = ok(await sb.rpc('admin_users', { q, lim: 50, off: page * 50, guests })) as Row[]
       return {
         total: Number(rows[0]?.total ?? 0),
         users: rows.map((r) => ({

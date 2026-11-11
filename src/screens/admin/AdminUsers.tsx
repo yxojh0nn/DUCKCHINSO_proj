@@ -6,6 +6,7 @@ import { AppHeader } from '@/components/AppHeader'
 import { Button } from '@/components/ui/Button'
 import { Empty } from '@/components/ui/Empty'
 import { TextField } from '@/components/ui/Field'
+import { TextTabs } from '@/components/ui/TextTabs'
 import { fmtRelative } from '@/lib/date'
 import { adminKeys } from './AdminGate'
 
@@ -15,14 +16,16 @@ export const LOGIN_LABEL = (l: string) => l.split(',').map((x) => LOGIN[x] ?? x)
 const STATUS: Record<AdminUser['status'], string> = { active: '', suspended: '이용 제한', banned: '정지' }
 const day = (iso: string) => new Date(iso).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })
 
-// 전체 사용자: 요약 · 닉네임 검색 · 최근 가입순 50명씩 → 누르면 사용자 상세(바로 제재). 이메일 등 개인정보는 보여 주지 않는다
+// 전체 사용자: 요약 · 회원/비회원 칸(기본 회원) · 닉네임 검색 · 최근 가입순 50명씩 → 누르면 사용자 상세(바로 제재). 이메일 등 개인정보는 보여 주지 않는다
 export default function AdminUsers() {
   const [input, setInput] = useState('')
   const [q, setQ] = useState('')
   const [page, setPage] = useState(0)
+  const [kind, setKind] = useState<'member' | 'guest'>('member')
+  const guests = kind === 'guest'
   useEffect(() => { const t = setTimeout(() => { setQ(input.trim()); setPage(0) }, 300); return () => clearTimeout(t) }, [input])
   const stats = useQuery({ queryKey: adminKeys.userStats, queryFn: () => api.adminUserStats() })
-  const list = useQuery({ queryKey: adminKeys.users(q, page), queryFn: () => api.adminUsers(q, page), placeholderData: keepPreviousData })
+  const list = useQuery({ queryKey: adminKeys.users(q, page, guests), queryFn: () => api.adminUsers(q, page, guests), placeholderData: keepPreviousData })
   const total = list.data?.total ?? 0
   const s = stats.data
 
@@ -36,6 +39,10 @@ export default function AdminUsers() {
           ))}
         </dl>
       )}
+      <div className="border-b border-hairline">
+        <TextTabs label="사용자 구분" value={kind} onChange={(k) => { setKind(k); setPage(0) }}
+          tabs={[{ value: 'member', label: '회원' }, { value: 'guest', label: '비회원' }]} />
+      </div>
       <div className="px-5 pt-3">
         <TextField label="닉네임 검색" value={input} onChange={(e) => setInput(e.target.value)} maxLength={20}
           hint={list.data ? `${total.toLocaleString('ko-KR')}명` : undefined} />
