@@ -226,7 +226,9 @@ export interface Api {
   setLoginId(loginId: string): Promise<void>
   myLoginId(): Promise<string | null>
   findLoginId(email: string): Promise<{ mailReady: boolean }>
-  resetPassword(email: string, captchaToken?: string): Promise<void>
+  // 비밀번호 찾기: 아이디 + 가입 이메일이 맞으면 그 이메일로 인증 코드 → 코드 + 새 비밀번호 (login-id 함수)
+  requestPasswordReset(loginId: string, email: string): Promise<void>
+  resetPasswordWithCode(loginId: string, email: string, code: string, password: string): Promise<void>
   updatePassword(password: string): Promise<void>
   signOut(): Promise<void>
   deleteAccount(): Promise<void>
@@ -334,6 +336,7 @@ export const errorText = (e: unknown) => {
     tip_bad_date: '날짜를 다시 확인해 주세요. (최근 30일 ~ 1년 뒤)',
     tip_bad_url: 'https:// 로 시작하는 공지 링크를 넣어 주세요.',
     email_code_invalid: '인증 코드가 맞지 않아요.',
+    password_rule: '비밀번호는 영문과 숫자를 섞어 8~72자로 정해 주세요.',
     email_code_expired: '인증 코드가 만료됐어요. 인증 메일을 다시 받아 주세요.',
     email_ticket_expired: '메일 인증 시간이 지났어요. 다시 인증해 주세요.',
     mail_not_ready: '인증 메일을 보내지 못했어요. 잠시 후 다시 시도해 주세요.',

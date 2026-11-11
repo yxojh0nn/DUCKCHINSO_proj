@@ -123,9 +123,12 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     async findLoginId(email) {
       return fn<{ mailReady: boolean }>('login-id', { action: 'find', email })
     },
-    async resetPassword(email, captchaToken) {
-      const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: `${authRedirect()}?next=password`, captchaToken })
-      if (error) throw error
+    // Supabase 기본 재설정 메일(링크) 대신 자체 함수: 아이디·이메일 일치 확인 + 메일 코드 + 횟수 제한 + 전체 로그아웃
+    async requestPasswordReset(loginId, email) {
+      await fn('login-id', { action: 'reset_code', loginId, email })
+    },
+    async resetPasswordWithCode(loginId, email, code, password) {
+      await fn('login-id', { action: 'reset_verify', loginId, email, code, password })
     },
     async updatePassword(password) {
       const { error } = await sb.auth.updateUser({ password })

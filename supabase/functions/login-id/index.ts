@@ -16,6 +16,13 @@ const clientIp = (req: Request) => req.headers.get('x-forwarded-for')?.split(','
 const recent = async (db: Db, key: string) =>
   (await db.from('login_attempts').select('key', { count: 'exact', head: true }).eq('key', key)
     .gt('at', new Date(Date.now() - WINDOW_MS).toISOString())).count ?? 0
+// 비밀번호 찾기 대상: 아이디의 계정이 있고, 그 계정의 가입 이메일이 입력한 이메일과 같을 때만 사용자 id
+const resetTarget = async (db: Db, idHmac: string, email: string) => {
+  const { data } = await db.from('login_ids').select('user_id').eq('id_hmac', idHmac).maybeSingle()
+  if (!data) return null
+  const { data: u } = await db.auth.admin.getUserById(data.user_id)
+  return u.user?.email?.toLowerCase() === email ? data.user_id as string : null
+}
 const magicLink = async (db: Db, uid: string) => {
   const { data: u } = await db.auth.admin.getUserById(uid)
   const { data, error } = await db.auth.admin.generateLink({ type: 'magiclink', email: u.user!.email! })
@@ -151,6 +158,66 @@ Deno.serve(async (req) => {
         return json({ loginId: data ? await decrypt(user.id, 'login_id', data.id_enc) : null })
       }
 
+      // 비밀번호 찾기 1단계: 아이디 + 가입 이메일이 같은 계정일 때만 그 이메일로 인증 코드(5분)를 보낸다.
+      // 맞든 틀리든 화면에는 같은 답을 준다(계정·이메일 짝 맞추기 방지). 아이디별·IP별 10분 횟수 제한
+      case 'reset_code': {
+        const id = String(body.loginId ?? '').trim().toLowerCase()
+        const email = String(body.email ?? '').trim().toLowerCase()
+        if (!LOGIN_ID.test(id) || !EMAIL.test(email) || email.length > 254) return json({ error: 'bad_request' }, 400)
+        if (!canMail(email)) return json({ error: 'mail_not_ready' }, 503)
+        const idHmac = await blindIndex('login', id)
+        const keys = [`reset:${idHmac}`, `resetip:${await blindIndex('ip', clientIp(req))}`]
+        const [byId, byIp] = await Promise.all(keys.map((k) => recent(db, k)))
+        if (byId >= LIMIT.codeEmail || byIp >= LIMIT.codeIp) return json({ error: 'too_many_attempts' }, 429)
+        await db.from('login_attempts').insert(keys.map((key) => ({ key })))
+        const uid = await resetTarget(db, idHmac, email)
+        if (uid) {
+          const code = emailCode()
+          const { error: saveErr } = await db.from('email_codes').upsert({
+            email_hmac: await blindIndex('reset', uid), code_hmac: await blindIndex('reset_code', `${uid}:${code}`),
+            expires_at: new Date(Date.now() + CODE_TTL_SEC * 1000).toISOString(), tries: 0,
+          })
+          if (saveErr) throw saveErr
+          await sendMail(email, '[덕친소] 비밀번호 재설정 인증 코드',
+            `인증 코드: ${code}\n\n5분 안에 비밀번호 찾기 화면에 입력해 주세요.\n직접 요청하지 않았다면 이 메일은 무시해 주세요. 코드를 모르면 비밀번호는 바뀌지 않아요.`)
+        }
+        return json({ expiresIn: CODE_TTL_SEC })
+      }
+
+      // 비밀번호 찾기 2단계: 아이디 + 이메일 + 코드 + 새 비밀번호. 코드는 한 번만, 5번 틀리면 무효.
+      // 바꾸면 모든 기기의 로그인을 끊고, 가입 메일로 변경 알림을 보낸다
+      case 'reset_verify': {
+        const id = String(body.loginId ?? '').trim().toLowerCase()
+        const email = String(body.email ?? '').trim().toLowerCase()
+        const code = String(body.code ?? '').trim().toUpperCase()
+        const pw = String(body.password ?? '')
+        if (!LOGIN_ID.test(id) || !EMAIL.test(email) || !code) return json({ error: 'bad_request' }, 400)
+        if (pw.length < 8 || pw.length > 72 || !/[A-Za-z]/.test(pw) || !/\d/.test(pw)) return json({ error: 'password_rule' }, 400)
+        const idHmac = await blindIndex('login', id)
+        const keys = [`resetv:${idHmac}`, `resetvip:${await blindIndex('ip', clientIp(req))}`]
+        const [byId, byIp] = await Promise.all(keys.map((k) => recent(db, k)))
+        if (byId >= LIMIT.id || byIp >= LIMIT.ip) return json({ error: 'too_many_attempts' }, 429)
+        await db.from('login_attempts').insert(keys.map((key) => ({ key })))
+        const uid = await resetTarget(db, idHmac, email)
+        const codeKey = uid ? await blindIndex('reset', uid) : null
+        const { data: row } = codeKey
+          ? await db.from('email_codes').select('code_hmac, expires_at, tries').eq('email_hmac', codeKey).maybeSingle()
+          : { data: null }
+        if (!uid || !row || new Date(row.expires_at) <= new Date() || row.tries >= LIMIT.codeTries) return json({ error: 'email_code_expired' }, 400)
+        if (row.code_hmac !== await blindIndex('reset_code', `${uid}:${code}`)) {
+          await db.from('email_codes').update({ tries: row.tries + 1 }).eq('email_hmac', codeKey)
+          return json({ error: 'email_code_invalid' }, 400)
+        }
+        await db.from('email_codes').delete().eq('email_hmac', codeKey)
+        const { error } = await db.auth.admin.updateUserById(uid, { password: pw })
+        if (error) throw error
+        const { error: revokeErr } = await db.rpc('revoke_user_sessions', { p_uid: uid })
+        if (revokeErr) throw revokeErr
+        await sendMail(email, '[덕친소] 비밀번호가 바뀌었어요',
+          '덕친소 계정의 비밀번호가 방금 바뀌었고, 모든 기기에서 로그아웃됐어요.\n\n본인이 바꾼 게 아니라면 바로 비밀번호 찾기로 다시 바꾸고 문의해 주세요.')
+        return json({ ok: true })
+      }
+
       // 아이디 찾기: 가입한 이메일로 아이디를 보낸다. 가입 여부는 화면에 알려 주지 않는다
       case 'find': {
         const email = String(body.email ?? '').trim()
@@ -164,6 +231,13 @@ Deno.serve(async (req) => {
         if (row) {
           const id = await decrypt(row.user_id, 'login_id', row.id_enc)
           await sendMail(email, '[덕친소] 가입하신 아이디를 알려 드려요', `덕친소 아이디: ${id}\n\n직접 요청하지 않았다면 이 메일은 무시해 주세요.`)
+        } else if ((await db.rpc('email_registered', { p_email: email })).data) {
+          // 가입은 됐지만 아이디가 없는 계정(구글 등 간편 로그인, 아이디 만들기 전 이메일 가입). 전에는 아무 메일도 안 가서 "안 온다"로 보였다
+          await sendMail(email, '[덕친소] 이 이메일로 가입한 계정에는 아이디가 없어요',
+            '이 이메일로 가입한 덕친소 계정은 아이디 없이 만들어졌어요.\n\n'
+            + '- Google·카카오·네이버·Apple 로 가입했다면: 로그인 화면에서 그 버튼으로 로그인해 주세요.\n'
+            + '- 이메일로 가입했다면: 회원 로그인 화면의 아이디 칸에 이 이메일 주소를 넣고 로그인한 뒤 아이디를 만들 수 있어요.\n\n'
+            + '직접 요청하지 않았다면 이 메일은 무시해 주세요.')
         }
         return json({ ok: true, mailReady: true })
       }
