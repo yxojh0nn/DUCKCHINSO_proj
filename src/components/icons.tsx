@@ -86,6 +86,10 @@ export const IconPlus = (p: P) => <Svg {...p}><path d="M12 5v14M5 12h14" /></Svg
 export const IconPhoto = (p: P) => (
   <Svg {...p}><rect x="3.5" y="5" width="17" height="14" rx="2.5" /><path d="M3.5 16l5-4.5 4 3.5 3-2.5 5 4" /><circle cx="15.5" cy="9.5" r="1.4" /></Svg>
 )
+// 이모지·GIF: 웃는 얼굴
+export const IconSmile = (p: P) => (
+  <Svg {...p}><circle cx="12" cy="12" r="8.5" /><path d="M8.5 14c.9 1.3 2 2 3.5 2s2.6-.7 3.5-2" /><path d="M9.2 9.6v.6M14.8 9.6v.6" strokeWidth={2.2} /></Svg>
+)
 // 보내기: 위로 향한 화살표 원 (채움)
 export const IconSend = (p: P) => (
   <Svg {...p} strokeWidth={0}><circle cx="12" cy="12" r="10" fill="currentColor" /><path d="M12 16.5v-9M8 11l4-4 4 4" stroke="var(--paper)" strokeWidth={2} /></Svg>

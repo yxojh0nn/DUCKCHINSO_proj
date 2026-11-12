@@ -8,10 +8,11 @@ type Props = {
   danger?: boolean
   onConfirm: () => void
   onClose: () => void
+  children?: React.ReactNode // 메시지 아래 덧붙일 내용 (체크박스 등)
 }
 
 // 가운데 뜨는 확인 창 ("정말 로그아웃 하시겠습니까?" 등). 초점은 취소에 둔다
-export function Confirm({ open, title, message, confirmLabel, danger, onConfirm, onClose }: Props) {
+export function Confirm({ open, title, message, confirmLabel, danger, onConfirm, onClose, children }: Props) {
   const cancel = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     if (!open) return
@@ -28,6 +29,7 @@ export function Confirm({ open, title, message, confirmLabel, danger, onConfirm,
         <div className="px-5 pb-4 pt-5 text-center">
           <p className="t-head">{title}</p>
           {message && <p className="mt-1.5 t-sub text-graphite">{message}</p>}
+          {children}
         </div>
         <div className="grid grid-cols-2 border-t border-hairline">
           <button ref={cancel} onClick={onClose} className="h-12 border-r border-hairline t-body active:bg-mist">취소</button>

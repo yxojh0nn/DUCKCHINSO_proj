@@ -10,6 +10,7 @@ export const adminKeys = {
   inquiries: ['admin', 'inquiries'] as const,
   words: ['admin', 'words'] as const,
   tips: ['admin', 'tips'] as const,
+  gifs: ['admin', 'gifs'] as const,
   users: (q: string, page: number, guests = false) => ['admin', 'users', q, page, guests] as const,
   userStats: ['admin', 'user-stats'] as const,
   user: (id: string) => ['admin', 'user', id] as const,
