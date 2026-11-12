@@ -249,7 +249,8 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     },
     async setFavorite(concertId, on) {
       const id = await uid()
-      if (on) ok(await sb.from('favorites').upsert({ user_id: id, concert_id: concertId }))
+      // ignoreDuplicates = on conflict do nothing. 그냥 upsert 는 do update 라 update 권한이 필요한데 favorites 엔 insert·delete 만 준다
+      if (on) ok(await sb.from('favorites').upsert({ user_id: id, concert_id: concertId }, { ignoreDuplicates: true }))
       else ok(await sb.from('favorites').delete().eq('user_id', id).eq('concert_id', concertId))
     },
     async submitTicketTip(concertId, openAt, sourceUrl) {

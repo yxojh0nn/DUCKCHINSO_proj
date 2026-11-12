@@ -12,6 +12,7 @@ import { supabase } from '@/lib/supabase'
 import { keys, useLiveSync, useMe, useSession } from '@/lib/queries'
 import { applyTheme, useUI } from '@/store/ui'
 import Splash from '@/screens/auth/Splash'
+import { Wordmark } from '@/screens/auth/Wordmark'
 import Login from '@/screens/auth/Login'
 import MemberLogin from '@/screens/auth/MemberLogin'
 import EmailAuth from '@/screens/auth/EmailAuth'
@@ -136,6 +137,8 @@ function Tabs() {
 
   return (
     <div className="flex min-h-full flex-col">
+      {/* 휴대폰: 탭 화면 맨 위 가운데 로고 (768px 이상은 앱 바에 있다) */}
+      <div className="flex justify-center pb-1 pt-[max(10px,env(safe-area-inset-top))] md:hidden"><Wordmark small /></div>
       <main key={pathname} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
         className={`flex flex-1 flex-col ${dir === 'right' ? 'slide-right' : 'slide-left'}`}>
         <Outlet />

@@ -10,7 +10,8 @@ export function AppHeader({ title, back, right, large }: Props) {
   if (useInSplitDetail()) back = undefined
   if (large) {
     return (
-      <header className="flex items-end justify-between gap-3 px-5 pb-2 pt-[max(44px,calc(env(safe-area-inset-top)+20px))]">
+      // 휴대폰은 탭 위에 로고 줄(App.tsx Tabs)이 안전 영역을 맡는다
+      <header className="flex items-end justify-between gap-3 px-5 pb-2 pt-2 md:pt-[max(44px,calc(env(safe-area-inset-top)+20px))]">
         <h1 className="t-large">{title}</h1>
         <div className="flex items-center">{right}</div>
       </header>
