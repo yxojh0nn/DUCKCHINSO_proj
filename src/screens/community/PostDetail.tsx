@@ -16,7 +16,7 @@ import { fmtRelative } from '@/lib/date'
 import { keys, useMe } from '@/lib/queries'
 import { toast } from '@/store/ui'
 
-// 글 상세: 왼쪽 위 작성자, 오른쪽 위 점 세 개(친구 요청·프로필·신고), 추천·댓글
+// 글 상세: 제목 위 작성자, 오른쪽 위 점 세 개(친구 요청·프로필·신고), 추천·댓글
 export default function PostDetail() {
   const { id = '' } = useParams()
   const nav = useNavigate()
@@ -63,15 +63,14 @@ export default function PostDetail() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <AppHeader back title={p && (
-        <Link to={`/profile/${p.author.id}`} className="flex items-center gap-2">
-          <Avatar url={p.author.avatarUrl} name={p.author.nickname} size={26} />
-          <span className="max-w-[180px] truncate t-sub font-semibold">{p.author.nickname}</span>
-        </Link>
-      )} right={p && <HeaderButton label="더보기" onClick={() => setMenu(true)}><IconMore /></HeaderButton>} />
+      <AppHeader back right={p && <HeaderButton label="더보기" onClick={() => setMenu(true)}><IconMore /></HeaderButton>} />
 
       {p && (
-        <article className="px-5 pt-3">
+        <article className="px-5 pt-1">
+          <Link to={`/profile/${p.author.id}`} className="mb-3 flex w-fit max-w-full items-center gap-2">
+            <Avatar url={p.author.avatarUrl} name={p.author.nickname} size={32} />
+            <span className="truncate t-sub font-semibold">{p.author.nickname}</span>
+          </Link>
           <h1 className="t-title">{p.title}</h1>
           <p className="mt-1 t-cap text-graphite">{fmtRelative(p.createdAt)}{p.edited && ' · 수정됨'}</p>
           <p className="mt-4 whitespace-pre-wrap t-body">{p.body}</p>

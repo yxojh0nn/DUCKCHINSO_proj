@@ -90,11 +90,10 @@ export const IconPhoto = (p: P) => (
 export const IconSend = (p: P) => (
   <Svg {...p} strokeWidth={0}><circle cx="12" cy="12" r="10" fill="currentColor" /><path d="M12 16.5v-9M8 11l4-4 4 4" stroke="var(--paper)" strokeWidth={2} /></Svg>
 )
-// 관심 공연: 티켓 모양 책갈피
+// 관심 공연: 책갈피 (안은 비움)
 export const IconTicket = (p: P) => (
   <Svg {...p}>
     <path d="M6.5 3.5h11a1 1 0 011 1v15.2a.5.5 0 01-.8.4L12 16.5l-5.7 3.6a.5.5 0 01-.8-.4V4.5a1 1 0 011-1z" fill={p.filled ? 'currentColor' : 'none'} />
-    <path d="M9 8h6" stroke={p.filled ? 'var(--paper)' : 'currentColor'} strokeDasharray="1.5 2" />
   </Svg>
 )
 // 추천(글): 엄지 척. 추천하면 채워진다
