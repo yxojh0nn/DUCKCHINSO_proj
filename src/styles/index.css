@@ -133,4 +133,5 @@ html.theme-fade, html.theme-fade *, html.theme-fade *::before, html.theme-fade *
 @utility shake { animation: shake 380ms ease-in-out; }
 
 /* 실기기 키보드 값 확인용(주소 뒤 ?kbdebug). src/lib/keyboard.ts */
-#root[data-kb]::after { content: attr(data-kb); position: absolute; top: 0; left: 0; z-index: 9999; padding: 2px 4px; background: #000c; color: #0f0; font: 11px monospace; pointer-events: none; }
+#root[data-kb] { position: relative; }
+#root[data-kb]::after { content: attr(data-kb); position: absolute; bottom: 0; left: 0; z-index: 9999; padding: 2px 4px; background: #000c; color: #0f0; font: 11px monospace; pointer-events: none; }
