@@ -5,13 +5,13 @@ import { api, errorText, type Gif, type Message } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { ImageButton } from '@/components/ImageButton'
 import { ReportSheet } from '@/components/ReportSheet'
-import { IconClose, IconMore, IconPhoto, IconPlus, IconSend, IconSmile, IconWave } from '@/components/icons'
+import { IconClose, IconDownload, IconMore, IconPhoto, IconPlus, IconSend, IconSmile, IconWave } from '@/components/icons'
 import { Avatar } from '@/components/ui/Avatar'
 import { Confirm } from '@/components/ui/Confirm'
 import { Sheet } from '@/components/ui/Sheet'
-import { TextTabs } from '@/components/ui/TextTabs'
 import { fmtDay, fmtTime, kstDayKey } from '@/lib/date'
 import { openExternal } from '@/lib/external'
+import { saveMedia } from '@/lib/saveMedia'
 import { keys, useMe, useRooms } from '@/lib/queries'
 import { toast } from '@/store/ui'
 
@@ -52,9 +52,9 @@ function Bubble({ m, mine, onMenu, onOpen, onLink }: {
       ? (
         <button type="button" onClick={() => onOpen(url)} aria-label={isVideo(url) ? '영상 크게 보기' : '사진 크게 보기'} className="relative block overflow-hidden rounded-[16px] bg-mist">
           {isVideo(url)
-            ? <><video src={url} muted playsInline preload="metadata" className="block max-h-64 max-w-full object-cover" />
+            ? <><video src={url} muted playsInline preload="metadata" draggable={false} className="block max-h-64 max-w-full object-cover" />
               <span aria-hidden className="absolute inset-0 m-auto flex h-11 w-11 items-center justify-center rounded-full bg-black/50 pl-0.5 text-[18px] text-white">▶</span></>
-            : <img src={url} alt="보낸 사진" className="block max-h-64 max-w-full object-cover" />}
+            : <img src={url} alt="보낸 사진" draggable={false} className="block max-h-64 max-w-full object-cover" />}
         </button>
       )
       : (
@@ -168,6 +168,11 @@ function Viewer({ url, onClose }: { url: string; onClose: () => void }) {
             style={{ transform: `translate(${v.x}px, ${v.y}px) scale(${v.s})` }}
             className={`m-auto max-h-full max-w-full select-none object-contain ${v.s > 1 ? 'cursor-grab active:cursor-grabbing' : 'cursor-zoom-in'}`} />}
       </div>
+      <button onClick={() => saveMedia(url).catch((e) => e?.name !== 'AbortError' && toast('저장하지 못했어요. 다시 시도해 주세요.'))}
+        aria-label={isVideo(url) ? '영상 저장' : '사진 저장'}
+        className="absolute right-14 top-[max(8px,env(safe-area-inset-top))] flex h-11 w-11 items-center justify-center rounded-full bg-black/40 text-white">
+        <IconDownload />
+      </button>
       <button onClick={onClose} aria-label="닫기" autoFocus
         className="absolute right-2 top-[max(8px,env(safe-area-inset-top))] flex h-11 w-11 items-center justify-center rounded-full bg-black/40 text-white">
         <IconClose />
@@ -176,11 +181,10 @@ function Viewer({ url, onClose }: { url: string; onClose: () => void }) {
   )
 }
 
-// 이모지(입력칸에 넣기) · 공용 GIF(눌러서 바로 보내기, 직접 올리기는 운영자 검토 후 공개)
-function Picker({ onEmoji, onGif, busy }: { onEmoji: (e: string) => void; onGif: (g: Gif) => void; busy: boolean }) {
+// 이모지(입력칸에 넣기) 또는 공용 GIF(눌러서 바로 보내기, 직접 올리기는 관리자 검토 후 공개)
+function Picker({ kind, onEmoji, onGif, busy }: { kind: 'emoji' | 'gif'; onEmoji: (e: string) => void; onGif: (g: Gif) => void; busy: boolean }) {
   const qc = useQueryClient()
-  const [tab, setTab] = useState<'emoji' | 'gif'>('emoji')
-  const gifs = useQuery({ queryKey: ['gifs'], queryFn: () => api.listGifs(), enabled: tab === 'gif' })
+  const gifs = useQuery({ queryKey: ['gifs'], queryFn: () => api.listGifs(), enabled: kind === 'gif' })
   const shown = (gifs.data ?? []).filter((g) => g.status === 'approved' || (g.mine && g.status === 'pending'))
   const upload = async (b: Blob) => {
     if (b.type !== 'image/gif') return toast('GIF 파일만 올릴 수 있어요.')
@@ -193,9 +197,8 @@ function Picker({ onEmoji, onGif, busy }: { onEmoji: (e: string) => void; onGif:
   }
   return (
     <div className="border-t border-hairline bg-paper">
-      <TextTabs label="이모지·GIF" value={tab} onChange={setTab} tabs={[{ value: 'emoji', label: '이모지' }, { value: 'gif', label: 'GIF' }]} />
-      <div className="h-56 overflow-y-auto px-3 pb-3">
-        {tab === 'emoji' ? (
+      <div className="h-56 overflow-y-auto p-3">
+        {kind === 'emoji' ? (
           <div className="grid grid-cols-8 gap-1">
             {EMOJIS.map((e) => (
               <button key={e} type="button" onClick={() => onEmoji(e)} aria-label={e} className="h-10 rounded-lg text-[24px] hover:bg-mist active:bg-mist">{e}</button>
@@ -239,10 +242,11 @@ export default function ChatRoom() {
   const [picked, setPicked] = useState<Message | null>(null) // 메뉴를 연 내 메시지
   const [editing, setEditing] = useState<Message | null>(null)
   const [viewing, setViewing] = useState<string | null>(null)
-  const [panel, setPanel] = useState(false)
+  const [panel, setPanel] = useState<'emoji' | 'gif' | null>(null)
   const [link, setLink] = useState<string | null>(null)
   const [skipWarn, setSkipWarn] = useState(false)
   const scroller = useRef<HTMLDivElement>(null)
+  const touchY = useRef(0)
 
   const list = messages.data ?? []
   // 목록 안에서만 맨 아래로. scrollIntoView 는 바깥 화면까지 움직여서 들어올 때 한 번 더 튕겼다
@@ -275,7 +279,7 @@ export default function ChatRoom() {
     send(async () => { for (const b of blobs) await api.sendImage(id, b) })
   }
   const sendGif = (g: Gif) => {
-    setPanel(false)
+    setPanel(null)
     send(async () => api.sendImage(id, await (await fetch(g.url)).blob()))
   }
   const openLink = (u: string) => {
@@ -297,7 +301,10 @@ export default function ChatRoom() {
         </button>
       )} />
 
-      <div ref={scroller} className="flex-1 space-y-2 overflow-y-auto px-4 pb-3 pt-2">
+      {/* 키보드가 올라온 채로 대화를 아래로 쓸어내리면 키보드를 내린다 */}
+      <div ref={scroller} className="flex-1 space-y-2 overflow-y-auto px-4 pb-3 pt-2"
+        onTouchStart={(e) => { touchY.current = e.touches[0].clientY }}
+        onTouchMove={(e) => { if (e.touches[0].clientY - touchY.current > 24 && document.activeElement instanceof HTMLInputElement) document.activeElement.blur() }}>
         {list.map((m, i) => {
           const newDay = i === 0 || kstDayKey(list[i - 1].createdAt) !== kstDayKey(m.createdAt)
           return (
@@ -327,7 +334,7 @@ export default function ChatRoom() {
       ) : (
         <>
           {panel && !editing && (
-            <Picker busy={sending} onEmoji={(e) => setText((t) => t + e)} onGif={sendGif} />
+            <Picker kind={panel} busy={sending} onEmoji={(e) => setText((t) => t + e)} onGif={sendGif} />
           )}
           {editing && (
             <div className="flex items-center gap-2 border-t border-hairline bg-paper px-4 py-1.5 t-sub text-graphite">
@@ -335,24 +342,29 @@ export default function ChatRoom() {
               <button type="button" onClick={() => { setEditing(null); setText('') }} aria-label="수정 취소" className="flex h-8 w-8 items-center justify-center"><IconClose size={18} /></button>
             </div>
           )}
-          <form onSubmit={submit} className="flex items-center gap-0.5 border-t border-hairline bg-paper px-2 py-2 pb-[max(8px,env(safe-area-inset-bottom))]">
-            {!editing && (
-              <>
-                <ImageButton label="사진·영상 보내기" accept={MEDIA} multiple onPick={sendMedia}
-                  className="flex h-11 w-10 items-center justify-center text-graphite"><IconPhoto /></ImageButton>
-                <button type="button" onClick={() => setPanel((p) => !p)} aria-label="이모지·GIF" aria-expanded={panel}
-                  className={`flex h-11 w-10 items-center justify-center ${panel ? 'text-ink' : 'text-graphite'}`}><IconSmile /></button>
-              </>
-            )}
-            <input value={text} onChange={(e) => setText(e.target.value)} maxLength={2000} placeholder="메시지" aria-label="메시지"
-              className="ml-1 h-10 min-w-0 flex-1 rounded-full bg-mist px-4 outline-none t-body" />
+          {/* 입력칸 안 오른쪽에 사진·이모지·GIF. 이모지는 휴대폰 키보드에 있으니 마우스로 쓰는 웹에서만 */}
+          <form onSubmit={submit} className="flex items-center gap-1 border-t border-hairline bg-paper px-2 py-2 pb-[max(8px,env(safe-area-inset-bottom))]">
+            <div className="flex h-11 min-w-0 flex-1 items-center rounded-full bg-mist pl-4 pr-1">
+              <input value={text} onChange={(e) => setText(e.target.value)} maxLength={2000} placeholder="메시지" aria-label="메시지" autoComplete="off" enterKeyHint="send"
+                className="h-full min-w-0 flex-1 bg-transparent outline-none t-body" />
+              {!editing && (
+                <>
+                  <ImageButton label="사진·영상 보내기" accept={MEDIA} multiple onPick={sendMedia}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-graphite hover:text-ink"><IconPhoto size={22} /></ImageButton>
+                  {([['emoji', '이모지', <IconSmile key="e" size={22} />], ['gif', 'GIF', <span key="g" className="rounded-[4px] border-[1.5px] border-current px-[3px] text-[10px] font-bold leading-[13px]">GIF</span>]] as const).map(([k, label, icon]) => (
+                    <button key={k} type="button" onClick={() => setPanel((p) => (p === k ? null : k))} aria-label={label} aria-expanded={panel === k}
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full hover:text-ink ${panel === k ? 'text-ink' : 'text-graphite'} ${k === 'emoji' ? '[@media(hover:none)]:hidden' : ''}`}>{icon}</button>
+                  ))}
+                </>
+              )}
+            </div>
             <button type="submit" aria-label={editing ? '수정 완료' : '보내기'} disabled={!text.trim()} className="px-1 disabled:opacity-30"><IconSend size={34} /></button>
           </form>
         </>
       )}
 
       <Sheet open={!!picked} onClose={() => setPicked(null)} message="삭제하면 상대 화면에도 '삭제된 메시지예요'로 바뀌어요." actions={[
-        ...(picked?.kind === 'text' ? [{ label: '메시지 수정', onClick: () => { const m = picked; setPicked(null); setPanel(false); setEditing(m); setText(m.body) } }] : []),
+        ...(picked?.kind === 'text' ? [{ label: '메시지 수정', onClick: () => { const m = picked; setPicked(null); setPanel(null); setEditing(m); setText(m.body) } }] : []),
         { label: '메시지 삭제', danger: true, onClick: () => { const m = picked; setPicked(null); if (m) send(() => api.deleteMessage(m.id)) } },
       ]} />
       <Confirm open={!!link} title="외부 링크로 이동할까요?" confirmLabel="이동"
