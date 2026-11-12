@@ -54,12 +54,13 @@ export default function Community() {
 
   return (
     <>
-      <AppHeader large title="커뮤니티" right={
+      <AppHeader large title="커뮤니티" right={<>
+        {tab === 'feed' && !me.data?.isGuest && <Link to="/community/write" className="mr-1 flex h-9 items-center whitespace-nowrap rounded-[10px] bg-ink px-3.5 t-sub font-semibold text-paper active:opacity-70">글쓰기</Link>}
         <HeaderButton label={`대기 중인 친구 요청 ${incoming}개`} onClick={() => nav('/community/requests')}>
           <IconRequests />
           <Badge count={incoming} className="absolute right-0.5 top-1" />
         </HeaderButton>
-      } />
+      </>} />
       <div className="flex items-center gap-1 pl-5 pr-2">
         <label className="flex h-10 flex-1 items-center gap-2 rounded-[10px] bg-mist px-3">
           <IconSearch size={18} className="text-graphite" />
@@ -72,9 +73,8 @@ export default function Community() {
           {filtered && <span className="absolute right-2 top-2.5 h-2 w-2 rounded-full bg-notice" />}
         </HeaderButton>
       </div>
-      <div className="mt-1 flex items-center justify-between border-b border-hairline pr-3">
+      <div className="mt-1 border-b border-hairline">
         <TextTabs label="커뮤니티 보기" value={tab} onChange={setTab} tabs={[{ value: 'feed', label: '커뮤니티' }, { value: 'notice', label: '공지' }, { value: 'reviews', label: '후기 남기기' }, { value: 'friends', label: '추천 덕친' }]} />
-        {tab === 'feed' && !me.data?.isGuest && <Link to="/community/write" className="flex h-11 items-center px-2 t-body font-semibold">글쓰기</Link>}
       </div>
 
       {me.data?.isGuest && <p className="px-5 pt-3 t-sub text-graphite">비회원은 읽기만 할 수 있어요. 글·댓글·추천·덕친 찾기는 회원으로 로그인하면 쓸 수 있어요.</p>}
