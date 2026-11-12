@@ -201,7 +201,10 @@ export type OAuthProvider = 'google' | 'apple' | 'kakao' | 'naver'
 export type LoginMethod = 'guest' | 'email' | OAuthProvider
 export type ImageKind = 'avatar' | 'banner' | 'posts'
 
-export type RealtimeEvent = { type: 'message'; roomId: string } | { type: 'request' }
+export type RealtimeEvent = { type: 'message'; roomId: string } | { type: 'request' } | { type: 'notice' }
+
+// startsAt: 공개 시각(예약 공지는 그 전까지 운영자에게만 보인다), endsAt: 상단 팝업을 띄우는 마지막 시각 (null = 제한 없음)
+export type Notice = { id: string; title: string; body: string; startsAt: string; endsAt: string | null }
 
 export type ProfilePatch = Partial<Pick<Profile, 'nickname' | 'bio' | 'avatarUrl' | 'bannerUrl' | 'profileSetupDone' | 'notifyEnabled'>> & {
   notify?: Partial<NotifyPrefs>
@@ -286,6 +289,10 @@ export interface Api {
   editPost(id: string, input: { title: string; body: string; tags: string[] }): Promise<void>
   editComment(id: string, body: string): Promise<void>
 
+  // 공지 (최신순)
+  listNotices(): Promise<Notice[]>
+  getNotice(id: string): Promise<Notice>
+
   // 문의
   submitInquiry(input: InquiryInput): Promise<void>
 
@@ -314,6 +321,8 @@ export interface Api {
   adminUserStats(): Promise<AdminUserStats>
   adminUser(id: string): Promise<{ user: AdminUserDetail | null; sanctions: AdminSanctionRecord[] }>
   adminDeletePost(postId: string, reason: string): Promise<void> // 사유와 함께 지우고 작성자에게 알림
+  adminPostNotice(title: string, body: string, endsAt: string | null, startsAt: string | null): Promise<string> // startsAt: 업로드 예약 (null = 바로)
+  adminDeleteNotice(id: string): Promise<void>
   adminTestText(text: string): Promise<{ word: string | null; masked: string }> // 걸린 단어, 채팅에서 가려지는 모습
 }
 
@@ -333,7 +342,9 @@ export const errorText = (e: unknown) => {
     kopis_unavailable: 'KOPIS에서 공연 정보를 받지 못했어요. 잠시 후 다시 시도해 주세요.',
     word_exists: '이미 목록에 있는 단어예요.',
     blocked_word:'사용할 수 없는 표현이 들어 있어요. 고쳐서 다시 올려 주세요.',
-    members_only: '회원만 할 수 있어요. 회원 로그인 후 이용해 주세요.',
+    notice_bad_period: '노출 기간은 공개 시각 이후로 정해 주세요.',
+    notice_bad_schedule: '예약은 1년 안으로 정해 주세요.',
+    members_only:'회원만 할 수 있어요. 회원 로그인 후 이용해 주세요.',
     tip_exists: '이 공연에 보낸 제보를 운영자가 확인하고 있어요.',
     tip_bad_date: '날짜를 다시 확인해 주세요. (최근 30일 ~ 1년 뒤)',
     tip_bad_url: 'https:// 로 시작하는 공지 링크를 넣어 주세요.',

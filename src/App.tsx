@@ -8,6 +8,7 @@ import { api } from '@/api'
 import { AppBar, BottomNav } from '@/components/BottomNav'
 import { SplitView, splitOf, useWide, type SplitGroup } from '@/components/Split'
 import { Toast } from '@/components/ui/Toast'
+import { NoticePopup } from '@/components/NoticePopup'
 import { supabase } from '@/lib/supabase'
 import { keys, useLiveSync, useMe, useSession } from '@/lib/queries'
 import { applyTheme, useUI } from '@/store/ui'
@@ -31,6 +32,8 @@ import ProfileSetup from '@/screens/community/ProfileSetup'
 import Requests from '@/screens/community/Requests'
 import PostDetail from '@/screens/community/PostDetail'
 import PostWrite from '@/screens/community/PostWrite'
+import NoticeDetail from '@/screens/community/NoticeDetail'
+import NoticeWrite from '@/screens/admin/NoticeWrite'
 import ProfileView from '@/screens/community/ProfileView'
 import ChatList from '@/screens/chat/ChatList'
 import ChatRoom from '@/screens/chat/ChatRoom'
@@ -238,6 +241,7 @@ export default function App() {
               <Route path="/community/requests" element={<Requests />} />
               <Route path="/community/write" element={<PostWrite />} />
               <Route path="/community/post/:id" element={<PostDetail />} />
+              <Route path="/community/notice/:id" element={<NoticeDetail />} />
               <Route path="/profile/:id" element={<ProfileView />} />
               <Route path="/chats/:id" element={<ChatRoom />} />
               <Route path="/my/settings" element={<Settings />} />
@@ -265,6 +269,7 @@ export default function App() {
                 <Route path="/admin/inquiries/:id" element={<InquiryDetail />} />
                 <Route path="/admin/words" element={<Words />} />
                 <Route path="/admin/tips" element={<TicketTips />} />
+                <Route path="/admin/notice" element={<NoticeWrite />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
                 <Route path="/admin/users/:id" element={<AdminUserDetail />} />
               </Route>
@@ -275,6 +280,7 @@ export default function App() {
           </div>
           </div>
         </div>
+        {showBar && <NoticePopup />}
         <Toast />
       </div>
     </div>
