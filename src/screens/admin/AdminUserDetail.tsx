@@ -31,7 +31,7 @@ export default function AdminUserDetail() {
       <AppHeader back title="사용자" />
       <section className="px-5 pt-2">
         <h1 className="flex items-center gap-2 t-title">
-          {u.nickname}{u.isAdmin && <span className="t-sub font-semibold text-success">운영자</span>}
+          {u.nickname}{u.isAdmin && <span className="t-sub font-semibold text-success">관리자</span>}
         </h1>
         {u.bio && <p className="mt-1 t-body text-graphite">{u.bio}</p>}
         <Link to={`/profile/${u.id}`} className="mt-1 inline-flex h-9 items-center t-sub font-semibold underline underline-offset-4">프로필 보기</Link>

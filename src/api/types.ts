@@ -289,6 +289,8 @@ export interface Api {
   editPost(id: string, input: { title: string; body: string; tags: string[] }): Promise<void>
   editComment(id: string, body: string): Promise<void>
 
+  adminIds(): Promise<string[]> // 관리자 id (커뮤니티 '관리자' 표시용)
+
   // 공지 (최신순)
   listNotices(): Promise<Notice[]>
   getNotice(id: string): Promise<Notice>
@@ -338,14 +340,14 @@ export const errorText = (e: unknown) => {
     account_restricted: '이용이 제한된 계정이에요. 문의하기로 연락해 주세요.',
     not_found: '이미 처리됐거나 사라진 항목이에요.',
     not_answered: '답변을 마친 문의만 삭제할 수 있어요.',
-    forbidden: '운영자만 할 수 있어요.',
+    forbidden: '관리자만 할 수 있어요.',
     kopis_unavailable: 'KOPIS에서 공연 정보를 받지 못했어요. 잠시 후 다시 시도해 주세요.',
     word_exists: '이미 목록에 있는 단어예요.',
     blocked_word:'사용할 수 없는 표현이 들어 있어요. 고쳐서 다시 올려 주세요.',
     notice_bad_period: '노출 기간은 공개 시각 이후로 정해 주세요.',
     notice_bad_schedule: '예약은 1년 안으로 정해 주세요.',
     members_only:'회원만 할 수 있어요. 회원 로그인 후 이용해 주세요.',
-    tip_exists: '이 공연에 보낸 제보를 운영자가 확인하고 있어요.',
+    tip_exists: '이 공연에 보낸 제보를 관리자가 확인하고 있어요.',
     tip_bad_date: '날짜를 다시 확인해 주세요. (최근 30일 ~ 1년 뒤)',
     tip_bad_url: 'https:// 로 시작하는 공지 링크를 넣어 주세요.',
     email_code_invalid: '인증 코드가 맞지 않아요.',
@@ -364,7 +366,7 @@ export const errorText = (e: unknown) => {
     state_expired: '로그인 요청이 만료됐어요. 다시 시도해 주세요.',
     social_cancelled: '로그인을 취소했어요.',
     social_failed: '로그인하지 못했어요. 잠시 후 다시 시도해 주세요.',
-    demo_admin:'운영자 기능은 Supabase에 연결했을 때만 쓸 수 있어요.',
+    demo_admin:'관리자 기능은 Supabase에 연결했을 때만 쓸 수 있어요.',
     'Invalid login credentials': '이메일 또는 비밀번호가 맞지 않아요.',
     'User already registered': '이미 가입된 이메일이에요. 로그인해 주세요.',
   }

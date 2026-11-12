@@ -16,7 +16,7 @@ export default function AdminHome() {
   const openInquiries = inquiries.data?.filter((i) => i.status === 'open').length ?? 0
   return (
     <>
-      <AppHeader back title="운영자" />
+      <AppHeader back title="관리자" />
       <MenuGroup title="사용자">
         <MenuRow icon={<IconFriends />} label="전체 사용자" to="/admin/users" />
         <MenuRow icon={<IconFlag />} label="신고" to="/admin/reports" right={<Badge count={openReports} />} />

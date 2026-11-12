@@ -13,7 +13,7 @@ import { Empty } from '@/components/ui/Empty'
 import { Sheet } from '@/components/ui/Sheet'
 import { useFriendActions } from '@/lib/actions'
 import { fmtRelative } from '@/lib/date'
-import { keys, useMe } from '@/lib/queries'
+import { keys, useAdminIds, useMe } from '@/lib/queries'
 import { toast } from '@/store/ui'
 
 // 글 상세: 제목 위 작성자, 오른쪽 위 점 세 개(친구 요청·프로필·신고), 추천·댓글
@@ -34,6 +34,7 @@ export default function PostDetail() {
   const [replyTo, setReplyTo] = useState<{ parentId: string; userId: string; nickname: string } | null>(null) // 답글 대상
   const [sending, setSending] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null) // 내 댓글 수정 중
+  const adminIds = useAdminIds()
 
   if (post.isError) return (<><AppHeader back /><Empty title="글을 볼 수 없어요" body="삭제됐거나 볼 수 없는 글이에요." /></>)
   const p = post.data
@@ -70,6 +71,7 @@ export default function PostDetail() {
           <Link to={`/profile/${p.author.id}`} className="mb-3 flex w-fit max-w-full items-center gap-2">
             <Avatar url={p.author.avatarUrl} name={p.author.nickname} size={32} />
             <span className="truncate t-sub font-semibold">{p.author.nickname}</span>
+            {adminIds.includes(p.author.id) && <span className="shrink-0 t-cap font-semibold text-success">관리자</span>}
           </Link>
           <h1 className="t-title">{p.title}</h1>
           <p className="mt-1 t-cap text-graphite">{fmtRelative(p.createdAt)}{p.edited && ' · 수정됨'}</p>
@@ -92,7 +94,7 @@ export default function PostDetail() {
           <li key={c.id} className={`flex gap-3 py-3 pr-5 ${c.parentId ? 'pl-14' : 'pl-5'}`}>
             <Link to={`/profile/${c.author.id}`}><Avatar url={c.author.avatarUrl} name={c.author.nickname} size={c.parentId ? 26 : 32} /></Link>
             <div className="min-w-0 flex-1">
-              <p className="t-sub"><span className="font-semibold">{c.author.nickname}</span> <span className="text-graphite">{fmtRelative(c.createdAt)}{c.edited && ' · 수정됨'}</span></p>
+              <p className="t-sub"><span className="font-semibold">{c.author.nickname}</span>{adminIds.includes(c.author.id) && <span className="ml-1 t-cap font-semibold text-success">관리자</span>} <span className="text-graphite">{fmtRelative(c.createdAt)}{c.edited && ' · 수정됨'}</span></p>
               <p className="mt-0.5 whitespace-pre-wrap t-body">
                 {c.replyTo && <span className="mr-1 font-semibold text-graphite">@{c.replyTo.nickname}</span>}{c.body}
               </p>
@@ -144,16 +146,16 @@ export default function PostDetail() {
         { label: '상세 프로필 보기', onClick: () => nav(`/profile/${p.author.id}`) },
         { label: '신고하기', danger: true, onClick: () => { setMenu(false); setReport({ postId: p.id }) } },
         // 운영자 권한: 신고 없이 바로 삭제 (DB 함수가 운영자인지 다시 확인한다)
-        ...(me?.isAdmin ? [{ label: '삭제하기', note: '운영자 권한', danger: true, icon: <IconAdmin size={20} />, onClick: () => { setMenu(false); setAdminPick(true) } }] : []),
+        ...(me?.isAdmin ? [{ label: '삭제하기', note: '관리자 권한', danger: true, icon: <IconAdmin size={20} />, onClick: () => { setMenu(false); setAdminPick(true) } }] : []),
       ]) : []} />
       <Sheet open={adminPick} onClose={() => setAdminPick(false)} title="삭제 사유" message="작성자에게 운영팀 대화방으로 사유와 함께 알려요."
         actions={REPORT_REASONS.map((r) => ({ label: r.label, onClick: () => { setAdminPick(false); setAdminWhy(r.label) } }))} />
-      <Confirm open={!!adminWhy} title="운영자 권한으로 이 글을 삭제할까요?" message={`사유: ${adminWhy ?? ''} · 삭제하면 되돌릴 수 없어요.`} confirmLabel="삭제" danger
+      <Confirm open={!!adminWhy} title="관리자 권한으로 이 글을 삭제할까요?" message={`사유: ${adminWhy ?? ''} · 삭제하면 되돌릴 수 없어요.`} confirmLabel="삭제" danger
         onClose={() => setAdminWhy(null)}
         onConfirm={async () => {
           const why = adminWhy ?? ''
           setAdminWhy(null)
-          try { await api.adminDeletePost(id, why); await qc.invalidateQueries({ queryKey: ['posts'] }); toast('운영자 권한으로 글을 삭제했어요'); nav(-1) } catch (e) { toast(errorText(e)) }
+          try { await api.adminDeletePost(id, why); await qc.invalidateQueries({ queryKey: ['posts'] }); toast('관리자 권한으로 글을 삭제했어요'); nav(-1) } catch (e) { toast(errorText(e)) }
         }} />
       <ReportSheet open={!!report} target={report ?? {}} onClose={() => setReport(null)} />
       <Confirm open={del} title="글을 삭제할까요?" message="삭제하면 되돌릴 수 없어요." confirmLabel="삭제" danger onClose={() => setDel(false)}
