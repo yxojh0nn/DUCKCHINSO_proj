@@ -21,7 +21,7 @@ async function fnCall<T>(sb: SupabaseClient, name: string, body: object): Promis
   return data as T
 }
 
-const ext = (b: Blob) => (b.type.split('/')[1] ?? 'jpg').replace('jpeg', 'jpg')
+const ext = (b: Blob) => (b.type.split('/')[1] ?? 'jpg').replace('jpeg', 'jpg').replace('quicktime', 'mov')
 
 const ADMIN_CONCERT = 'id, kopis_id, title, poster_url, venue_name, region, status, review_score, review_reasons, visit, cast_text, promoter, ticket_open_at, concert_schedules(starts_at), concert_artists(artist_id)'
 const adminConcert = (r: Row): AdminConcert => ({
@@ -345,8 +345,29 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       const urls = await signedChatUrls(rows)
       return rows.reverse().map((m): Message => ({
         id: m.id, roomId: m.room_id, senderId: m.sender_id, kind: m.kind, body: m.body,
-        imageUrl: m.image_path ? urls.get(m.image_path) ?? null : null, createdAt: m.created_at, deleted: !!m.deleted_at,
+        imageUrl: m.image_path ? urls.get(m.image_path) ?? null : null, createdAt: m.created_at, deleted: !!m.deleted_at, edited: !!m.edited_at,
       }))
+    },
+    async editMessage(id, body) {
+      ok(await sb.rpc('edit_my_message', { m: id, new_body: body }))
+    },
+    async listGifs() {
+      const me = await uid()
+      const rows = ok(await sb.from('gifs').select('id, path, status, uploader_id, created_at').order('created_at', { ascending: false }).limit(200)) as Row[]
+      return rows.map((g) => ({
+        id: g.id, url: sb.storage.from('public-media').getPublicUrl(g.path).data.publicUrl, status: g.status, mine: g.uploader_id === me, createdAt: g.created_at,
+      }))
+    },
+    async uploadGif(file) {
+      const path = `${await uid()}/gifs/${crypto.randomUUID()}.gif`
+      ok(await sb.storage.from('public-media').upload(path, file, { contentType: 'image/gif' }))
+      try { ok(await sb.rpc('submit_gif', { p: path })) } catch (e) {
+        await sb.storage.from('public-media').remove([path]) // 등록이 막히면(검토 대기 10개 등) 파일도 치운다
+        throw e
+      }
+    },
+    async adminResolveGif(id, approve) {
+      ok(await sb.rpc('admin_resolve_gif', { gif: id, approve }))
     },
     async deleteMessage(id) {
       const path = ok(await sb.rpc('delete_my_message', { m: id })) as string | null
@@ -368,6 +389,8 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       // RLS가 적용되므로 내가 볼 수 있는 행의 변경만 도착한다. 채널은 구독마다 따로 (공용 이름 'me' 를 쓰지 않는다, 보안 점검 L4)
       const ch = sb.channel(`user:${crypto.randomUUID()}`)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (p) => cb({ type: 'message', roomId: (p.new as Row).room_id }))
+        // 고치기·지우기도 상대 화면에 바로 반영
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, (p) => cb({ type: 'message', roomId: (p.new as Row).room_id }))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests' }, () => cb({ type: 'request' }))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'notices' }, () => cb({ type: 'notice' }))
         .subscribe()

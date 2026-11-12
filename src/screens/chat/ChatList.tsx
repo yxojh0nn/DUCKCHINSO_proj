@@ -16,7 +16,7 @@ export default function ChatList() {
       {rooms.data?.length ? (
         <ul className="pb-6">
           {rooms.data.map((r) => {
-            const preview = r.lastKind === 'image' ? '사진을 보냈어요' : r.lastBody ?? ''
+            const preview = r.lastKind === 'image' ? '사진·영상을 보냈어요' : r.lastBody ?? ''
             return (
               <li key={r.id}>
                 <Link to={`/chats/${r.id}`} className="flex items-center gap-3 px-5 py-3 active:bg-mist">

@@ -25,7 +25,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql', '20261111000030_inquiry_delete_and_hardening.sql', '20261111000031_nickname_validate.sql', '20261111000032_revoke_sessions.sql', '20261112000033_notices.sql', '20261112000034_notice_period.sql', '20261112000035_notice_schedule.sql', '20261112000036_admin_badge.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql', '20261111000030_inquiry_delete_and_hardening.sql', '20261111000031_nickname_validate.sql', '20261111000032_revoke_sessions.sql', '20261112000033_notices.sql', '20261112000034_notice_period.sql', '20261112000035_notice_schedule.sql', '20261112000036_admin_badge.sql', '20261112000037_chat_media_gifs.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -506,4 +506,23 @@ assert.equal((await as('c', `select id from public.notices where id = $1`, [sid]
 assert.deepEqual((await as('c', `select public.admin_ids() as id`)).rows.map((r) => r.id), [ids.b])
 await db.exec('set role anon')
 try { await assert.rejects(db.query(`select public.admin_ids()`), /permission denied/) } finally { await db.exec('reset role') }
+// 마이그 37: 메시지 수정 — 본인 글만, 금칙어는 가리고 원문 기록에 수정 내용이 붙는다
+const dsr = (await as('d', `select public.ensure_support_room() as r`)).rows[0].r
+const em = (await as('d', `insert into public.messages (room_id, sender_id, body) values ($1, $2, '처음') returning id`, [dsr, ids.d])).rows[0].id
+await assert.rejects(as('b', `select public.edit_my_message($1, '남의 글')`, [em]), /not_found/)
+await assert.rejects(as('d', `select public.edit_my_message($1, '  ')`, [em]), /bad_body/)
+await as('d', `select public.edit_my_message($1, '고침 씨발')`, [em])
+const editedMsg = (await db.query(`select m.body, m.edited_at, o.body as orig from public.messages m join public.message_originals o on o.message_id = m.id where m.id = $1`, [em])).rows[0]
+assert.ok(editedMsg.edited_at && !editedMsg.body.includes('씨발'))
+assert.equal(editedMsg.orig, '처음\n[수정] 고침 씨발')
+// 공용 GIF — 본인 폴더 경로만, 승인 전엔 올린 사람·운영자만 본다, 승인은 운영자만
+await assert.rejects(as('d', `select public.submit_gif($1)`, [`${ids.a}/gifs/x.gif`]), /bad_path/)
+await assert.rejects(as('c', `select public.submit_gif($1)`, [`${ids.c}/gifs/x.gif`]), /members_only/)
+const gid = (await as('d', `select public.submit_gif($1) as id`, [`${ids.d}/gifs/abc-1.gif`])).rows[0].id
+assert.equal((await as('c', `select id from public.gifs`)).rows.length, 0)
+assert.equal((await as('d', `select id from public.gifs`)).rows.length, 1)
+await assert.rejects(as('d', `select public.admin_resolve_gif($1, true)`, [gid]), /forbidden/)
+await as('b', `select public.admin_resolve_gif($1, true)`, [gid])
+assert.equal((await as('c', `select id from public.gifs`)).rows.length, 1)
+await assert.rejects(as('d', `insert into public.gifs (uploader_id, path) values ($1, 'x')`, [ids.d]), /permission denied/)
 console.log('ALL OK')
