@@ -484,7 +484,7 @@ export function createDemoApi(): Api {
         pushMsg(room.id, null, 'system', '문의 답변이 이 대화방으로 도착해요.')
       }
       const rid = room.id
-      setTimeout(() => pushMsg(rid, null, 'text', '문의 주셔서 감사합니다. 데모 모드라 자동 답변이 왔어요. 실제 서비스에서는 운영자가 확인 후 답변하고 메일로도 알려 드려요.'), 2000)
+      setTimeout(() => pushMsg(rid, null, 'text', '문의 주셔서 감사합니다. 데모 모드라 자동 답변이 왔어요. 실제 서비스에서는 관리자가 확인 후 답변하고 메일로도 알려 드려요.'), 2000)
       save()
     },
 
@@ -493,7 +493,7 @@ export function createDemoApi(): Api {
     adminSearchInbox: noAdmin, adminImportConcert: noAdmin, adminSearchArtists: noAdmin, adminGetArtist: noAdmin, adminSaveArtist: noAdmin,
     adminReports: noAdmin, adminResolveReport: noAdmin, adminSanction: noAdmin, adminTicketTips: noAdmin, adminResolveTicketTip: noAdmin, adminUsers: noAdmin, adminUserStats: noAdmin, adminUser: noAdmin, adminDeletePost: noAdmin, adminInquiries: noAdmin, adminAnswerInquiry: noAdmin, adminDeleteInquiry: noAdmin,
     // 데모에는 운영자가 없어 공지도 없다
-    listNotices: async () => [], getNotice: async () => { throw new Error('not_found') },
+    adminIds: async () => [], listNotices: async () => [], getNotice: async () => { throw new Error('not_found') },
     adminPostNotice: noAdmin, adminDeleteNotice: noAdmin,
     adminWords: noAdmin, adminAddWord: noAdmin, adminDeleteWord: noAdmin, adminTestText: noAdmin,
   }

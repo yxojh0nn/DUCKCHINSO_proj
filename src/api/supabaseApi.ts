@@ -515,6 +515,9 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
         sanctions: (ok(s) as Row[]).map((x) => ({ level: x.level, reason: x.reason, startsAt: x.starts_at, endsAt: x.ends_at })),
       }
     },
+    async adminIds() {
+      return ok(await sb.rpc('admin_ids')) as string[]
+    },
     async listNotices() {
       return (ok(await sb.from('notices').select('id, title, body, starts_at, ends_at').order('starts_at', { ascending: false }).limit(100)) as Row[]).map(notice)
     },

@@ -71,7 +71,7 @@ function InquiryForm({ i }: { i: AdminInquiry }) {
           <p className="t-sub text-graphite">보낸 답변{i.answeredAt ? ` · ${fmtDateTime(i.answeredAt)}` : ''}</p>
           <p className="mt-1 whitespace-pre-wrap break-words t-body">{i.answer}</p>
           <Button block variant="secondary" className="mt-8" onClick={() => setDel(true)}>문의 삭제</Button>
-          <Confirm open={del} title="이 문의를 삭제할까요?" message="운영자 문의 목록에서 지워지고 되돌릴 수 없어요. 사용자의 운영팀 대화방에 보낸 답변은 그대로 남아요."
+          <Confirm open={del} title="이 문의를 삭제할까요?" message="관리자 문의 목록에서 지워지고 되돌릴 수 없어요. 사용자의 운영팀 대화방에 보낸 답변은 그대로 남아요."
             confirmLabel="삭제" danger onClose={() => setDel(false)} onConfirm={remove} />
         </section>
       ) : (

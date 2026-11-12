@@ -36,6 +36,9 @@ export const useArtists = () => useQuery({ queryKey: keys.artists, queryFn: () =
 export const useConcerts = () => useQuery({ queryKey: keys.concerts, queryFn: () => api.listConcerts(), staleTime: 300_000 })
 export const useRooms = () => useQuery({ queryKey: keys.rooms, queryFn: () => api.listRooms() })
 export const useNotices = () => useQuery({ queryKey: keys.notices, queryFn: () => api.listNotices() })
+// 이 사람이 관리자인가 (커뮤니티 '관리자' 표시). 목록은 거의 안 바뀌어 한 번 받아 둔다
+export const useAdminIds = () => useQuery({ queryKey: ['admin-ids'], queryFn: () => api.adminIds(), staleTime: Infinity }).data ?? []
+export const useIsAdmin = (userId: string) => useAdminIds().includes(userId)
 export const useRequests =() => useQuery({ queryKey: keys.requests, queryFn: () => api.listRequests() })
 
 // 로그인 상태 변화와 실시간 이벤트를 캐시 무효화로 연결한다 (앱 최상단에서 한 번)

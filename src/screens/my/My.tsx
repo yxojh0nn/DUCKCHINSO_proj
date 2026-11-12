@@ -31,7 +31,7 @@ export default function My() {
       </MenuGroup>
       {me.isAdmin && (
         <MenuGroup>
-          <MenuRow icon={<IconAdmin />} label="운영자" to="/admin" />
+          <MenuRow icon={<IconAdmin />} label="관리자" to="/admin" />
         </MenuGroup>
       )}
       <MenuGroup>

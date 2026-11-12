@@ -37,7 +37,7 @@ export default function Artists() {
           {artists.map((a) => (
             <li key={a.id}>
               <Link to={`/admin/artists/${a.id}`} className="flex min-h-[56px] flex-col justify-center px-5 py-2 active:bg-mist">
-                <span className="t-body font-semibold">{a.name}{a.source === 'admin' && <span className="ml-2 t-cap font-medium text-graphite">운영자 수정</span>}</span>
+                <span className="t-body font-semibold">{a.name}{a.source === 'admin' && <span className="ml-2 t-cap font-medium text-graphite">관리자 수정</span>}</span>
                 <span className="truncate t-sub text-graphite">{[a.nameJa, a.nameEn, ...a.aliases.slice(0, 3)].filter(Boolean).join(' · ')}</span>
               </Link>
             </li>

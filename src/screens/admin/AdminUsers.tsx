@@ -54,7 +54,7 @@ export default function AdminUsers() {
               <Link to={`/admin/users/${u.id}`} className="block px-5 py-3 active:bg-mist">
                 <p className="flex items-center gap-2 t-body">
                   <span className="min-w-0 truncate font-semibold">{u.nickname}</span>
-                  {u.isAdmin && <span className="shrink-0 t-cap font-semibold text-success">운영자</span>}
+                  {u.isAdmin && <span className="shrink-0 t-cap font-semibold text-success">관리자</span>}
                   {STATUS[u.status] && <span className="shrink-0 t-cap font-semibold text-danger">{STATUS[u.status]}</span>}
                   <span className="ml-auto shrink-0 t-sub text-graphite">{LOGIN_LABEL(u.login)}</span>
                 </p>

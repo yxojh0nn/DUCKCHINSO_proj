@@ -20,7 +20,7 @@ export function TicketTipSheet({ open, onClose, concertId }: { open: boolean; on
     setBusy(true)
     try {
       await api.submitTicketTip(concertId, new Date(at).toISOString(), url)
-      toast('제보를 보냈어요. 운영자가 확인한 뒤 반영돼요.')
+      toast('제보를 보냈어요. 관리자가 확인한 뒤 반영돼요.')
       setAt(''); setUrl(''); onClose()
     } catch (err) { toast(errorText(err)) } finally { setBusy(false) }
   }
