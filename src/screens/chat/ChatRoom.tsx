@@ -251,6 +251,15 @@ export default function ChatRoom() {
   const list = messages.data ?? []
   // 목록 안에서만 맨 아래로. scrollIntoView 는 바깥 화면까지 움직여서 들어올 때 한 번 더 튕겼다
   useLayoutEffect(() => { const el = scroller.current; if (el) el.scrollTop = el.scrollHeight }, [list.length])
+  // 키보드가 올라와 목록이 줄어들면 줄어든 만큼 내려서, 보고 있던 아래쪽(최신) 메시지가 입력 바 뒤로 숨지 않게
+  useEffect(() => {
+    const el = scroller.current
+    if (!el) return
+    let h = el.clientHeight
+    const ro = new ResizeObserver(() => { el.scrollTop += h - el.clientHeight; h = el.clientHeight })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
   // 방에 들어와 있는 동안 받은 메시지는 읽음 처리
   useEffect(() => {
     if (!list.length) return
