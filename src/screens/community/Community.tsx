@@ -13,7 +13,8 @@ import { Empty } from '@/components/ui/Empty'
 import { Sheet } from '@/components/ui/Sheet'
 import { TextTabs } from '@/components/ui/TextTabs'
 import { useFriendActions } from '@/lib/actions'
-import { keys, useArtists, useGenres, useMe, useRequests } from '@/lib/queries'
+import { fmtDateTime, fmtRelative } from '@/lib/date'
+import { keys, useArtists, useGenres, useMe, useNotices, useRequests } from '@/lib/queries'
 
 type Filter = { genreId?: number; artistId?: string }
 
@@ -24,8 +25,8 @@ export default function Community() {
   // 보던 하위 탭을 주소에 남겨서 프로필을 보고 돌아와도 유지
   const [params, setParams] = useSearchParams()
   const t0 = params.get('tab')
-  const tab = t0 === 'friends' || t0 === 'reviews' ? t0 : 'feed'
-  const setTab = (t: 'feed' | 'reviews' | 'friends') => setParams(t === 'feed' ? {} : { tab: t }, { replace: true })
+  const tab = t0 === 'friends' || t0 === 'reviews' || t0 === 'notice' ? t0 : 'feed'
+  const setTab = (t: 'feed' | 'notice' | 'reviews' | 'friends') => setParams(t === 'feed' ? {} : { tab: t }, { replace: true })
   const [q, setQ] = useState('')
   const [filter, setFilter] = useState<Filter>({})
   const [filterOpen, setFilterOpen] = useState(false)
@@ -43,6 +44,7 @@ export default function Community() {
     queryFn: () => (term || filtered ? api.searchUsers(term, filter) : api.recommend()),
     enabled: tab === 'friends' && me.data?.isGuest === false, // 사용자 검색·추천은 회원만 (서버도 막는다)
   })
+  const notices = (useNotices().data ?? []).filter((n) => !term || n.title.includes(term) || n.body.includes(term))
 
   if (me.data && !me.data.communityAgreedAt) return <Navigate to="/community/rules" replace />
   if (me.data && !me.data.profileSetupDone) return <Navigate to="/community/setup" replace />
@@ -62,7 +64,7 @@ export default function Community() {
         <label className="flex h-10 flex-1 items-center gap-2 rounded-[10px] bg-mist px-3">
           <IconSearch size={18} className="text-graphite" />
           <input value={q} onChange={(e) => setQ(e.target.value)} aria-label="검색어"
-            placeholder={tab === 'feed' ? '글 제목, 내용, 태그' : tab === 'reviews' ? '지난 공연 검색' : '닉네임이나 소개글 키워드'} className="h-full min-w-0 flex-1 outline-none t-body" />
+            placeholder={tab === 'feed' ? '글 제목, 내용, 태그' : tab === 'notice' ? '공지 제목, 내용' : tab === 'reviews' ? '지난 공연 검색' : '닉네임이나 소개글 키워드'} className="h-full min-w-0 flex-1 outline-none t-body" />
           {q && <button aria-label="검색어 지우기" onClick={() => setQ('')} className="text-graphite"><IconClose size={16} /></button>}
         </label>
         <HeaderButton label="검색 범주 설정" onClick={() => { setTab('friends'); setFilterOpen(true) }}>
@@ -71,12 +73,26 @@ export default function Community() {
         </HeaderButton>
       </div>
       <div className="mt-1 flex items-center justify-between border-b border-hairline pr-3">
-        <TextTabs label="커뮤니티 보기" value={tab} onChange={setTab} tabs={[{ value: 'feed', label: '커뮤니티' }, { value: 'reviews', label: '후기 남기기' }, { value: 'friends', label: '추천 덕친' }]} />
+        <TextTabs label="커뮤니티 보기" value={tab} onChange={setTab} tabs={[{ value: 'feed', label: '커뮤니티' }, { value: 'notice', label: '공지' }, { value: 'reviews', label: '후기 남기기' }, { value: 'friends', label: '추천 덕친' }]} />
         {tab === 'feed' && !me.data?.isGuest && <Link to="/community/write" className="flex h-11 items-center px-2 t-body font-semibold">글쓰기</Link>}
       </div>
 
       {me.data?.isGuest && <p className="px-5 pt-3 t-sub text-graphite">비회원은 읽기만 할 수 있어요. 글·댓글·추천·덕친 찾기는 회원으로 로그인하면 쓸 수 있어요.</p>}
-      {tab === 'reviews' ? <PastConcerts q={term} /> : tab === 'feed' ? (
+      {tab === 'notice' ? (
+        notices.length ? (
+          <ul className="pb-6">
+            {notices.map((n) => (
+              <li key={n.id} className="border-b border-hairline last:border-0">
+                <Link to={`/community/notice/${n.id}`} className="block px-5 py-4 active:bg-mist">
+                  <p className="truncate t-body font-semibold">{n.title}</p>
+                  <p className="mt-0.5 line-clamp-2 t-sub text-graphite">{n.body}</p>
+                  <p className="mt-1.5 t-cap text-graphite num">운영팀 · {new Date(n.startsAt).getTime() > Date.now() ? `${fmtDateTime(n.startsAt)} 공개 예약` : fmtRelative(n.startsAt)}</p>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : <Empty title={term ? '맞는 공지가 없어요' : '아직 공지가 없어요'} />
+      ) : tab === 'reviews' ? <PastConcerts q={term} /> : tab === 'feed' ? (
         posts.data?.length ? <ul className="pb-6">{posts.data.map((p) => <PostRow key={p.id} post={p} />)}</ul>
           : <Empty title={posts.isLoading ? '불러오는 중…' : term ? '맞는 글이 없어요' : '아직 글이 없어요'}
               action={!posts.isLoading && !me.data?.isGuest && <Button size="md" onClick={() => nav('/community/write')}>글쓰기</Button>} />

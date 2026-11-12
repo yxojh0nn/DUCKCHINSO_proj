@@ -25,7 +25,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql', '20261111000030_inquiry_delete_and_hardening.sql', '20261111000031_nickname_validate.sql', '20261111000032_revoke_sessions.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql', '20261111000030_inquiry_delete_and_hardening.sql', '20261111000031_nickname_validate.sql', '20261111000032_revoke_sessions.sql', '20261112000033_notices.sql', '20261112000034_notice_period.sql', '20261112000035_notice_schedule.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -479,4 +479,27 @@ assert.deepEqual((await db.query(`select user_id from auth.sessions`)).rows.map(
 await as('d', `update public.profiles set notify_like = false, notify_concert = false where id = $1`, [ids.d])
 assert.deepEqual((await db.query(`select notify_friend, notify_like, notify_comment, notify_concert from public.profiles where id = $1`, [ids.d])).rows[0],
   { notify_friend: true, notify_like: false, notify_comment: true, notify_concert: false })
+// 마이그 33: 공지 — 운영자(b)만 올리고 지운다, 로그인한 누구나 읽는다, 직접 쓰기는 막힘
+await assert.rejects(as('c', `select public.admin_post_notice('t', 'b')`), /forbidden/)
+await assert.rejects(as('c', `insert into public.notices (title, body) values ('t', 'b')`), /permission denied/)
+const nid = (await as('b', `select public.admin_post_notice(' 점검 안내 ', '내용') as id`)).rows[0].id
+assert.equal((await as('c', `select title from public.notices where id = $1`, [nid])).rows[0].title, '점검 안내')
+await assert.rejects(as('c', `select public.admin_delete_notice($1)`, [nid]), /forbidden/)
+await as('b', `select public.admin_delete_notice($1)`, [nid])
+assert.equal((await db.query(`select count(*)::int as n from public.notices`)).rows[0].n, 0)
+// 마이그 34: 노출 기간 — 지난 시각은 거절, 앞으로의 시각은 저장
+await assert.rejects(as('b', `select public.admin_post_notice('t', 'b', now() - interval '1 hour')`), /notice_bad_period/)
+const nid2 = (await as('b', `select public.admin_post_notice('t', 'b', now() + interval '3 days') as id`)).rows[0].id
+assert.ok((await db.query(`select ends_at from public.notices where id = $1`, [nid2])).rows[0].ends_at)
+// 마이그 35: 업로드 예약 — 시각 전에는 운영자만 보고, publish_due_notices 가 시각이 되면 연다
+await assert.rejects(as('b', `select public.admin_post_notice('t', 'b', now() + interval '1 hour', now() + interval '2 hours')`), /notice_bad_period/)
+const sid = (await as('b', `select public.admin_post_notice('예약', 'b', null, now() + interval '1 hour') as id`)).rows[0].id
+assert.equal((await as('c', `select id from public.notices where id = $1`, [sid])).rows.length, 0)
+assert.equal((await as('b', `select id from public.notices where id = $1`, [sid])).rows.length, 1)
+await assert.rejects(as('c', `select public.publish_due_notices()`), /permission denied/)
+await db.query(`select public.publish_due_notices()`)
+assert.equal((await as('c', `select id from public.notices where id = $1`, [sid])).rows.length, 0) // 아직 시각 전
+await db.query(`update public.notices set starts_at = now() - interval '1 minute' where id = $1`, [sid])
+await db.query(`select public.publish_due_notices()`)
+assert.equal((await as('c', `select id from public.notices where id = $1`, [sid])).rows.length, 1)
 console.log('ALL OK')

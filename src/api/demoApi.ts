@@ -492,6 +492,9 @@ export function createDemoApi(): Api {
     adminReviewConcerts: noAdmin, adminGetConcert: noAdmin, adminPublishConcert: noAdmin, adminHideConcert: noAdmin,
     adminSearchInbox: noAdmin, adminImportConcert: noAdmin, adminSearchArtists: noAdmin, adminGetArtist: noAdmin, adminSaveArtist: noAdmin,
     adminReports: noAdmin, adminResolveReport: noAdmin, adminSanction: noAdmin, adminTicketTips: noAdmin, adminResolveTicketTip: noAdmin, adminUsers: noAdmin, adminUserStats: noAdmin, adminUser: noAdmin, adminDeletePost: noAdmin, adminInquiries: noAdmin, adminAnswerInquiry: noAdmin, adminDeleteInquiry: noAdmin,
+    // 데모에는 운영자가 없어 공지도 없다
+    listNotices: async () => [], getNotice: async () => { throw new Error('not_found') },
+    adminPostNotice: noAdmin, adminDeleteNotice: noAdmin,
     adminWords: noAdmin, adminAddWord: noAdmin, adminDeleteWord: noAdmin, adminTestText: noAdmin,
   }
   return api

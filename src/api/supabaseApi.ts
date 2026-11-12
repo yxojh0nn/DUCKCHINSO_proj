@@ -3,7 +3,7 @@ import { Capacitor } from '@capacitor/core'
 import { Browser } from '@capacitor/browser'
 import { authRedirect, socialLoginUrl } from '@/lib/supabase'
 import { CONSENT_ITEMS, CONSENT_VERSION, REQUIRED_KEYS } from '@/data/consent'
-import type { AdminArtist, AdminConcert, Api, LoginMethod, BannedWord, Concert, Message, Post, UserCard } from './types'
+import type { AdminArtist, AdminConcert, Api, LoginMethod, BannedWord, Concert, Message, Notice, Post, UserCard } from './types'
 
 type Row = Record<string, any>
 
@@ -30,6 +30,8 @@ const adminConcert = (r: Row): AdminConcert => ({
   status: r.status, score: r.review_score, reasons: r.review_reasons ?? [], visit: r.visit, cast: r.cast_text, promoter: r.promoter,
   artistIds: (r.concert_artists ?? []).map((a: Row) => a.artist_id), ticketOpenAt: r.ticket_open_at,
 })
+
+const notice = (r: Row): Notice => ({ id: r.id, title: r.title, body: r.body, startsAt: r.starts_at, endsAt: r.ends_at })
 
 const adminArtist = (r: Row): AdminArtist => ({ id: r.id, name: r.name, nameJa: r.name_ja, nameEn: r.name_en, aliases: r.aliases ?? [], source: r.source })
 
@@ -367,6 +369,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       const ch = sb.channel(`user:${crypto.randomUUID()}`)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (p) => cb({ type: 'message', roomId: (p.new as Row).room_id }))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests' }, () => cb({ type: 'request' }))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'notices' }, () => cb({ type: 'notice' }))
         .subscribe()
       return () => { sb.removeChannel(ch) }
     },
@@ -511,6 +514,18 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
         } : null,
         sanctions: (ok(s) as Row[]).map((x) => ({ level: x.level, reason: x.reason, startsAt: x.starts_at, endsAt: x.ends_at })),
       }
+    },
+    async listNotices() {
+      return (ok(await sb.from('notices').select('id, title, body, starts_at, ends_at').order('starts_at', { ascending: false }).limit(100)) as Row[]).map(notice)
+    },
+    async getNotice(id) {
+      return notice(ok(await sb.from('notices').select('id, title, body, starts_at, ends_at').eq('id', id).single()) as Row)
+    },
+    async adminPostNotice(title, body, endsAt, startsAt) {
+      return ok(await sb.rpc('admin_post_notice', { title, body, ends_at: endsAt, starts_at: startsAt })) as string
+    },
+    async adminDeleteNotice(id) {
+      ok(await sb.rpc('admin_delete_notice', { notice: id }))
     },
     async adminDeletePost(postId, reason) {
       ok(await sb.rpc('admin_delete_post', { post: postId, reason }))
