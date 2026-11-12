@@ -90,6 +90,10 @@ export const IconPhoto = (p: P) => (
 export const IconSmile = (p: P) => (
   <Svg {...p}><circle cx="12" cy="12" r="8.5" /><path d="M8.5 14c.9 1.3 2 2 3.5 2s2.6-.7 3.5-2" /><path d="M9.2 9.6v.6M14.8 9.6v.6" strokeWidth={2.2} /></Svg>
 )
+// 저장: 아래 화살표와 받침
+export const IconDownload = (p: P) => (
+  <Svg {...p}><path d="M12 4.5v10.5M7.5 10.5 12 15l4.5-4.5M5 19.5h14" /></Svg>
+)
 // 보내기: 위로 향한 화살표 원 (채움)
 export const IconSend = (p: P) => (
   <Svg {...p} strokeWidth={0}><circle cx="12" cy="12" r="10" fill="currentColor" /><path d="M12 16.5v-9M8 11l4-4 4 4" stroke="var(--paper)" strokeWidth={2} /></Svg>
