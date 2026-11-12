@@ -12,7 +12,7 @@ import { fmtDay, fmtTime, kstDayKey } from '@/lib/date'
 import { keys, useMe, useRooms } from '@/lib/queries'
 import { toast } from '@/store/ui'
 
-const GREETING = '안녕하세요! 반가워요 :) 같이 덕질해요'
+const GREETING = '👋'
 
 // 내 메시지는 눌러서 삭제 메뉴를 연다 (onPick). 지운 메시지는 흐리게 '삭제된 메시지예요'
 function Bubble({ m, mine, onPick }: { m: Message; mine: boolean; onPick?: () => void }) {
