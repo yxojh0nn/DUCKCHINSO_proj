@@ -131,3 +131,6 @@ html.theme-fade, html.theme-fade *, html.theme-fade *::before, html.theme-fade *
 /* 입력 오류: 좌우로 짧게 흔들림 */
 @keyframes shake { 0%, 100% { transform: none; } 20% { transform: translateX(-7px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(2px); } }
 @utility shake { animation: shake 380ms ease-in-out; }
+
+/* 실기기 키보드 값 확인용(주소 뒤 ?kbdebug). src/lib/keyboard.ts */
+#root[data-kb]::after { content: attr(data-kb); position: absolute; top: 0; left: 0; z-index: 9999; padding: 2px 4px; background: #000c; color: #0f0; font: 11px monospace; pointer-events: none; }
