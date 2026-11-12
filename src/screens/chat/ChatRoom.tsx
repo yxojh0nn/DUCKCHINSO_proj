@@ -251,14 +251,19 @@ export default function ChatRoom() {
   const list = messages.data ?? []
   // 목록 안에서만 맨 아래로. scrollIntoView 는 바깥 화면까지 움직여서 들어올 때 한 번 더 튕겼다
   useLayoutEffect(() => { const el = scroller.current; if (el) el.scrollTop = el.scrollHeight }, [list.length])
-  // 키보드가 올라와 목록이 줄어들면 줄어든 만큼 내려서, 보고 있던 아래쪽(최신) 메시지가 입력 바 뒤로 숨지 않게
+  // 키보드가 올라오거나 내려가 목록 높이가 바뀌어도 '맨 아래에서 떨어진 거리'를 그대로 둔다(보던 최신 메시지가 입력 바 뒤로 숨지 않게).
+  // 줄어든 만큼 더하고 늘어난 만큼 빼는 방식은, 맨 아래에선 더하기가 막혀 빼기만 남아 키보드를 여닫을 때마다 위로 밀렸다
   useEffect(() => {
     const el = scroller.current
     if (!el) return
+    let gap = 0
     let h = el.clientHeight
-    const ro = new ResizeObserver(() => { el.scrollTop += h - el.clientHeight; h = el.clientHeight })
+    // 높이가 바뀐 직후 브라우저가 스스로 보내는 scroll 은 거리 계산이 틀어지므로, 높이 변화를 처리하기 전엔 무시
+    const onScroll = () => { if (el.clientHeight === h) gap = el.scrollHeight - el.scrollTop - el.clientHeight }
+    const ro = new ResizeObserver(() => { h = el.clientHeight; el.scrollTop = el.scrollHeight - h - gap })
+    el.addEventListener('scroll', onScroll, { passive: true })
     ro.observe(el)
-    return () => ro.disconnect()
+    return () => { ro.disconnect(); el.removeEventListener('scroll', onScroll) }
   }, [])
   // 방에 들어와 있는 동안 받은 메시지는 읽음 처리
   useEffect(() => {
