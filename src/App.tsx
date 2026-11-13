@@ -62,6 +62,7 @@ import Inquiries from '@/screens/admin/Inquiries'
 import InquiryDetail from '@/screens/admin/InquiryDetail'
 import Words from '@/screens/admin/Words'
 import TicketTips from '@/screens/admin/TicketTips'
+import TicketClicks from '@/screens/admin/TicketClicks'
 import AdminUsers from '@/screens/admin/AdminUsers'
 import AdminUserDetail from '@/screens/admin/AdminUserDetail'
 
@@ -269,6 +270,7 @@ export default function App() {
                 <Route path="/admin/inquiries/:id" element={<InquiryDetail />} />
                 <Route path="/admin/words" element={<Words />} />
                 <Route path="/admin/tips" element={<TicketTips />} />
+                <Route path="/admin/clicks" element={<TicketClicks />} />
                 <Route path="/admin/notice" element={<NoticeWrite />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
                 <Route path="/admin/users/:id" element={<AdminUserDetail />} />
