@@ -7,10 +7,17 @@ import { REPORT_REASONS } from '@/components/ReportSheet'
 import { Empty } from '@/components/ui/Empty'
 import { TextTabs } from '@/components/ui/TextTabs'
 import { fmtRelative } from '@/lib/date'
+import { isKlipyUrl } from '@/lib/klipy'
 import { adminKeys } from './AdminGate'
 
 export const KIND_LABEL: Record<AdminReport['kind'], string> = { post: '글', comment: '댓글', message: '채팅', profile: '프로필' }
 export const reasonLabel = (r: AdminReport['reason']) => REPORT_REASONS.find((x) => x.value === r)?.label ?? r
+// 신고 시점 원문. KLIPY GIF 메시지면 원문이 GIF 주소라 그림으로 보여 준다
+export function Snapshot({ text, className }: { text: string | null; className: string }) {
+  return text && isKlipyUrl(text)
+    ? <img src={text} alt="신고된 GIF" className="mt-1 max-h-40 rounded-lg bg-mist" />
+    : <p className={className}>{text || '(원문 없음)'}</p>
+}
 
 // 신고: 처리 대기(오래된 것부터 보기 쉽게 최신순) / 처리됨
 export default function Reports() {
@@ -33,7 +40,7 @@ export default function Reports() {
                   <span className="text-graphite">{KIND_LABEL[r.kind]} · {fmtRelative(r.createdAt)}</span>
                   {r.status !== 'open' && <span className="ml-auto text-graphite">{r.status === 'resolved' ? '조치함' : '기각'}</span>}
                 </p>
-                <p className="mt-1 line-clamp-2 t-body">{r.snapshot || '(원문 없음)'}</p>
+                <Snapshot text={r.snapshot} className="mt-1 line-clamp-2 t-body" />
                 <p className="mt-1 t-cap text-graphite">
                   대상 {r.target?.nickname ?? '알 수 없음'}{r.priorSanctions ? ` · 이전 제재 ${r.priorSanctions}회` : ''}
                 </p>

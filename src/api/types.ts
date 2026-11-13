@@ -161,6 +161,7 @@ export type Message = {
   kind: 'text' | 'image' | 'system'
   body: string
   imageUrl: string | null
+  gifSlug: string | null // KLIPY GIF 면 콘텐츠 id (신고할 때 KLIPY 에 넘긴다)
   createdAt: string
   deleted?: boolean // 보낸 사람이 지움 → body 는 '삭제된 메시지예요'
   edited?: boolean // 보낸 사람이 고침
@@ -187,7 +188,6 @@ export type Comment = { id: string; postId: string; author: UserCard; body: stri
 export type NotifyPrefs = { friend: boolean; like: boolean; comment: boolean; concert: boolean }
 
 export type ReportReason = 'abuse' | 'sexual' | 'scam' | 'spam' | 'harmful_image' | 'etc'
-export type Gif = { id: string; url: string; status: 'pending' | 'approved' | 'rejected'; mine: boolean; createdAt: string }
 export type ReportTarget = { userId?: string; postId?: string; commentId?: string; messageId?: string }
 
 export type InquiryInput = {
@@ -274,11 +274,9 @@ export interface Api {
   listRooms(): Promise<Room[]>
   listMessages(roomId: string): Promise<Message[]>
   sendText(roomId: string, body: string): Promise<void>
-  sendImage(roomId: string, file: Blob): Promise<void> // 사진·GIF·영상 (영상은 imageUrl 확장자로 구분, isVideo)
+  sendImage(roomId: string, file: Blob): Promise<void> // 기기의 사진·GIF·영상 (영상은 imageUrl 확장자로 구분, isVideo)
+  sendGif(roomId: string, url: string, slug: string): Promise<void> // KLIPY 미디어 주소를 그대로 보낸다 (다시 올리지 않는다)
   editMessage(id: string, body: string): Promise<void> // 내 글 메시지만 (서버 edit_my_message)
-  listGifs(): Promise<Gif[]> // 승인된 공용 GIF + 내가 올린 것 (운영자는 전체)
-  uploadGif(file: Blob): Promise<void> // 운영자 승인 후 모두에게 보인다
-  adminResolveGif(id: string, approve: boolean): Promise<void>
   markRead(roomId: string): Promise<void>
   deleteMessage(id: string): Promise<void> // 내가 보낸 것만 (서버 delete_my_message)
   subscribe(cb: (e: RealtimeEvent) => void): () => void
@@ -354,7 +352,6 @@ export const errorText = (e: unknown) => {
     notice_bad_schedule: '예약은 1년 안으로 정해 주세요.',
     members_only:'회원만 할 수 있어요. 회원 로그인 후 이용해 주세요.',
     tip_exists: '이 공연에 보낸 제보를 관리자가 확인하고 있어요.',
-    too_many_pending: '검토를 기다리는 GIF 가 많아요. 검토가 끝난 뒤 다시 올려 주세요.',
     bad_body: '메시지 내용을 입력해 주세요.',
     tip_bad_date: '날짜를 다시 확인해 주세요. (최근 30일 ~ 1년 뒤)',
     tip_bad_url: 'https:// 로 시작하는 공지 링크를 넣어 주세요.',

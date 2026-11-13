@@ -24,6 +24,17 @@
         "VITE_SUPABASE_URL": "",
         "VITE_SUPABASE_ANON_KEY": ""
       }
+    },
+    {
+      "name": "web-demo-klipy",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["exec", "vite", "--port", "5175", "--strictPort"],
+      "port": 5175,
+      "env": {
+        "VITE_SUPABASE_URL": "",
+        "VITE_SUPABASE_ANON_KEY": "",
+        "VITE_KLIPY_APP_KEY": "test-key"
+      }
     }
   ]
 }

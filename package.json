@@ -9,7 +9,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types src/lib/calendar.test.ts && node --experimental-strip-types supabase/functions/_shared/kopis.test.ts && node --experimental-strip-types supabase/functions/_shared/crypto.test.ts && node --experimental-strip-types scripts/openData.test.ts && node --experimental-strip-types scripts/judge.test.ts && node supabase/tests/schema.test.mjs",
+    "test": "node --experimental-strip-types src/lib/calendar.test.ts && node --experimental-strip-types src/lib/klipy.test.ts && node --experimental-strip-types supabase/functions/_shared/kopis.test.ts && node --experimental-strip-types supabase/functions/_shared/crypto.test.ts && node --experimental-strip-types scripts/openData.test.ts && node --experimental-strip-types scripts/judge.test.ts && node supabase/tests/schema.test.mjs",
     "test:db": "node supabase/tests/schema.test.mjs",
     "dump:kopis": "node --env-file-if-exists=.env --experimental-strip-types scripts/dump-kopis-candidates.ts",
     "fetch:opendata": "node --env-file-if-exists=.env --experimental-strip-types scripts/fetch-open-data.ts",

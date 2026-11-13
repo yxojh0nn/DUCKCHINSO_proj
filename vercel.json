@@ -26,7 +26,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://www.kopis.or.kr https://kopis.or.kr https://ynzktqolittllfgfifug.supabase.co; media-src 'self' blob: https://ynzktqolittllfgfifug.supabase.co; font-src 'self' data:; connect-src 'self' https://ynzktqolittllfgfifug.supabase.co wss://ynzktqolittllfgfifug.supabase.co https://challenges.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'; upgrade-insecure-requests"
+          "value": "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://www.kopis.or.kr https://kopis.or.kr https://ynzktqolittllfgfifug.supabase.co https://static.klipy.com https://static1.klipy.com https://static2.klipy.com; media-src 'self' blob: https://ynzktqolittllfgfifug.supabase.co https://static.klipy.com https://static1.klipy.com https://static2.klipy.com; font-src 'self' data:; connect-src 'self' https://ynzktqolittllfgfifug.supabase.co wss://ynzktqolittllfgfifug.supabase.co https://challenges.cloudflare.com https://api.klipy.com; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'; upgrade-insecure-requests"
         },
         {
           "key": "Strict-Transport-Security",

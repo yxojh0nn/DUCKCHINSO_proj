@@ -37,7 +37,6 @@ type DB = {
   comments: CommentRow[]
   reports: unknown[]
   inquiries: unknown[]
-  gifs?: { id: string; url: string; uploaderId: string; createdAt: string }[]
 }
 
 const KEY = 'duckchinso-demo-v2'
@@ -89,8 +88,8 @@ export function createDemoApi(): Api {
   const friendOf = (a: string, b: string) => db.friendships.find((f) => (f.a === a && f.b === b) || (f.a === b && f.b === a))
   const pending = (a: string, b: string) => db.requests.find((r) => r.status === 'pending' && r.expiresAt > Date.now() && ((r.from === a && r.to === b) || (r.from === b && r.to === a)))
 
-  const pushMsg = (roomId: string, senderId: string | null, kind: MsgRow['kind'], body: string, imageUrl: string | null = null) => {
-    const m: MsgRow = { id: id(), roomId, senderId, kind, body, imageUrl, createdAt: Date.now() }
+  const pushMsg = (roomId: string, senderId: string | null, kind: MsgRow['kind'], body: string, imageUrl: string | null = null, gifSlug: string | null = null) => {
+    const m: MsgRow = { id: id(), roomId, senderId, kind, body, imageUrl, gifSlug, createdAt: Date.now() }
     db.messages.push(m)
     const room = db.rooms.find((r) => r.id === roomId)
     if (room && senderId) room.lastRead[senderId] = m.createdAt
@@ -416,13 +415,8 @@ export function createDemoApi(): Api {
       Object.assign(m, { body: body.trim(), edited: true })
       save()
     },
-    // 데모엔 운영자가 없어서 올리면 바로 승인된 것으로 둔다
-    async listGifs() {
-      return (db.gifs ?? []).map((g) => ({ ...g, status: 'approved' as const, mine: g.uploaderId === me().id }))
-    },
-    async uploadGif(file) {
-      db.gifs = [{ id: id(), url: await api.uploadImage('posts', file), uploaderId: me().id, createdAt: iso(Date.now()) }, ...(db.gifs ?? [])]
-      save()
+    async sendGif(roomId, url, slug) {
+      pushMsg(roomId, me().id, 'image', '', url, slug)
     },
     subscribe(cb) { listeners.add(cb); return () => listeners.delete(cb) },
 
@@ -506,7 +500,7 @@ export function createDemoApi(): Api {
     // 데모에는 운영자가 없다 (메뉴도 보이지 않음)
     adminReviewConcerts: noAdmin, adminGetConcert: noAdmin, adminPublishConcert: noAdmin, adminHideConcert: noAdmin,
     adminSearchInbox: noAdmin, adminImportConcert: noAdmin, adminSearchArtists: noAdmin, adminGetArtist: noAdmin, adminSaveArtist: noAdmin,
-    adminReports: noAdmin, adminResolveReport: noAdmin, adminSanction: noAdmin, adminTicketTips: noAdmin, adminResolveTicketTip: noAdmin, adminResolveGif: noAdmin, adminUsers: noAdmin, adminUserStats: noAdmin, adminUser: noAdmin, adminDeletePost: noAdmin, adminInquiries: noAdmin, adminAnswerInquiry: noAdmin, adminDeleteInquiry: noAdmin,
+    adminReports: noAdmin, adminResolveReport: noAdmin, adminSanction: noAdmin, adminTicketTips: noAdmin, adminResolveTicketTip: noAdmin, adminUsers: noAdmin, adminUserStats: noAdmin, adminUser: noAdmin, adminDeletePost: noAdmin, adminInquiries: noAdmin, adminAnswerInquiry: noAdmin, adminDeleteInquiry: noAdmin,
     // 데모에는 운영자가 없어 공지도 없다
     adminIds: async () => [], listNotices: async () => [], getNotice: async () => { throw new Error('not_found') },
     adminPostNotice: noAdmin, adminDeleteNotice: noAdmin,

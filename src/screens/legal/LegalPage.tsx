@@ -43,6 +43,8 @@ export default function LegalPage() {
         <section className="mt-6 px-5 t-sub text-graphite">
           <h2 className="t-head text-ink">파기와 문의</h2>
           <p className="mt-2">회원탈퇴하면 계정과 연결된 정보(프로필, 관심 아티스트, 글, 댓글, 채팅, 사진)를 지체 없이 지웁니다. 신고·제재 기록은 법령에 따라 사용자와의 연결을 끊고 1년간 보관합니다.</p>
+          <h2 className="mt-6 t-head text-ink">외부 서비스</h2>
+          <p className="mt-2">채팅의 GIF 검색·전송은 KLIPY(GIF 제공 서비스)를 이용합니다. GIF 를 찾거나 보낼 때 이용자 기기가 KLIPY 에 직접 접속하므로 IP 주소·기기 정보와, 회원 ID 를 알아볼 수 없게 바꾼 식별값·검색어·신고 사유가 KLIPY 에 전달됩니다. 이 정보는 GIF 제공, 최근 보낸 GIF 목록, 부적절한 GIF 신고 처리에 쓰입니다.</p>
           <p className="mt-2">개인정보 관련 문의는 앱의 MY &gt; 문의로 보내 주세요.</p>
         </section>
       )}

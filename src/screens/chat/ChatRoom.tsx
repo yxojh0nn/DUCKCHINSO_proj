@@ -1,16 +1,19 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, errorText, type Gif, type Message } from '@/api'
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
+import { api, errorText, type Message } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { ImageButton } from '@/components/ImageButton'
+import { LoadMore } from '@/components/LoadMore'
 import { ReportSheet } from '@/components/ReportSheet'
-import { IconClose, IconDownload, IconMore, IconPhoto, IconPlus, IconSend, IconSmile, IconWave } from '@/components/icons'
+import { IconClose, IconDownload, IconMore, IconPhoto, IconSend, IconSmile, IconWave } from '@/components/icons'
 import { Avatar } from '@/components/ui/Avatar'
 import { Confirm } from '@/components/ui/Confirm'
 import { Sheet } from '@/components/ui/Sheet'
+import { TextTabs } from '@/components/ui/TextTabs'
 import { fmtDay, fmtTime, kstDayKey } from '@/lib/date'
 import { openExternal } from '@/lib/external'
+import { customerId, isKlipyUrl, klipy, klipyOn, type KlipyGif } from '@/lib/klipy'
 import { saveMedia } from '@/lib/saveMedia'
 import { keys, useMe, useRooms } from '@/lib/queries'
 import { toast } from '@/store/ui'
@@ -54,7 +57,7 @@ function Bubble({ m, mine, onMenu, onOpen, onLink }: {
           {isVideo(url)
             ? <><video src={url} muted playsInline preload="metadata" draggable={false} className="block max-h-64 max-w-full object-cover" />
               <span aria-hidden className="absolute inset-0 m-auto flex h-11 w-11 items-center justify-center rounded-full bg-black/50 pl-0.5 text-[18px] text-white">▶</span></>
-            : <img src={url} alt="보낸 사진" draggable={false} className="block max-h-64 max-w-full object-cover" />}
+            : <img src={url} alt={m.gifSlug ? 'GIF' : '보낸 사진'} draggable={false} className="block max-h-64 max-w-full object-cover" />}
         </button>
       )
       : (
@@ -168,11 +171,14 @@ function Viewer({ url, onClose }: { url: string; onClose: () => void }) {
             style={{ transform: `translate(${v.x}px, ${v.y}px) scale(${v.s})` }}
             className={`m-auto max-h-full max-w-full select-none object-contain ${v.s > 1 ? 'cursor-grab active:cursor-grabbing' : 'cursor-zoom-in'}`} />}
       </div>
-      <button onClick={() => saveMedia(url).catch((e) => e?.name !== 'AbortError' && toast('저장하지 못했어요. 다시 시도해 주세요.'))}
-        aria-label={isVideo(url) ? '영상 저장' : '사진 저장'}
-        className="absolute right-14 top-[max(8px,env(safe-area-inset-top))] flex h-11 w-11 items-center justify-center rounded-full bg-black/40 text-white">
-        <IconDownload />
-      </button>
+      {/* KLIPY GIF 는 사본을 남기면 안 되는 콘텐츠라 저장 버튼을 두지 않는다 */}
+      {!isKlipyUrl(url) && (
+        <button onClick={() => saveMedia(url).catch((e) => e?.name !== 'AbortError' && toast('저장하지 못했어요. 다시 시도해 주세요.'))}
+          aria-label={isVideo(url) ? '영상 저장' : '사진 저장'}
+          className="absolute right-14 top-[max(8px,env(safe-area-inset-top))] flex h-11 w-11 items-center justify-center rounded-full bg-black/40 text-white">
+          <IconDownload />
+        </button>
+      )}
       <button onClick={onClose} aria-label="닫기" autoFocus
         className="absolute right-2 top-[max(8px,env(safe-area-inset-top))] flex h-11 w-11 items-center justify-center rounded-full bg-black/40 text-white">
         <IconClose />
@@ -181,47 +187,75 @@ function Viewer({ url, onClose }: { url: string; onClose: () => void }) {
   )
 }
 
-// 이모지(입력칸에 넣기) 또는 공용 GIF(눌러서 바로 보내기, 직접 올리기는 관리자 검토 후 공개)
-function Picker({ kind, onEmoji, onGif, busy }: { kind: 'emoji' | 'gif'; onEmoji: (e: string) => void; onGif: (g: Gif) => void; busy: boolean }) {
+// 이모지 고르기: 누르면 입력칸에 넣는다
+function EmojiPicker({ onEmoji }: { onEmoji: (e: string) => void }) {
+  return (
+    <div className="h-56 overflow-y-auto border-t border-hairline bg-paper p-3">
+      <div className="grid grid-cols-8 gap-1">
+        {EMOJIS.map((e) => (
+          <button key={e} type="button" onClick={() => onEmoji(e)} aria-label={e} className="h-10 rounded-lg text-[24px] hover:bg-mist active:bg-mist">{e}</button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// KLIPY GIF: 검색 · 인기 · 최근 보낸 GIF. 누르면 바로 보낸다.
+// KLIPY 규칙: 검색칸 안내 문구는 'Search KLIPY'(필수), 결과는 받은 순서 그대로, 다른 GIF 와 섞지 않는다
+function GifPicker({ cid, busy, onPick }: { cid: string; busy: boolean; onPick: (g: KlipyGif, q: string) => void }) {
   const qc = useQueryClient()
-  const gifs = useQuery({ queryKey: ['gifs'], queryFn: () => api.listGifs(), enabled: kind === 'gif' })
-  const shown = (gifs.data ?? []).filter((g) => g.status === 'approved' || (g.mine && g.status === 'pending'))
-  const upload = async (b: Blob) => {
-    if (b.type !== 'image/gif') return toast('GIF 파일만 올릴 수 있어요.')
-    if (b.size > 5 * 1024 * 1024) return toast('5MB보다 큰 GIF 는 올릴 수 없어요.')
+  const [input, setInput] = useState('')
+  const [q, setQ] = useState('')
+  const [tab, setTab] = useState<'trending' | 'recent'>('trending')
+  useEffect(() => { const t = window.setTimeout(() => setQ(input.trim()), 300); return () => window.clearTimeout(t) }, [input])
+  const kind = q ? 'search' : tab
+  const list = useInfiniteQuery({
+    queryKey: ['klipy', kind, q, cid],
+    queryFn: ({ pageParam }) => klipy.list(kind, pageParam, cid, q),
+    initialPageParam: 1,
+    getNextPageParam: (p) => p.next,
+  })
+  const items = list.data?.pages.flatMap((p) => p.items) ?? []
+  const hide = async (slug: string) => {
     try {
-      await api.uploadGif(b)
-      await qc.invalidateQueries({ queryKey: ['gifs'] })
-      toast('올렸어요. 검토가 끝나면 모두가 쓸 수 있어요.')
-    } catch (e) { toast(errorText(e)) }
+      await klipy.hideRecent(slug, cid)
+      await qc.invalidateQueries({ queryKey: ['klipy', 'recent'] })
+    } catch { toast('지우지 못했어요. 다시 시도해 주세요.') }
   }
   return (
-    <div className="border-t border-hairline bg-paper">
-      <div className="h-56 overflow-y-auto p-3">
-        {kind === 'emoji' ? (
-          <div className="grid grid-cols-8 gap-1">
-            {EMOJIS.map((e) => (
-              <button key={e} type="button" onClick={() => onEmoji(e)} aria-label={e} className="h-10 rounded-lg text-[24px] hover:bg-mist active:bg-mist">{e}</button>
+    <div className="flex h-72 flex-col border-t border-hairline bg-paper">
+      <div className="px-3 pt-2">
+        <input type="search" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Search KLIPY" aria-label="GIF 검색"
+          enterKeyHint="search" autoComplete="off" className="h-9 w-full rounded-full bg-mist px-4 t-body outline-none" />
+      </div>
+      {!q && (
+        <div className="pt-1">
+          <TextTabs label="GIF 목록" value={tab} onChange={setTab} tabs={[{ value: 'trending', label: '인기' }, { value: 'recent', label: '최근 보낸' }]} />
+        </div>
+      )}
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-2 pt-2">
+        {items.length ? (
+          <div className="grid grid-cols-3 gap-1.5 md:grid-cols-4">
+            {items.map((g, i) => (
+              <div key={`${i}-${g.slug}`} className="relative">
+                <button type="button" disabled={busy} onClick={() => onPick(g, q)} aria-label="GIF 보내기"
+                  className="block aspect-square w-full overflow-hidden rounded-lg bg-mist active:opacity-70">
+                  <img src={g.preview} alt="" loading="lazy" draggable={false} className="h-full w-full object-cover" />
+                </button>
+                {kind === 'recent' && (
+                  <button type="button" onClick={() => hide(g.slug)} aria-label="최근 보낸 GIF 에서 지우기"
+                    className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-white"><IconClose size={14} /></button>
+                )}
+              </div>
             ))}
           </div>
         ) : (
-          <>
-            <div className="grid grid-cols-3 gap-1.5 md:grid-cols-4">
-              <ImageButton accept="image/gif" label="GIF 올리기" onPick={([b]) => b && upload(b)}
-                className="flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-hairline t-cap text-graphite active:bg-mist">
-                <IconPlus />GIF 올리기
-              </ImageButton>
-              {shown.map((g) => (
-                <button key={g.id} type="button" disabled={busy || g.status !== 'approved'} onClick={() => onGif(g)} aria-label="GIF 보내기"
-                  className="relative aspect-square overflow-hidden rounded-lg bg-mist active:opacity-70">
-                  <img src={g.url} alt="" loading="lazy" className="h-full w-full object-cover" />
-                  {g.status === 'pending' && <span className="absolute inset-x-0 bottom-0 bg-black/55 py-0.5 text-center text-[11px] text-white">검토 중</span>}
-                </button>
-              ))}
-            </div>
-            <p className="mt-2 t-cap text-graphite">올린 GIF 는 관리자 검토 후 모두에게 공개돼요. 선정적이거나 불쾌한 이미지는 공개되지 않아요.</p>
-          </>
+          <p className="py-10 text-center t-sub text-graphite">
+            {list.isLoading ? '불러오는 중…' : list.isError ? 'GIF 를 불러오지 못했어요.' : kind === 'recent' ? '최근 보낸 GIF 가 없어요' : '찾는 GIF 가 없어요'}
+          </p>
         )}
+        {list.hasNextPage && <LoadMore key={items.length} onMore={() => list.fetchNextPage()} loading={list.isFetchingNextPage} />}
+        <p className="mt-1 text-right text-[11px] text-graphite">Powered by KLIPY</p>
       </div>
     </div>
   )
@@ -239,7 +273,9 @@ export default function ChatRoom() {
   const [menu, setMenu] = useState(false)
   const [report, setReport] = useState(false)
   const [sending, setSending] = useState(false)
-  const [picked, setPicked] = useState<Message | null>(null) // 메뉴를 연 내 메시지
+  const [picked, setPicked] = useState<Message | null>(null) // 메뉴를 연 메시지 (내 메시지, 또는 받은 GIF)
+  const [gifReport, setGifReport] = useState<Message | null>(null)
+  const cid = useQuery({ queryKey: ['klipy-cid', me?.id], queryFn: () => customerId(me!.id), enabled: klipyOn && !!me, staleTime: Infinity }).data
   const [editing, setEditing] = useState<Message | null>(null)
   const [viewing, setViewing] = useState<string | null>(null)
   const [panel, setPanel] = useState<'emoji' | 'gif' | null>(null)
@@ -292,9 +328,13 @@ export default function ChatRoom() {
     if (blobs.some((b) => b.type.startsWith('video/') && !VIDEO_TYPES.includes(b.type))) return toast('영상은 mp4·webm·mov 만 보낼 수 있어요.')
     send(async () => { for (const b of blobs) await api.sendImage(id, b) })
   }
-  const sendGif = (g: Gif) => {
+  // KLIPY 주소를 그대로 보낸다 (받아서 다시 올리지 않는다). share 는 KLIPY 통계·최근 목록용이라 실패해도 보내기는 끝난 것
+  const sendGif = (g: KlipyGif, q: string) => {
     setPanel(null)
-    send(async () => api.sendImage(id, await (await fetch(g.url)).blob()))
+    send(async () => {
+      await api.sendGif(id, g.url, g.slug)
+      if (cid) klipy.share(g.slug, cid, q).then(() => qc.invalidateQueries({ queryKey: ['klipy', 'recent'] }), () => {})
+    })
   }
   const openLink = (u: string) => {
     if (linkWarnOff()) return openExternal(u)
@@ -325,7 +365,7 @@ export default function ChatRoom() {
             <div key={m.id}>
               {newDay && <p className="my-3 text-center t-cap text-graphite">{fmtDay(m.createdAt)}</p>}
               <Bubble m={m} mine={!!me && m.senderId === me.id} onOpen={setViewing} onLink={openLink}
-                onMenu={me && m.senderId === me.id && !m.deleted && m.kind !== 'system' ? () => setPicked(m) : undefined} />
+                onMenu={me && !m.deleted && m.kind !== 'system' && (m.senderId === me.id || (m.gifSlug && m.senderId)) ? () => setPicked(m) : undefined} />
               {m.senderId === null && m.kind === 'text' && <p className="ml-1 mt-0.5 t-cap text-graphite">덕친소 운영팀</p>}
             </div>
           )
@@ -347,9 +387,8 @@ export default function ChatRoom() {
         </p>
       ) : (
         <>
-          {panel && !editing && (
-            <Picker kind={panel} busy={sending} onEmoji={(e) => setText((t) => t + e)} onGif={sendGif} />
-          )}
+          {panel === 'emoji' && !editing && <EmojiPicker onEmoji={(e) => setText((t) => t + e)} />}
+          {panel === 'gif' && !editing && cid && <GifPicker cid={cid} busy={sending} onPick={sendGif} />}
           {editing && (
             <div className="flex items-center gap-2 border-t border-hairline bg-paper px-4 py-1.5 t-sub text-graphite">
               <span className="flex-1 truncate">메시지 수정 중</span>
@@ -365,7 +404,8 @@ export default function ChatRoom() {
                 <>
                   <ImageButton label="사진·영상 보내기" accept={MEDIA} multiple onPick={sendMedia}
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-graphite hover:text-ink"><IconPhoto size={22} /></ImageButton>
-                  {([['emoji', '이모지', <IconSmile key="e" size={22} />], ['gif', 'GIF', <span key="g" className="rounded-[4px] border-[1.5px] border-current px-[3px] text-[10px] font-bold leading-[13px]">GIF</span>]] as const).map(([k, label, icon]) => (
+                  {/* GIF 버튼은 KLIPY 앱 키가 있는 빌드에서만 */}
+                  {([['emoji', '이모지', <IconSmile key="e" size={22} />], ...(klipyOn ? [['gif', 'GIF', <span key="g" className="rounded-[4px] border-[1.5px] border-current px-[3px] text-[10px] font-bold leading-[13px]">GIF</span>]] as const : [])] as const).map(([k, label, icon]) => (
                     <button key={k} type="button" onClick={() => setPanel((p) => (p === k ? null : k))} aria-label={label} aria-expanded={panel === k}
                       className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full hover:text-ink ${panel === k ? 'text-ink' : 'text-graphite'} ${k === 'emoji' ? '[@media(hover:none)]:hidden' : ''}`}>{icon}</button>
                   ))}
@@ -377,10 +417,19 @@ export default function ChatRoom() {
         </>
       )}
 
-      <Sheet open={!!picked} onClose={() => setPicked(null)} message="삭제하면 상대 화면에도 '삭제된 메시지예요'로 바뀌어요." actions={[
-        ...(picked?.kind === 'text' ? [{ label: '메시지 수정', onClick: () => { const m = picked; setPicked(null); setPanel(null); setEditing(m); setText(m.body) } }] : []),
-        { label: '메시지 삭제', danger: true, onClick: () => { const m = picked; setPicked(null); if (m) send(() => api.deleteMessage(m.id)) } },
-      ]} />
+      {picked && me && picked.senderId !== me.id ? (
+        <Sheet open onClose={() => setPicked(null)} actions={[
+          { label: 'GIF 신고하기', danger: true, onClick: () => { setGifReport(picked); setPicked(null) } },
+        ]} />
+      ) : (
+        <Sheet open={!!picked} onClose={() => setPicked(null)} message="삭제하면 상대 화면에도 '삭제된 메시지예요'로 바뀌어요." actions={[
+          ...(picked?.kind === 'text' ? [{ label: '메시지 수정', onClick: () => { const m = picked; setPicked(null); setPanel(null); setEditing(m); setText(m.body) } }] : []),
+          { label: '메시지 삭제', danger: true, onClick: () => { const m = picked; setPicked(null); if (m) send(() => api.deleteMessage(m.id)) } },
+        ]} />
+      )}
+      {gifReport?.gifSlug && cid && (
+        <ReportSheet open target={{ messageId: gifReport.id }} gif={{ slug: gifReport.gifSlug, customerId: cid }} onClose={() => setGifReport(null)} />
+      )}
       <Confirm open={!!link} title="외부 링크로 이동할까요?" confirmLabel="이동"
         message="확인되지 않은 링크일 수 있어요. 로그인·결제 정보를 요구하면 입력하지 마세요."
         onClose={() => setLink(null)}
