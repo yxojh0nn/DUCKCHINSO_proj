@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { Capacitor } from '@capacitor/core'
 import { Browser } from '@capacitor/browser'
 import { authRedirect, socialLoginUrl } from '@/lib/supabase'
+import { isKlipyUrl } from '@/lib/klipy'
 import { CONSENT_ITEMS, CONSENT_VERSION, REQUIRED_KEYS } from '@/data/consent'
 import type { AdminArtist, AdminConcert, Api, LoginMethod, BannedWord, Concert, Message, Notice, Post, UserCard } from './types'
 
@@ -49,7 +50,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
   }
 
   const signedChatUrls = async (rows: Row[]) => {
-    const paths = rows.map((m) => m.image_path).filter(Boolean)
+    const paths = rows.map((m) => m.image_path).filter((p) => p && !isKlipyUrl(p))
     if (!paths.length) return new Map<string, string>()
     const { data } = await sb.storage.from('chat-media').createSignedUrls(paths, 3600)
     return new Map((data ?? []).map((d) => [d.path ?? '', d.signedUrl]))
@@ -345,33 +346,15 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       const urls = await signedChatUrls(rows)
       return rows.reverse().map((m): Message => ({
         id: m.id, roomId: m.room_id, senderId: m.sender_id, kind: m.kind, body: m.body,
-        imageUrl: m.image_path ? urls.get(m.image_path) ?? null : null, createdAt: m.created_at, deleted: !!m.deleted_at, edited: !!m.edited_at,
+        imageUrl: !m.image_path ? null : isKlipyUrl(m.image_path) ? m.image_path : urls.get(m.image_path) ?? null, gifSlug: m.gif_slug ?? null, createdAt: m.created_at, deleted: !!m.deleted_at, edited: !!m.edited_at,
       }))
     },
     async editMessage(id, body) {
       ok(await sb.rpc('edit_my_message', { m: id, new_body: body }))
     },
-    async listGifs() {
-      const me = await uid()
-      const rows = ok(await sb.from('gifs').select('id, path, status, uploader_id, created_at').order('created_at', { ascending: false }).limit(200)) as Row[]
-      return rows.map((g) => ({
-        id: g.id, url: sb.storage.from('public-media').getPublicUrl(g.path).data.publicUrl, status: g.status, mine: g.uploader_id === me, createdAt: g.created_at,
-      }))
-    },
-    async uploadGif(file) {
-      const path = `${await uid()}/gifs/${crypto.randomUUID()}.gif`
-      ok(await sb.storage.from('public-media').upload(path, file, { contentType: 'image/gif' }))
-      try { ok(await sb.rpc('submit_gif', { p: path })) } catch (e) {
-        await sb.storage.from('public-media').remove([path]) // 등록이 막히면(검토 대기 10개 등) 파일도 치운다
-        throw e
-      }
-    },
-    async adminResolveGif(id, approve) {
-      ok(await sb.rpc('admin_resolve_gif', { gif: id, approve }))
-    },
     async deleteMessage(id) {
       const path = ok(await sb.rpc('delete_my_message', { m: id })) as string | null
-      if (path) await sb.storage.from('chat-media').remove([path]) // 사진 파일도 지운다 (실패해도 화면에는 이미 삭제됨)
+      if (path && !isKlipyUrl(path)) await sb.storage.from('chat-media').remove([path]) // 사진 파일도 지운다 (실패해도 화면에는 이미 삭제됨)
     },
     async sendText(roomId, body) {
       ok(await sb.from('messages').insert({ room_id: roomId, sender_id: await uid(), kind: 'text', body }))
@@ -381,6 +364,9 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       const path = `${roomId}/${me}/${crypto.randomUUID()}.${ext(file)}`
       ok(await sb.storage.from('chat-media').upload(path, file, { contentType: file.type }))
       ok(await sb.from('messages').insert({ room_id: roomId, sender_id: me, kind: 'image', image_path: path }))
+    },
+    async sendGif(roomId, url, slug) {
+      ok(await sb.from('messages').insert({ room_id: roomId, sender_id: await uid(), kind: 'image', image_path: url, gif_slug: slug }))
     },
     async markRead(roomId) {
       ok(await sb.rpc('mark_room_read', { r: roomId }))

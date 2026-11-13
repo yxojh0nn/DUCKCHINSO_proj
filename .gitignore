@@ -63,3 +63,6 @@ docs/*.html
 !CLAUDE.md
 !.claude/*.md
 !docs/개발환경_및_GitHub_운영가이드.md
+
+# DB 백업 파일 (회원 이메일·비밀번호 해시 포함 — 절대 커밋 금지)
+backups/

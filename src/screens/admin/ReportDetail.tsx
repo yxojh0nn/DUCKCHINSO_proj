@@ -9,7 +9,7 @@ import { Empty } from '@/components/ui/Empty'
 import { fmtDateTime } from '@/lib/date'
 import { toast } from '@/store/ui'
 import { adminKeys } from './AdminGate'
-import { KIND_LABEL, reasonLabel } from './Reports'
+import { KIND_LABEL, reasonLabel, Snapshot } from './Reports'
 import { SanctionPanel } from './SanctionPanel'
 
 const HIDE_LABEL = { post: '글 숨기기', comment: '댓글 지우기', message: '채팅 메시지 가리기', profile: '' } as const
@@ -51,7 +51,7 @@ function ReportForm({ r }: { r: AdminReport }) {
         {r.detail && <p className="mt-1 t-body text-graphite">{r.detail}</p>}
         <div className="mt-4 rounded-[12px] bg-mist px-4 py-3">
           <p className="t-cap text-graphite">신고 시점 원문</p>
-          <p className="mt-1 whitespace-pre-wrap break-words t-body">{r.snapshot || '(원문 없음)'}</p>
+          <Snapshot text={r.snapshot} className="mt-1 whitespace-pre-wrap break-words t-body" />
         </div>
         {r.postId && <Link to={`/community/post/${r.postId}`} className="mt-2 inline-flex h-9 items-center t-sub font-semibold underline underline-offset-4">글 보러 가기</Link>}
         <dl className="mt-3 space-y-1 t-sub">
