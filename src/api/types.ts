@@ -96,7 +96,8 @@ export type AdminUser = {
 }
 export type AdminUserDetail = Omit<AdminUser, 'sanctions'> & { bio: string; posts: number; comments: number; reportsAgainst: number }
 export type AdminSanctionRecord = { level: SanctionLevel; reason: string; startsAt: string; endsAt: string | null }
-export type AdminUserStats = { members: number; guests: number; active7d: number; suspended: number; banned: number }
+export type AdminTicketClick = { concertId: string | null; concertTitle: string | null; vendor: string; clicks: number; users: number }
+export type AdminUserStats ={ members: number; guests: number; active7d: number; suspended: number; banned: number }
 export type AdminArtist = Artist & { aliases: string[]; source: 'admin' | 'musicbrainz' }
 export type SanctionLevel = 'warning' | 'suspend' | 'ban'
 export type WordCategory = 'abuse' | 'sexual' | 'hate' | 'scam'
@@ -255,6 +256,7 @@ export interface Api {
   openDataUpdatedAt(): Promise<string | null> // KOPIS 공연 정보를 마지막으로 받은 시각 (출처 표시의 최종집계일)
   setFavorite(concertId: string, on: boolean): Promise<void>
   submitTicketTip(concertId: string, openAt: string, sourceUrl: string): Promise<void> // 예매 오픈일 제보 (회원만)
+  logTicketClick(concertId: string, url: string): Promise<void> // 예매 링크 클릭 기록 (운영자 통계용, 실패해도 무시)
 
   // 사람·친구
   getProfile(userId: string): Promise<PublicProfile>
@@ -323,6 +325,7 @@ export interface Api {
   adminDeleteWord(allowed: boolean, word: string): Promise<void>
   adminTicketTips(): Promise<AdminTicketTip[]> // 확인 대기 전체 + 최근 처리분
   adminResolveTicketTip(id: string, approve: boolean): Promise<void>
+  adminTicketClicks(days: number): Promise<AdminTicketClick[]> // 최근 N일 공연·예매처별 클릭 수 (많은 순)
   adminUsers(q: string, page: number, guests?: boolean): Promise<{ users: AdminUser[]; total: number }> // 50명씩. guests: 비회원 칸
   adminUserStats(): Promise<AdminUserStats>
   adminUser(id: string): Promise<{ user: AdminUserDetail | null; sanctions: AdminSanctionRecord[] }>

@@ -126,7 +126,7 @@ export default function ConcertDetail() {
       ) : (
       <div className="mt-6 flex flex-col gap-2.5 px-5">
         {c.links.map((l, i) => (
-          <button key={l.url} onClick={() => openTicket(l.url)}
+          <button key={l.url} onClick={() => { api.logTicketClick(c.id, l.url).catch(() => {}); openTicket(l.url) }}
             className={`flex h-[52px] items-center justify-center gap-2 rounded-[14px] t-head active:opacity-75 ${i === 0 ? 'bg-ink text-paper' : 'bg-mist'}`}>
             {l.vendor}에서 예매하기<IconExternal size={18} />
           </button>

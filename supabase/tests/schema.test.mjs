@@ -25,7 +25,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql', '20261111000030_inquiry_delete_and_hardening.sql', '20261111000031_nickname_validate.sql', '20261111000032_revoke_sessions.sql', '20261112000033_notices.sql', '20261112000034_notice_period.sql', '20261112000035_notice_schedule.sql', '20261112000036_admin_badge.sql', '20261112000037_chat_media_gifs.sql', '20261113000038_klipy_gifs.sql', '20261113000039_fk_indexes.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql', '20261111000030_inquiry_delete_and_hardening.sql', '20261111000031_nickname_validate.sql', '20261111000032_revoke_sessions.sql', '20261112000033_notices.sql', '20261112000034_notice_period.sql', '20261112000035_notice_schedule.sql', '20261112000036_admin_badge.sql', '20261112000037_chat_media_gifs.sql', '20261113000038_klipy_gifs.sql', '20261113000039_fk_indexes.sql', '20261113000040_ticket_link_clicks.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -530,4 +530,14 @@ const fkNoIdx = (await db.query(`select c.conrelid::regclass || '.' || a.attname
   where c.contype = 'f' and c.connamespace = 'public'::regnamespace
     and not exists (select 1 from pg_index i where i.indrelid = c.conrelid and i.indkey[0] = c.conkey[1] and i.indpred is null)`)).rows.map((r) => r.col)
 assert.deepEqual(fkNoIdx, [], `FK 인덱스 없음: ${fkNoIdx.join(', ')}`)
+// 마이그 40: 예매 링크 클릭 — 공연에 있는 링크만, 같은 사람·링크 10분 1회, 집계는 운영자만, 표 직접 접근 없음
+await db.query(`insert into public.ticket_links (concert_id, vendor, url) values ($1, '예스24', 'https://ticket.yes24.com/x')`, [con])
+for (const k of ['d', 'd', 'c']) await as(k, `select public.log_ticket_click($1, 'https://ticket.yes24.com/x')`, [con])
+await as('d', `select public.log_ticket_click($1, 'https://evil.example.com')`, [con]) // 없는 링크는 무시
+const clk = (await as('b', `select * from public.admin_ticket_clicks(30)`)).rows
+assert.deepEqual(clk.map((r) => [r.vendor, Number(r.clicks), Number(r.users)]), [['예스24', 2, 2]])
+await assert.rejects(as('d', `select * from public.admin_ticket_clicks(30)`), /forbidden/)
+await assert.rejects(as('d', `select * from public.ticket_link_clicks`), /permission denied/)
+await db.exec('set role anon')
+try { await assert.rejects(db.query(`select public.log_ticket_click($1, 'https://ticket.yes24.com/x')`, [con]), /permission denied/) } finally { await db.exec('reset role') }
 console.log('ALL OK')

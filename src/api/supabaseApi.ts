@@ -259,6 +259,9 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     async submitTicketTip(concertId, openAt, sourceUrl) {
       ok(await sb.rpc('submit_ticket_tip', { concert: concertId, open_at: openAt, source_url: sourceUrl }))
     },
+    async logTicketClick(concertId, url) {
+      ok(await sb.rpc('log_ticket_click', { concert: concertId, link_url: url }))
+    },
 
     async getProfile(userId) {
       const me = await uid()
@@ -498,6 +501,10 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     },
     async adminResolveTicketTip(id, approve) {
       ok(await sb.rpc('admin_resolve_ticket_tip', { tip: id, approve }))
+    },
+    async adminTicketClicks(days) {
+      const rows = ok(await sb.rpc('admin_ticket_clicks', { days })) as Row[]
+      return rows.map((r) => ({ concertId: r.concert_id, concertTitle: r.concert_title, vendor: r.vendor, clicks: Number(r.clicks), users: Number(r.users) }))
     },
     async adminUsers(q, page, guests = false) {
       const rows = ok(await sb.rpc('admin_users', { q, lim: 50, off: page * 50, guests })) as Row[]

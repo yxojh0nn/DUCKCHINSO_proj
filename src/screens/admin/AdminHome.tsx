@@ -33,6 +33,7 @@ export default function AdminHome() {
         <MenuRow icon={<IconSearch />} label="공연 찾기" to="/admin/inbox" />
       </MenuGroup>
       <MenuGroup title="데이터">
+        <MenuRow icon={<IconTicket />} label="예매 링크 클릭" to="/admin/clicks" />
         <MenuRow icon={<IconMy />} label="아티스트" to="/admin/artists" />
         <MenuRow icon={<IconBlock />} label="비속어" to="/admin/words" />
       </MenuGroup>
