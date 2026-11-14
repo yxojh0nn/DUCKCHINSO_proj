@@ -32,7 +32,7 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
 export default function Search() {
   const nav = useNavigate()
   const concerts = useConcerts().data ?? []
-  const artists = useArtists().data ?? []
+  const artists = useArtists().data // 불러오기 전 undefined → 불러온 뒤 한 번만 Map 을 만든다
   const genres = useGenres().data ?? []
   const favs = useMe().data?.favoriteIds ?? []
   const [q, setQ] = useState('')
@@ -41,7 +41,7 @@ export default function Search() {
   const [date, setDate] = useState<string | null>(null)
   const [favOnly, setFavOnly] = useState(false)
 
-  const names = useMemo(() => new Map(artists.map((a) => [a.id, [a.name, a.nameJa, a.nameEn].filter(Boolean).join(' ')])), [artists])
+  const names = useMemo(() => new Map((artists ?? []).map((a) => [a.id, [a.name, a.nameJa, a.nameEn].filter(Boolean).join(' ')])), [artists])
   const today = kstDayKey(Date.now())
   const active = !!(q.trim() || genre || price || date || favOnly)
 

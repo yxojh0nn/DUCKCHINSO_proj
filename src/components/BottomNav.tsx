@@ -57,10 +57,11 @@ export function AppBar() {
 
   useEffect(() => {
     if (!open) return
+    const opener = button.current // 서랍을 닫으면 초점을 열었던 버튼으로 되돌린다
     first.current?.focus({ preventScroll: true })
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
     window.addEventListener('keydown', onKey)
-    return () => { window.removeEventListener('keydown', onKey); button.current?.focus({ preventScroll: true }) }
+    return () => { window.removeEventListener('keydown', onKey); opener?.focus({ preventScroll: true }) }
   }, [open])
 
   return (

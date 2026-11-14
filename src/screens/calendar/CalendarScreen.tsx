@@ -15,7 +15,7 @@ export default function CalendarScreen() {
   const nav = useNavigate()
   const me = useMe().data
   const concerts = useConcerts()
-  const artists = useArtists().data ?? []
+  const artists = useArtists().data // 불러오기 전 undefined → 불러온 뒤 한 번만 Map 을 만든다
   const { calMode, setCalMode } = useUI()
   const today = kstDayKey(Date.now())
   const [ym, setYm] = useState(() => ({ y: Number(today.slice(0, 4)), m: Number(today.slice(5, 7)) }))
@@ -23,7 +23,7 @@ export default function CalendarScreen() {
   const [scope, setScope] = useState<'all' | 'mine'>('all')
 
   const artistName = useMemo(() => {
-    const map = new Map(artists.map((a) => [a.id, a.nameEn && /^[\x20-\x7e]+$/.test(a.nameEn) && a.nameEn.length <= 8 ? a.nameEn : a.name]))
+    const map = new Map((artists ?? []).map((a) => [a.id, a.nameEn && /^[\x20-\x7e]+$/.test(a.nameEn) && a.nameEn.length <= 8 ? a.nameEn : a.name]))
     return (id: string) => map.get(id) ?? ''
   }, [artists])
 
