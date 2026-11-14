@@ -47,7 +47,8 @@ export default function Community() {
   })
   const notices = (useNotices().data ?? []).filter((n) => !term || n.title.includes(term) || n.body.includes(term))
 
-  if (me.data && !me.data.communityAgreedAt) return <Navigate to="/community/rules" replace />
+  // 규칙 동의 뒤 같은 검색어(?q=, "이 공연 이야기 보기")로 돌아오도록 주소 뒤를 넘긴다
+  if (me.data && !me.data.communityAgreedAt) return <Navigate to={`/community/rules?${params}`} replace />
   if (me.data && !me.data.profileSetupDone) return <Navigate to="/community/setup" replace />
 
   const filterLabel = filter.genreId ? genres.find((g) => g.id === filter.genreId)?.name

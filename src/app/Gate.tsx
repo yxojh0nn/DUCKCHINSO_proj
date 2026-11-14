@@ -13,7 +13,7 @@ export function Gate({ children }: { children?: React.ReactNode }) {
   const session = useSession()
   const me = useMe()
   const qc = useQueryClient()
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
   const pending = useUI((s) => s.pendingConsents)
   const setPending = useUI((s) => s.setPendingConsents)
   const saving = useRef(false)
@@ -37,10 +37,10 @@ export function Gate({ children }: { children?: React.ReactNode }) {
   // 이메일로 가입한 사람은 아이디를 만들어야 다음으로 (docs/로그인_계정_암호화_설계.md 5장)
   if (me.data?.consentsOk && me.data.needsLoginId && pathname !== '/login-id') return <Navigate to="/login-id" replace />
   // 회원도 프로필(닉네임·아티스트)은 공연 캘린더를 먼저 본 뒤, 커뮤니티·채팅·MY에 처음 들어갈 때 정한다 (비회원은 커뮤니티 첫 진입 때)
-  // 마치면 가려던 화면(from)으로 돌아간다
+  // 마치면 가려던 화면(from, 검색어 포함)으로 돌아간다
   if (me.data?.consentsOk && !me.data.needsLoginId && !me.data.isGuest && !me.data.profileSetupDone
       && pathname !== '/community/setup' && !CALENDAR_PATHS.some((p) => pathname.startsWith(p))) {
-    return <Navigate to="/community/setup" replace state={{ from: pathname }} />
+    return <Navigate to="/community/setup" replace state={{ from: pathname + search }} />
   }
   return children ?? <Outlet />
 }

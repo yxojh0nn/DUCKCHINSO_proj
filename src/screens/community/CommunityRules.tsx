@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { api } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
@@ -12,6 +12,7 @@ import { useRun } from '@/lib/actions'
 // 커뮤니티 이용 규약 동의 (계정마다 최초 1회, 회원·비회원 따로)
 export default function CommunityRules() {
   const nav = useNavigate()
+  const { search } = useLocation() // 커뮤니티에서 넘겨받은 검색어
   const qc = useQueryClient()
   const me = useMe().data
   const [ok, setOk] = useState(false)
@@ -20,7 +21,7 @@ export default function CommunityRules() {
     return run(async () => {
       await api.updateMe({ communityAgreed: true })
       await qc.invalidateQueries({ queryKey: keys.me })
-      nav(me?.profileSetupDone ? '/community' : '/community/setup', { replace: true })
+      nav(me?.profileSetupDone ? `/community${search}` : '/community/setup', { replace: true })
     })
   }
   return (
