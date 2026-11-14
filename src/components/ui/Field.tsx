@@ -7,7 +7,7 @@ type Base = { label: string; hint?: string; error?: string; invalid?: boolean }
 const LINE = 'border-b outline-none transition-[border-color,box-shadow] t-body'
 const lineColor = (bad: boolean) => bad
   ? 'border-danger focus:shadow-[inset_0_-1px_0_var(--danger)]'
-  : 'border-hairline focus:border-ink focus:shadow-[inset_0_-1px_0_var(--ink)]'
+  : 'border-control-line focus:border-ink focus:shadow-[inset_0_-1px_0_var(--ink)]'
 
 // invalid: 문구 없이 밑줄만 붉게 (로그인 실패처럼 문구를 다른 곳에 한 번만 보일 때)
 // success: 초록 체크와 문구 / action: 입력란 오른쪽 버튼 (중복 확인 등)

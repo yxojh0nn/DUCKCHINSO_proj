@@ -11,7 +11,7 @@ const left = (iso: string) => {
   return h >= 24 ? `${Math.floor(h / 24)}일 남음` : `${h}시간 남음`
 }
 
-// 대기 중인 친구 요청: 받은 요청(수락·거절) / 보낸 요청(응답 대기)
+// 대기 중인 친구 요청: 받은 요청(수락·거절) / 보낸 요청(응답 대기·취소)
 export default function Requests() {
   const requests = useRequests()
   const actions = useFriendActions()
@@ -39,7 +39,10 @@ export default function Requests() {
       {outgoing.length > 0 && (
         <section className="pt-6">
           <h2 className="px-5 pb-1 t-sub font-semibold text-graphite">보낸 요청</h2>
-          <ul>{outgoing.map((r) => <UserRow key={r.id} user={r.user} right={<span className="t-sub text-graphite">{left(r.expiresAt)}</span>} />)}</ul>
+          <ul>{outgoing.map((r) => <UserRow key={r.id} user={r.user} right={<>
+            <span className="t-sub text-graphite">{left(r.expiresAt)}</span>
+            <Button size="sm" variant="secondary" onClick={() => actions.cancel(r.user.id)}>취소</Button>
+          </>} />)}</ul>
         </section>
       )}
     </>

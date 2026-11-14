@@ -31,7 +31,7 @@ export function BottomNav() {
       {ITEMS.map(({ to, label, Icon, badge }) => {
         const n = badges[badge]
         return (
-          <NavLink key={to} to={to} className={({ isActive }) => `relative flex flex-1 flex-col items-center gap-0.5 pb-1.5 pt-2 text-[10.5px] font-medium ${isActive ? 'text-ink' : 'text-graphite'}`}>
+          <NavLink key={to} to={to} className={({ isActive }) => `relative flex flex-1 flex-col items-center gap-0.5 pb-1.5 pt-2 text-[11px] font-medium ${isActive ? 'text-ink' : 'text-graphite'}`}>
             {({ isActive }) => (
               <>
                 <Icon size={26} filled={isActive} strokeWidth={isActive ? 1.9 : 1.6} />

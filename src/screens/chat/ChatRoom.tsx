@@ -1,3 +1,4 @@
+import { trapTab } from '@/components/ui/a11y'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -70,6 +71,8 @@ function Bubble({ m, mine, onMenu, onOpen, onLink }: {
 
   return (
     <div className={`group flex items-end gap-1.5 ${mine ? 'flex-row-reverse' : ''}`}>
+      {/* 정렬·색으로만 구분하던 보낸 사람을 화면낭독기에도 알린다 */}
+      <span className="sr-only">{mine ? '내 메시지' : '받은 메시지'}</span>
       <div className="min-w-0 max-w-[72%] [-webkit-touch-callout:none] [@media(hover:none)]:select-none" {...press}>{content}</div>
       {onMenu && (
         <button type="button" onClick={onMenu} aria-label="메시지 메뉴"
@@ -77,7 +80,7 @@ function Bubble({ m, mine, onMenu, onOpen, onLink }: {
           <IconMore size={18} />
         </button>
       )}
-      <span className={`flex shrink-0 flex-col pb-0.5 text-[10px] text-graphite num ${mine ? 'items-end' : 'items-start'}`}>
+      <span className={`flex shrink-0 flex-col pb-0.5 text-[11px] text-graphite num ${mine ? 'items-end' : 'items-start'}`}>
         {m.edited && !m.deleted && <span>수정됨</span>}
         {fmtTime(m.createdAt)}
       </span>
@@ -162,7 +165,7 @@ function Viewer({ url, onClose }: { url: string; onClose: () => void }) {
   }
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="크게 보기" className="absolute inset-0 z-50 flex bg-black [animation:fade-in_140ms_ease-out]">
+    <div role="dialog" aria-modal="true" aria-label="크게 보기" onKeyDown={trapTab} className="absolute inset-0 z-50 flex bg-black [animation:fade-in_140ms_ease-out]">
       <div ref={box} className="flex flex-1 overflow-hidden"
         {...(isVideo(url) ? {} : { onPointerDown: onDown, onPointerMove: onMove, onPointerUp: onUp, onPointerCancel: onUp, onDoubleClick: onDouble, style: { touchAction: 'none' } })}>
         {isVideo(url)
@@ -356,7 +359,8 @@ export default function ChatRoom() {
       )} />
 
       {/* 키보드가 올라온 채로 대화를 아래로 쓸어내리면 키보드를 내린다 */}
-      <div ref={scroller} className="flex-1 space-y-2 overflow-y-auto px-4 pb-3 pt-2"
+      {/* role=log: 새 메시지가 오면 화면낭독기가 읽어 준다 */}
+      <div ref={scroller} role="log" aria-label="대화 내용" aria-live="polite" className="flex-1 space-y-2 overflow-y-auto px-4 pb-3 pt-2"
         onTouchStart={(e) => { touchY.current = e.touches[0].clientY }}
         onTouchMove={(e) => { if (e.touches[0].clientY - touchY.current > 24 && document.activeElement instanceof HTMLInputElement) document.activeElement.blur() }}>
         {list.map((m, i) => {

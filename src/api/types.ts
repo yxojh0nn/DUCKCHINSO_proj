@@ -263,6 +263,7 @@ export interface Api {
   recommend(): Promise<Recommended[]>
   searchUsers(q: string, filter: { genreId?: number; artistId?: string }): Promise<UserCard[]>
   sendFriendRequest(userId: string): Promise<void>
+  cancelFriendRequest(userId: string): Promise<void> // 내가 보낸 대기 중 요청 취소 (없으면 not_found)
   listRequests(): Promise<FriendRequest[]>
   respondRequest(requestId: string, accept: boolean): Promise<string | null>
   listFriends(): Promise<Friend[]>

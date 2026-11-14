@@ -100,15 +100,15 @@ export default function PostDetail() {
               </p>
               {me && !me.isGuest && (
                 <button onClick={() => { setEditingId(null); setReplyTo({ parentId: c.parentId ?? c.id, userId: c.author.id, nickname: c.author.nickname }); document.getElementById('comment-input')?.focus() }}
-                  className="mt-0.5 h-8 t-cap font-semibold text-graphite">답글</button>
+                  className="-ml-2 mt-0.5 h-11 px-2 t-sub font-semibold text-graphite">답글</button>
               )}
               {me && c.author.id === me.id && (
                 <button onClick={() => { setEditingId(c.id); setReplyTo(null); setText(c.body); document.getElementById('comment-input')?.focus() }}
-                  className="ml-3 mt-0.5 h-8 t-cap font-semibold text-graphite">수정</button>
+                  className="mt-0.5 h-11 px-2 t-sub font-semibold text-graphite">수정</button>
               )}
             </div>
             {me && c.author.id !== me.id && (
-              <button onClick={() => setReport({ commentId: c.id })} className="h-8 self-start t-cap text-graphite">신고</button>
+              <button onClick={() => setReport({ commentId: c.id })} className="-mr-2 -mt-2 h-11 self-start px-2 t-sub text-graphite">신고</button>
             )}
           </li>
         ))}
@@ -142,7 +142,7 @@ export default function PostDetail() {
         { label: '글 수정', onClick: () => { setMenu(false); nav(`/community/write?edit=${p.id}`) } },
         { label: '글 삭제', danger: true, onClick: () => { setMenu(false); setDel(true) } },
       ] : [
-        ...(me?.isGuest ? [] : [{ label: '친구 요청 보내기', onClick: () => { setMenu(false); actions.request(p.author.id) } }]),
+        ...(me?.isGuest ? [] : [{ label: '친구 요청 보내기', onClick: () => { setMenu(false); actions.ask(p.author) } }]),
         { label: '상세 프로필 보기', onClick: () => nav(`/profile/${p.author.id}`) },
         { label: '신고하기', danger: true, onClick: () => { setMenu(false); setReport({ postId: p.id }) } },
         // 운영자 권한: 신고 없이 바로 삭제 (DB 함수가 운영자인지 다시 확인한다)
@@ -162,6 +162,7 @@ export default function PostDetail() {
         onConfirm={async () => {
           try { await api.deletePost(id); await qc.invalidateQueries({ queryKey: ['posts'] }); toast('글을 삭제했어요'); nav(-1) } catch (e) { toast(errorText(e)) }
         }} />
+      {actions.dialog}
     </div>
   )
 }

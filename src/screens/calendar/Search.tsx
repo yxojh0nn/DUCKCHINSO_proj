@@ -64,6 +64,10 @@ export default function Search() {
     }
     return true
   })
+    // 캘린더 목록과 같은 순서: 오늘 이후 가장 가까운 공연일 순
+    .map((c) => ({ c, next: c.schedules.map(kstDayKey).find((d) => d >= today) ?? '' }))
+    .sort((a, b) => a.next.localeCompare(b.next))
+    .map((x) => x.c)
 
   return (
     <div className="flex min-h-full flex-col">
@@ -73,7 +77,7 @@ export default function Search() {
           <label className="flex h-10 flex-1 items-center gap-2 rounded-[10px] bg-mist px-3">
             <IconSearch size={18} className="text-graphite" />
             <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="공연, 아티스트, 공연장" aria-label="공연 검색어" className="h-full flex-1 outline-none t-body" />
-            {q && <button aria-label="검색어 지우기" onClick={() => setQ('')} className="text-graphite"><IconClose size={16} /></button>}
+            {q && <button aria-label="검색어 지우기" onClick={() => setQ('')} className="-mr-3 flex h-10 w-10 shrink-0 items-center justify-center text-graphite"><IconClose size={16} /></button>}
           </label>
         </div>
         <div className="space-y-2 pb-3 pt-3">

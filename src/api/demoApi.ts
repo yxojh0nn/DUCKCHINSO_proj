@@ -20,7 +20,7 @@ type Acc = Profile & {
   method: LoginMethod; loginId: string | null
   notify?: Partial<NotifyPrefs>
 }
-type Req = { id: string; from: string; to: string; status: 'pending' | 'accepted' | 'declined'; createdAt: number; expiresAt: number }
+type Req = { id: string; from: string; to: string; status: 'pending' | 'accepted' | 'declined' | 'cancelled'; createdAt: number; expiresAt: number }
 type RoomRow = { id: string; kind: 'dm' | 'support'; members: string[]; lastRead: Record<string, number>; createdAt: number }
 type MsgRow = Omit<Message, 'createdAt'> & { createdAt: number }
 type PostRow = { id: string; authorId: string; title: string; body: string; tags: string[]; imageUrls: string[]; likes: string[]; createdAt: number; concertId?: string | null; edited?: boolean }
@@ -320,6 +320,14 @@ export function createDemoApi(): Api {
         .filter((r) => r.status === 'pending' && r.expiresAt > Date.now() && (r.from === a.id || r.to === a.id))
         .sort((x, y) => y.createdAt - x.createdAt)
         .map((r) => ({ id: r.id, direction: r.to === a.id ? 'in' : 'out', user: card(r.to === a.id ? r.from : r.to), createdAt: iso(r.createdAt), expiresAt: iso(r.expiresAt) }))
+    },
+    async cancelFriendRequest(uid) {
+      const a = me()
+      const r = db.requests.find((x) => x.from === a.id && x.to === uid && x.status === 'pending')
+      if (!r) throw new Error('not_found')
+      r.status = 'cancelled'
+      save()
+      emit({ type: 'request' })
     },
     async respondRequest(rid, accept) {
       const a = me()

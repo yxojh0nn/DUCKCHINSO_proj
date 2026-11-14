@@ -76,20 +76,20 @@ export function MonthCalendar({ year, month, concerts, favoriteIds, selected, to
                         </span>
                       )
                     })}
-                    {!!m?.hidden && <span className="text-[9px] leading-none text-graphite">+{m.hidden}</span>}
+                    {!!m?.hidden && <span className="text-[10px] leading-none text-graphite">+{m.hidden}</span>}
                   </span>
                 ) : (
                   <span aria-hidden className="mt-0.5 flex w-full flex-col gap-[2px] px-[2px]">
                     {ids.slice(0, 2).map((id) => {
                       const c = byId.get(id)!
                       return (
-                        <span key={id} className="truncate rounded-[3px] px-[3px] text-left text-[9.5px] font-semibold leading-[13px] text-white"
+                        <span key={id} className="truncate rounded-[3px] px-[3px] text-left text-[9.5px] font-semibold leading-[13px] text-[#18181A]"
                           style={{ background: colorOf(id) }}>
                           {c.artistIds[0] ? artistName(c.artistIds[0]) : c.title}
                         </span>
                       )
                     })}
-                    {ids.length > 2 && <span className="text-center text-[9px] leading-none text-graphite">+{ids.length - 2}</span>}
+                    {ids.length > 2 && <span className="text-center text-[10px] leading-none text-graphite">+{ids.length - 2}</span>}
                   </span>
                 )}
               </button>

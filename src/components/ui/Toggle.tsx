@@ -8,7 +8,7 @@ export function Toggle({ checked, onChange, label, disabled }: Props) {
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative h-[31px] w-[51px] shrink-0 rounded-full transition-colors ${checked ? 'bg-ink' : 'bg-hairline'}`}
+      className={`relative h-[31px] w-[51px] shrink-0 rounded-full transition-colors ${checked ? 'bg-ink' : 'bg-control-line'}`}
     >
       <span
         className={`absolute top-[2px] h-[27px] w-[27px] rounded-full bg-paper shadow-[0_2px_6px_rgba(0,0,0,0.18)] transition-[left] ${

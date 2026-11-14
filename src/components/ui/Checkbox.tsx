@@ -5,7 +5,7 @@ export function CheckMark({ checked }: { checked: boolean }) {
     <span
       aria-hidden
       className={`flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full transition-colors ${
-        checked ? 'bg-ink text-paper' : 'border-[1.5px] border-hairline'
+        checked ? 'bg-ink text-paper' : 'border-[1.5px] border-control-line'
       }`}
     >
       {checked && (

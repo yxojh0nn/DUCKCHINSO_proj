@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { trapTab } from './a11y'
 
 type Action = { label: string; onClick: () => void; danger?: boolean; icon?: React.ReactNode; note?: string }
 
@@ -34,6 +35,7 @@ export function Sheet({ open, onClose, title, message, actions, children }: Prop
         aria-label={title ?? '선택'}
         className="mx-auto w-full max-w-[640px] px-2 pb-[max(8px,env(safe-area-inset-bottom))] [animation:sheet-up_240ms_cubic-bezier(.2,.9,.25,1)] md:max-h-[85%] md:max-w-[440px] md:overflow-y-auto md:px-0 md:pb-0 md:[animation:pop-in_160ms_ease-out]"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={trapTab}
       >
         <div className="overflow-hidden rounded-[16px] bg-paper">
           {(title || message) && (

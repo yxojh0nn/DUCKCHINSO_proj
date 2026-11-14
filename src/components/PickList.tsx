@@ -38,7 +38,7 @@ export function PickList<T extends string | number>({ items, value, onChange, ma
                   <span className={`block truncate t-body ${on ? 'font-semibold' : ''}`}>{i.label}</span>
                   {i.sub && <span className="block truncate t-sub text-graphite">{i.sub}</span>}
                 </span>
-                <span className={`flex h-6 w-6 items-center justify-center rounded-full ${on ? 'bg-ink text-paper' : 'border-[1.5px] border-hairline'}`}>
+                <span className={`flex h-6 w-6 items-center justify-center rounded-full ${on ? 'bg-ink text-paper' : 'border-[1.5px] border-control-line'}`}>
                   {on && <IconCheck size={14} strokeWidth={2.6} />}
                 </span>
               </button>

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { trapTab } from './a11y'
 
 type Props = {
   open: boolean
@@ -24,7 +25,7 @@ export function Confirm({ open, title, message, confirmLabel, danger, onConfirm,
   if (!open) return null
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/35 px-10 [animation:fade-in_140ms_ease-out]" onClick={onClose}>
-      <div role="alertdialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}
+      <div role="alertdialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()} onKeyDown={trapTab}
         className="w-full max-w-[300px] rounded-[18px] bg-paper [animation:pop-in_160ms_ease-out]">
         <div className="px-5 pb-4 pt-5 text-center">
           <p className="t-head">{title}</p>
@@ -53,7 +54,7 @@ export function Alert({ open, title, tone, onClose }: { open: boolean; title: st
   if (!open) return null
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/35 px-10 [animation:fade-in_140ms_ease-out]" onClick={onClose}>
-      <div role="alertdialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}
+      <div role="alertdialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()} onKeyDown={trapTab}
         className="w-full max-w-[300px] rounded-[18px] bg-paper [animation:pop-in_160ms_ease-out]">
         <p className={`px-5 py-6 text-center t-head ${tone === 'danger' ? 'text-danger' : 'text-success'}`}>{title}</p>
         <button ref={ok} onClick={onClose} className="h-12 w-full border-t border-hairline t-body font-semibold active:bg-mist">확인</button>

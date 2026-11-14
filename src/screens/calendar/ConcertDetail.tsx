@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { api, errorText } from '@/api'
-import { AppHeader, HeaderButton } from '@/components/AppHeader'
-import { IconExternal, IconPin, IconTicket } from '@/components/icons'
+import { AppHeader } from '@/components/AppHeader'
+import { IconChevron, IconExternal, IconPin, IconTicket } from '@/components/icons'
 import { Poster, PosterViewer } from '@/components/Poster'
 import { TicketTipSheet } from '@/components/TicketTipSheet'
 import { Empty } from '@/components/ui/Empty'
 import { fmtDateTime, fmtTime, fmtDay, kstDayKey, won } from '@/lib/date'
 import { openGoogleMap, openKakaoMap, openTicket } from '@/lib/external'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { PostRow } from '@/components/PostRow'
 import { isPastConcert } from '@/lib/date'
@@ -56,14 +56,14 @@ export default function ConcertDetail() {
   c.schedules.forEach((s) => byDay.set(kstDayKey(s), [...(byDay.get(kstDayKey(s)) ?? []), s]))
   const artistNames = c.artistIds.map((a) => artists.find((x) => x.id === a)?.name).filter(Boolean).join(', ')
   const opened = c.ticketOpenAt && new Date(c.ticketOpenAt).getTime() <= Date.now()
+  const ticket = (url: string) => { api.logTicketClick(c.id, url).catch(() => {}); openTicket(url) }
+  // 커뮤니티 검색어: 첫 아티스트 이름 (없으면 공연명)
+  const talkTerm = artists.find((x) => x.id === c.artistIds[0])?.name ?? c.title
 
   return (
-    <div className="pb-[max(24px,env(safe-area-inset-bottom))]">
-      <AppHeader back right={
-        <HeaderButton label={fav ? '관심 공연 해제' : '관심 공연으로 저장'} onClick={toggleFav}>
-          <IconTicket filled={fav} />
-        </HeaderButton>
-      } />
+    // 아래 고정 예매 버튼이 있으면 그 버튼이 안전 영역 여백을 맡는다
+    <div className={!past && c.links[0] ? '' : 'pb-[max(24px,env(safe-area-inset-bottom))]'}>
+      <AppHeader back />
       <div className="flex gap-4 px-5 pt-2">
         {c.posterUrl ? (
           <button onClick={() => setZoom(true)} aria-label="포스터 크게 보기" className="shrink-0 rounded-[12px] active:opacity-80">
@@ -73,7 +73,7 @@ export default function ConcertDetail() {
         <div className="min-w-0 flex-1 pt-1">
           {artistNames && <p className="t-sub font-semibold text-graphite">{artistNames}</p>}
           <h1 className="mt-1 t-title">{c.title}</h1>
-          <button onClick={toggleFav} aria-pressed={fav} className="mt-3 flex h-9 items-center gap-1.5 t-sub font-semibold">
+          <button onClick={toggleFav} aria-pressed={fav} className="-ml-2 mt-2 flex h-11 items-center gap-1.5 px-2 t-sub font-semibold">
             <IconTicket size={18} filled={fav} />{fav ? '관심 공연' : '관심 공연에 담기'}
           </button>
         </div>
@@ -124,17 +124,33 @@ export default function ConcertDetail() {
             : <p className="px-5 py-4 t-sub text-graphite">{reviews.isLoading ? '불러오는 중…' : '아직 후기가 없어요. 첫 후기를 남겨 주세요.'}</p>}
         </section>
       ) : (
-      <div className="mt-6 flex flex-col gap-2.5 px-5">
-        {c.links.map((l, i) => (
-          <button key={l.url} onClick={() => { api.logTicketClick(c.id, l.url).catch(() => {}); openTicket(l.url) }}
-            className={`flex h-[52px] items-center justify-center gap-2 rounded-[14px] t-head active:opacity-75 ${i === 0 ? 'bg-ink text-paper' : 'bg-mist'}`}>
-            {l.vendor}에서 예매하기<IconExternal size={18} />
-          </button>
-        ))}
-      </div>
+      <>
+        <section className="mt-6 border-t border-hairline px-5 pt-4">
+          <Link to={`/community?q=${encodeURIComponent(talkTerm)}`} className="flex h-11 items-center justify-between t-body font-semibold active:opacity-60">
+            커뮤니티에서 이 공연 이야기 보기<IconChevron size={18} className="text-graphite" />
+          </Link>
+        </section>
+        {c.links.length > 1 && (
+          <div className="mt-4 flex flex-col gap-2.5 px-5">
+            {c.links.slice(1).map((l) => (
+              <button key={l.url} onClick={() => ticket(l.url)} className="flex h-[52px] items-center justify-center gap-2 rounded-[14px] bg-mist t-head active:opacity-75">
+                {l.vendor}에서 예매하기<IconExternal size={18} />
+              </button>
+            ))}
+          </div>
+        )}
+        {c.links[0] && (
+          // 첫 예매처는 스크롤해도 화면 아래에 붙어 있다 (엄지 닿는 곳)
+          <div className="sticky bottom-0 z-10 mt-4 bg-paper/95 px-5 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl">
+            <button onClick={() => ticket(c.links[0].url)} className="flex h-[52px] w-full items-center justify-center gap-2 rounded-[14px] bg-ink t-head text-paper active:opacity-75">
+              {c.links[0].vendor}에서 예매하기<IconExternal size={18} />
+            </button>
+          </div>
+        )}
+      </>
       )}
       <TicketTipSheet open={tipOpen} onClose={() => setTipOpen(false)} concertId={c.id} />
-      {zoom && c.posterUrl && <PosterViewer url={c.posterUrl} title={c.title} intro={c.introUrls} onClose={() => setZoom(false)} />}
+      {zoom && c.posterUrl && <PosterViewer url={c.posterUrl} title={c.title} onClose={() => setZoom(false)} />}
     </div>
   )
 }

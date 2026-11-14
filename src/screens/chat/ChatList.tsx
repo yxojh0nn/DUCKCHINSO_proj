@@ -39,7 +39,7 @@ export default function ChatList() {
         </ul>
       ) : (
         <Empty icon={<IconNoChat size={56} strokeWidth={1.4} />} title={rooms.isLoading ? '불러오는 중…' : '아직 채팅이 없어요'}
-          action={!rooms.isLoading && <Link to="/community?tab=friends" className="t-body font-semibold underline underline-offset-4">추천 덕친 보러 가기</Link>} />
+          action={!rooms.isLoading && <Link to="/community?tab=friends" className="t-body font-semibold underline underline-offset-4">덕친 찾으러 가기</Link>} />
       )}
     </>
   )

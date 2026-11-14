@@ -94,14 +94,18 @@ function Gate({ children }: { children?: React.ReactNode }) {
   if (me.data && !me.data.consentsOk && pathname !== '/consent') return <Navigate to="/consent" replace />
   // 이메일로 가입한 사람은 아이디를 만들어야 다음으로 (docs/로그인_계정_암호화_설계.md 5장)
   if (me.data?.consentsOk && me.data.needsLoginId && pathname !== '/login-id') return <Navigate to="/login-id" replace />
-  // 회원은 첫 로그인 때 메인 화면 전에 닉네임·프로필을 정한다 (비회원은 커뮤니티 첫 진입 때)
-  if (me.data?.consentsOk && !me.data.needsLoginId && !me.data.isGuest && !me.data.profileSetupDone && pathname !== '/community/setup') {
-    return <Navigate to="/community/setup" replace />
+  // 회원도 프로필(닉네임·아티스트)은 공연 캘린더를 먼저 본 뒤, 커뮤니티·채팅·MY에 처음 들어갈 때 정한다 (비회원은 커뮤니티 첫 진입 때)
+  // 마치면 가려던 화면(from)으로 돌아간다
+  if (me.data?.consentsOk && !me.data.needsLoginId && !me.data.isGuest && !me.data.profileSetupDone
+      && pathname !== '/community/setup' && !CALENDAR_PATHS.some((p) => pathname.startsWith(p))) {
+    return <Navigate to="/community/setup" replace state={{ from: pathname }} />
   }
   return children ?? <Outlet />
 }
 
 const TAB_PATHS = ['/calendar', '/community', '/chats', '/my']
+// 프로필 설정 전에도 볼 수 있는 화면 (공연 보기는 프로필 없이 된다)
+const CALENDAR_PATHS = ['/calendar', '/concert/', '/search', '/legal/']
 
 // 가로로 스크롤되는 영역(칩 줄, 사진 줄 등) 안에서 시작한 밀기는 탭 전환으로 보지 않는다
 const inHorizontalScroller = (el: EventTarget | null, root: HTMLElement) => {
@@ -116,9 +120,14 @@ function Tabs() {
   const { pathname } = useLocation()
   const index = TAB_PATHS.indexOf(pathname)
   // 탭이 바뀔 때만 방향을 정한다 (다시 그려질 때 애니메이션이 재시작되지 않게)
-  const last = useRef({ index, dir: 'right' })
-  if (last.current.index !== index) last.current = { index, dir: index > last.current.index ? 'right' : 'left' }
-  const dir = last.current.dir
+  // 밀어서 바꿀 때만 미끄러진다: 하단 탭을 누르면 같은 높이의 화면이라 바로 바꾸는 편이 빠르다
+  const swiped = useRef(false)
+  const last = useRef({ index, dir: 'right', slide: false })
+  if (last.current.index !== index) {
+    last.current = { index, dir: index > last.current.index ? 'right' : 'left', slide: swiped.current }
+    swiped.current = false
+  }
+  const { dir, slide } = last.current
   const start = useRef<{ x: number; y: number } | null>(null)
 
   // 모바일: 좌우로 밀어 이전·다음 탭으로
@@ -136,7 +145,7 @@ function Tabs() {
     const dy = t.clientY - s.y
     if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.5) return
     const next = TAB_PATHS[index + (dx < 0 ? 1 : -1)]
-    if (next) nav(next)
+    if (next) { swiped.current = true; nav(next) }
   }
 
   return (
@@ -144,7 +153,7 @@ function Tabs() {
       {/* 휴대폰: 탭 화면 맨 위 가운데 로고 (768px 이상은 앱 바에 있다) */}
       <div className="flex justify-center pb-1 pt-[max(10px,env(safe-area-inset-top))] md:hidden"><Wordmark small /></div>
       <main key={pathname} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
-        className={`flex flex-1 flex-col ${dir === 'right' ? 'slide-right' : 'slide-left'}`}>
+        className={`flex flex-1 flex-col ${!slide ? '' : dir === 'right' ? 'slide-right' : 'slide-left'}`}>
         <Outlet />
       </main>
       <BottomNav />

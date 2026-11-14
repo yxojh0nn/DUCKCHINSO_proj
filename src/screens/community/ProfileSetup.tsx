@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { api, errorText } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
@@ -43,6 +43,7 @@ export default function ProfileSetup() {
     } catch (e) { toast(e instanceof Error && e.message.includes('닉네임') ? e.message : errorText(e)) } finally { setBusy(false) }
   }
 
+  const from = (useLocation().state as { from?: string } | null)?.from
   const finish = async () => {
     setBusy(true)
     try {
@@ -51,7 +52,7 @@ export default function ProfileSetup() {
       const avatarUrl = avatar ? await api.uploadImage('avatar', avatar) : undefined
       await api.updateMe({ bio: bio.trim(), profileSetupDone: true, ...(avatarUrl ? { avatarUrl } : {}) })
       await qc.invalidateQueries({ queryKey: keys.me })
-      nav(me?.isGuest ? '/community' : '/calendar', { replace: true })
+      nav(from ?? '/community', { replace: true })
     } catch (e) { toast(errorText(e)) } finally { setBusy(false) }
   }
 
@@ -60,8 +61,8 @@ export default function ProfileSetup() {
     { title: '좋아하는 아티스트', desc: '최대 5명까지 고를 수 있어요. 비슷한 취향의 덕친을 추천해 드려요.' },
     { title: '좋아하는 장르', desc: 'J-pop 안에서 즐겨 듣는 장르를 골라 주세요.' },
   ]
-  // 회원은 이 화면을 마쳐야 메인으로 갈 수 있어 첫 단계에는 뒤로 가기를 두지 않는다
-  const back = step ? () => setStep(step - 1) : me?.isGuest ? () => nav('/calendar') : undefined
+  // 첫 단계에서 뒤로 가면 공연 캘린더로 (프로필 없이도 공연은 볼 수 있다)
+  const back = step ? () => setStep(step - 1) : () => nav('/calendar', { replace: true })
 
   return (
     <div className="flex min-h-full flex-col">

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { api, errorText, type OAuthProvider } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { Button } from '@/components/ui/Button'
 import { TextField } from '@/components/ui/Field'
 import { Captcha, captchaOn } from '@/components/Captcha'
 import { toast } from '@/store/ui'
+import { useSession } from '@/lib/queries'
 
 // 간편 로그인 버튼: 각 서비스의 공식 표기 색을 따른다 (브랜드 가이드)
 const PROVIDERS: { id: OAuthProvider; label: string; cls: string; mark: React.ReactNode }[] = [
@@ -30,6 +31,7 @@ export default function MemberLogin() {
     return () => clearTimeout(t)
   }, [flash])
   const canLogin = loginId.length > 0 && pw.length > 0
+  const session = useSession()
   const go = async (p: OAuthProvider) => {
     setBusy(p)
     try { await api.signInOAuth(p) } catch (e) { toast(errorText(e)) } finally { setBusy(null) }
@@ -50,6 +52,8 @@ export default function MemberLogin() {
       else toast(errorText(err))
     } finally { setBusy(null) }
   }
+  // 소셜 로그인이 이 화면에서 바로 끝난 경우(데모 등) 로그인 화면에 멈춰 있지 않게
+  if (session.data && !busy) return <Navigate to="/calendar" replace />
   return (
     <div className="flex h-full flex-col">
       <AppHeader back />
@@ -65,17 +69,11 @@ export default function MemberLogin() {
           </div>
           {loginId.includes('@') && <Captcha key={tries} onToken={setCaptcha} />}
           {failed && <p role="alert" className="mt-2 t-sub text-danger">아이디 또는 비밀번호가 올바르지 않습니다</p>}
-          {/* 아이디·비밀번호를 모두 넣으면 비밀번호 칸 아래에 큰 로그인 버튼 (아래 줄의 작은 로그인은 숨긴다) */}
-          {canLogin && (
-            <Button type="submit" block className="mt-5" disabled={!!busy}>{busy === 'id' ? '로그인 중…' : '로그인'}</Button>
-          )}
+          {/* 기본 동작은 항상 큰 버튼 하나. 비어 있으면 누를 때 무엇이 빠졌는지 알려 준다 */}
+          <Button type="submit" block className="mt-5" disabled={!!busy}>{busy === 'id' ? '로그인 중…' : '로그인'}</Button>
           <div className="mt-4 flex items-center justify-center t-sub">
             <Link to="/login/email" className="flex h-11 items-center px-3 text-graphite">이메일로 가입</Link>
             <span aria-hidden className="h-3 w-px bg-hairline" />
-            {!canLogin && <>
-              <button type="submit" disabled={!!busy} className="flex h-11 items-center px-3 font-semibold disabled:opacity-50">로그인</button>
-              <span aria-hidden className="h-3 w-px bg-hairline" />
-            </>}
             <Link to="/login/find" className="flex h-11 items-center px-3 text-graphite">아이디/비밀번호 찾기</Link>
           </div>
         </form>

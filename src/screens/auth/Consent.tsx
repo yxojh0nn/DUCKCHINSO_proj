@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { api, errorText } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
-import { ConsentList, allRequired } from '@/components/ConsentList'
+import { ConsentList, allRequired, missingRequired } from '@/components/ConsentList'
 import { Button } from '@/components/ui/Button'
 import { Captcha, captchaOn } from '@/components/Captcha'
 import { keys } from '@/lib/queries'
@@ -48,7 +48,12 @@ export default function Consent() {
           <ConsentList value={value} onChange={setValue} />
         </div>
         {guest && <Captcha key={tries} onToken={setCaptcha} />}
-        <Button block className="mt-auto" disabled={!allRequired(value) || busy || (guest && captchaOn && !captcha)} onClick={agree}>
+        {/* 버튼이 왜 안 눌리는지 바로 위에서 알려 준다 */}
+        <p aria-live="polite" className="mt-auto pb-2 pt-6 text-center t-sub text-graphite">
+          {!allRequired(value) ? `필수 항목 ${missingRequired(value)}개에 더 동의해 주세요`
+            : guest && captchaOn && !captcha ? '로봇이 아닌지 확인을 마쳐 주세요' : ' '}
+        </p>
+        <Button block disabled={!allRequired(value) || busy || (guest && captchaOn && !captcha)} onClick={agree}>
           {busy ? '준비 중…' : '동의하고 시작하기'}
         </Button>
       </div>
