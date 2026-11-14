@@ -13,7 +13,7 @@ import { useQuery } from '@tanstack/react-query'
 import { PostRow } from '@/components/PostRow'
 import { isPastConcert } from '@/lib/date'
 import { priceLines } from '@/lib/price'
-import { keys, useArtists, useConcerts, useMe } from '@/lib/queries'
+import { keys, useArtists, useConcerts, useMe, namesOf } from '@/lib/queries'
 import { toast } from '@/store/ui'
 
 // 정보 한 줄: 왼쪽 이름표, 오른쪽 값 (상자 없이 정렬로만 구분)
@@ -54,7 +54,7 @@ export default function ConcertDetail() {
   }
   const byDay = new Map<string, string[]>()
   c.schedules.forEach((s) => byDay.set(kstDayKey(s), [...(byDay.get(kstDayKey(s)) ?? []), s]))
-  const artistNames = c.artistIds.map((a) => artists.find((x) => x.id === a)?.name).filter(Boolean).join(', ')
+  const artistNames = namesOf(artists, c.artistIds).join(', ')
   const opened = c.ticketOpenAt && new Date(c.ticketOpenAt).getTime() <= Date.now()
   const ticket = (url: string) => { api.logTicketClick(c.id, url).catch(() => {}); openTicket(url) }
   // 커뮤니티 검색어: 첫 아티스트 이름 (없으면 공연명)

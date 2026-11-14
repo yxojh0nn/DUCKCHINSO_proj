@@ -32,6 +32,9 @@ export const useMe = () => {
   return useQuery({ queryKey: keys.me, queryFn: () => api.getMe(), enabled: !!s.data })
 }
 export const useGenres = () => useQuery({ queryKey: keys.genres, queryFn: () => api.listGenres(), staleTime: Infinity })
+// id 목록 → 이름 목록 (목록에 없는 id·빈 이름은 뺀다). 아티스트·장르 공용
+export const namesOf = <K,>(list: { id: K; name: string }[] | undefined, ids: K[]) =>
+  ids.map((id) => list?.find((x) => x.id === id)?.name).filter((n): n is string => !!n)
 export const useArtists = () => useQuery({ queryKey: keys.artists, queryFn: () => api.listArtists(), staleTime: 600_000 })
 export const useConcerts = () => useQuery({ queryKey: keys.concerts, queryFn: () => api.listConcerts(), staleTime: 300_000 })
 export const useRooms = () => useQuery({ queryKey: keys.rooms, queryFn: () => api.listRooms() })

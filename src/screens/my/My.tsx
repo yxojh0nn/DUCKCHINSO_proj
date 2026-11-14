@@ -6,7 +6,7 @@ import { MenuGroup, MenuRow } from '@/components/MenuRow'
 import { IconAdmin, IconFriends, IconGear, IconInfo, IconInquiry, IconLogout, IconWithdraw } from '@/components/icons'
 import { Button } from '@/components/ui/Button'
 import { Confirm } from '@/components/ui/Confirm'
-import { keys, useArtists, useMe } from '@/lib/queries'
+import { keys, useArtists, useMe, namesOf } from '@/lib/queries'
 import { ProfileHead } from './ProfileHead'
 
 // MY 탭: 프로필 + 설정·친구 관리·내 정보·문의·로그아웃·회원탈퇴
@@ -20,7 +20,7 @@ export default function My() {
 
   return (
     <div className="pb-8">
-      <ProfileHead profile={me} artistNames={me.artistIds.map((a) => artists.find((x) => x.id === a)?.name ?? '').filter(Boolean)}
+      <ProfileHead profile={me} artistNames={namesOf(artists, me.artistIds)}
         action={<Button size="sm" variant="secondary" onClick={() => nav('/my/info/profile')}>프로필 편집</Button>} />
 
       <MenuGroup>

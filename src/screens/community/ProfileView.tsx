@@ -13,7 +13,7 @@ import { Sheet } from '@/components/ui/Sheet'
 import { ProfileHead } from '@/screens/my/ProfileHead'
 import { useFriendActions } from '@/lib/actions'
 import { kstDayKey } from '@/lib/date'
-import { keys, useArtists, useConcerts, useGenres, useMe } from '@/lib/queries'
+import { keys, useArtists, useConcerts, useGenres, useMe, namesOf } from '@/lib/queries'
 
 // 상대 프로필: 사진·배너·소개, 관심 공연, 다녀온 공연, 관심 아티스트·장르
 export default function ProfileView() {
@@ -43,8 +43,8 @@ export default function ProfileView() {
     <div className="pb-[max(24px,env(safe-area-inset-bottom))]">
       <AppHeader back right={!self && <HeaderButton label="더보기" onClick={() => setMenu(true)}><IconMore /></HeaderButton>} />
       <ProfileHead profile={p}
-        artistNames={p.artistIds.map((a) => artists.find((x) => x.id === a)?.name ?? '').filter(Boolean)}
-        genreNames={p.genreIds.map((g) => genres.find((x) => x.id === g)?.name ?? '').filter(Boolean)} />
+        artistNames={namesOf(artists, p.artistIds)}
+        genreNames={namesOf(genres, p.genreIds)} />
 
       {/* 친구 기능은 회원끼리만 (서버도 members_only 로 막는다) */}
       {!self && !viewerIsGuest && !p.isGuest && (
