@@ -13,6 +13,8 @@ const ITEMS = [
   { to: '/chats', label: '채팅', Icon: IconChat, badge: 'unread' },
   { to: '/my', label: 'MY', Icon: IconMy, badge: 'none' },
 ] as const
+// 탭 화면 주소 (밀어서 탭 넘기기·화면 전환이 같이 쓴다)
+export const TAB_PATHS: string[] = ITEMS.map((i) => i.to)
 
 function useBadges() {
   const rooms = useRooms()
