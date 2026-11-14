@@ -1,35 +1,31 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { api, errorText, LOGIN_ID } from '@/api'
+import { api, LOGIN_ID } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { Button } from '@/components/ui/Button'
 import { TextField } from '@/components/ui/Field'
 import { keys } from '@/lib/queries'
 import { toast } from '@/store/ui'
+import { useRun } from '@/lib/actions'
 
 // 아이디 만들기: 아이디 없이 가입한 예전 이메일 계정이 거친다 (Gate 가 보냄). 새 가입은 가입 화면에서 아이디를 받는다
 export default function LoginIdSetup() {
   const nav = useNavigate()
   const qc = useQueryClient()
   const [id, setId] = useState('')
-  const [busy, setBusy] = useState(false)
+  const { busy, run } = useRun()
   const ok = LOGIN_ID.test(id)
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!ok || busy) return
-    setBusy(true)
-    try {
+    return run(async () => {
       await api.setLoginId(id)
       await qc.invalidateQueries({ queryKey: keys.me })
       toast('아이디를 만들었어요. 다음부터 이 아이디로 로그인해 주세요.')
       nav('/calendar', { replace: true })
-    } catch (err) {
-      toast(errorText(err))
-    } finally {
-      setBusy(false)
-    }
+    })
   }
 
   return (

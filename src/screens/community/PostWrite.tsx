@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, errorText } from '@/api'
+import { api } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { ImageButton } from '@/components/ImageButton'
 import { IconClose, IconPhoto } from '@/components/icons'
@@ -9,7 +9,7 @@ import { TextArea, TextField } from '@/components/ui/Field'
 import { APP_SETTINGS } from '@/lib/settings'
 import { keys, useConcerts, useMe } from '@/lib/queries'
 import { Empty } from '@/components/ui/Empty'
-import { toast } from '@/store/ui'
+import { useRun } from '@/lib/actions'
 
 // 작성 중인 글 임시 저장: 뒤로 가기(제스처 포함)·앱 종료로 나가도 다시 열면 이어 쓴다. 공연 후기는 공연마다 따로
 // shortcut: 사진(Blob)은 저장하지 않는다. 사진까지 지켜야 하면 IndexedDB 로 옮긴다
@@ -42,7 +42,7 @@ export default function PostWrite() {
   const concert = useConcerts().data?.find((c) => c.id === concertId)
   const [tags, setTags] = useState(draft?.tags ?? (concertId ? '후기' : ''))
   const [images, setImages] = useState<{ blob: Blob; url: string }[]>([])
-  const [busy, setBusy] = useState(false)
+  const { busy, run } = useRun()
   const ok = title.trim() && body.trim()
   const guest = useMe().data?.isGuest
   useEffect(() => { if (!editId) writeDraft(key, { title, body, tags }) }, [editId, key, title, body, tags])
@@ -51,8 +51,7 @@ export default function PostWrite() {
 
   const submit = async () => {
     if (!ok || busy) return
-    setBusy(true)
-    try {
+    return run(async () => {
       if (editId) {
         await api.editPost(editId, { title: title.trim(), body: body.trim(), tags: parseTags(tags) })
         await Promise.all([qc.invalidateQueries({ queryKey: keys.post(editId) }), qc.invalidateQueries({ queryKey: ['posts'] })])
@@ -62,7 +61,7 @@ export default function PostWrite() {
       writeDraft(key, null)
       await qc.invalidateQueries({ queryKey: ['posts'] })
       nav(`/community/post/${id}`, { replace: true })
-    } catch (e) { toast(errorText(e)) } finally { setBusy(false) }
+    })
   }
 
   if (guest) return <><AppHeader back title="글쓰기" /><Empty title="글은 회원만 쓸 수 있어요" body="회원으로 로그인하면 글과 공연 후기를 남길 수 있어요." /></>

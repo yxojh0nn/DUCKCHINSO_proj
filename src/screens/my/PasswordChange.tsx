@@ -1,33 +1,29 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api, errorText } from '@/api'
+import { api } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { Button } from '@/components/ui/Button'
 import { TextField } from '@/components/ui/Field'
 import { toast } from '@/store/ui'
+import { useRun } from '@/lib/actions'
 
 // 비밀번호 바꾸기: MY > 내 정보, 또는 비밀번호 재설정 메일의 링크로 들어온다 (이메일 가입 계정만)
 export default function PasswordChange() {
   const nav = useNavigate()
   const [pw, setPw] = useState('')
   const [pw2, setPw2] = useState('')
-  const [busy, setBusy] = useState(false)
+  const { busy, run } = useRun()
   const pwOk = pw.length >= 8 && /[A-Za-z]/.test(pw) && /\d/.test(pw)
   const ok = pwOk && pw === pw2
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!ok || busy) return
-    setBusy(true)
-    try {
+    return run(async () => {
       await api.updatePassword(pw)
       toast('비밀번호를 바꿨어요.')
       nav('/my/info', { replace: true })
-    } catch (err) {
-      toast(errorText(err))
-    } finally {
-      setBusy(false)
-    }
+    })
   }
 
   return (

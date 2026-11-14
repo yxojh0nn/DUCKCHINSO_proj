@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { api, errorText } from '@/api'
+import { api } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { PickList } from '@/components/PickList'
 import { TextTabs } from '@/components/ui/TextTabs'
 import { APP_SETTINGS } from '@/lib/settings'
 import { keys, useArtists, useGenres, useMe } from '@/lib/queries'
 import { toast } from '@/store/ui'
+import { useRun } from '@/lib/actions'
 
 // 관심 아티스트·장르 수정
 export default function Prefs() {
@@ -19,17 +20,16 @@ export default function Prefs() {
   const [tab, setTab] = useState<'artists' | 'genres'>('artists')
   const [artistIds, setArtistIds] = useState(me?.artistIds ?? [])
   const [genreIds, setGenreIds] = useState(me?.genreIds ?? [])
-  const [busy, setBusy] = useState(false)
+  const { busy, run } = useRun()
 
   const save = async () => {
-    setBusy(true)
-    try {
+    return run(async () => {
       await api.setMyArtists(artistIds)
       await api.setMyGenres(genreIds)
       await Promise.all([qc.invalidateQueries({ queryKey: keys.me }), qc.invalidateQueries({ queryKey: keys.recommend })])
       toast('저장했어요')
       nav(-1)
-    } catch (e) { toast(errorText(e)) } finally { setBusy(false) }
+    })
   }
   return (
     <>

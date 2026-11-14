@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { api, errorText } from '@/api'
+import { api } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { Button } from '@/components/ui/Button'
 import { CheckMark } from '@/components/ui/Checkbox'
 import { COMMUNITY_RULES } from '@/data/consent'
 import { keys, useMe } from '@/lib/queries'
-import { toast } from '@/store/ui'
+import { useRun } from '@/lib/actions'
 
 // 커뮤니티 이용 규약 동의 (계정마다 최초 1회, 회원·비회원 따로)
 export default function CommunityRules() {
@@ -15,14 +15,13 @@ export default function CommunityRules() {
   const qc = useQueryClient()
   const me = useMe().data
   const [ok, setOk] = useState(false)
-  const [busy, setBusy] = useState(false)
+  const { busy, run } = useRun()
   const agree = async () => {
-    setBusy(true)
-    try {
+    return run(async () => {
       await api.updateMe({ communityAgreed: true })
       await qc.invalidateQueries({ queryKey: keys.me })
       nav(me?.profileSetupDone ? '/community' : '/community/setup', { replace: true })
-    } catch (e) { toast(errorText(e)) } finally { setBusy(false) }
+    })
   }
   return (
     <div className="flex min-h-full flex-col">

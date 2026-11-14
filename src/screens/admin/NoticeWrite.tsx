@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { api, errorText } from '@/api'
+import { api } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { CheckMark } from '@/components/ui/Checkbox'
 import { TextArea, TextField } from '@/components/ui/Field'
@@ -9,6 +9,7 @@ import { Segmented } from '@/components/ui/Segmented'
 import { DAY_MS, fmtDateTime } from '@/lib/date'
 import { keys } from '@/lib/queries'
 import { toast } from '@/store/ui'
+import { useRun } from '@/lib/actions'
 
 type Period = '1' | '3' | '7' | '30' | 'none'
 const PERIODS: { value: Period; label: string }[] = [
@@ -29,7 +30,7 @@ export default function NoticeWrite() {
   const qc = useQueryClient()
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
-  const [busy, setBusy] = useState(false)
+  const { busy, run } = useRun()
   const [days, setDays] = useState<Period>('7')
   const [reserve, setReserve] = useState(false)
   const [at, setAt] = useState(() => localInput(nextHour()))
@@ -40,13 +41,12 @@ export default function NoticeWrite() {
 
   const submit = async () => {
     if (!ok || busy) return
-    setBusy(true)
-    try {
+    return run(async () => {
       const id = await api.adminPostNotice(title, body, endsAt, reserve ? new Date(start).toISOString() : null)
       await qc.invalidateQueries({ queryKey: keys.notices })
       toast(reserve ? `${fmtDateTime(new Date(start).toISOString())}에 올라가요` : '공지를 올렸어요')
       nav(`/community/notice/${id}`, { replace: true })
-    } catch (e) { toast(errorText(e)) } finally { setBusy(false) }
+    })
   }
 
   return (
