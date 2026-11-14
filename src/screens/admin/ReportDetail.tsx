@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, errorText, type AdminReport } from '@/api'
+import { api, type AdminReport } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { Button } from '@/components/ui/Button'
 import { CheckMark } from '@/components/ui/Checkbox'
@@ -11,6 +11,7 @@ import { toast } from '@/store/ui'
 import { adminKeys } from './AdminGate'
 import { KIND_LABEL, reasonLabel, Snapshot } from './Reports'
 import { SanctionPanel } from './SanctionPanel'
+import { useRun } from '@/lib/actions'
 
 const HIDE_LABEL = { post: '글 숨기기', comment: '댓글 지우기', message: '채팅 메시지 가리기', profile: '' } as const
 const TARGET_STATUS = { active: '정상', suspended: '이용 제한 중', banned: '영구 제한' } as const
@@ -28,18 +29,17 @@ function ReportForm({ r }: { r: AdminReport }) {
   const nav = useNavigate()
   const qc = useQueryClient()
   const [hide, setHide] = useState(r.kind !== 'profile')
-  const [busy, setBusy] = useState(false)
+  const { busy, run } = useRun()
   const open = r.status === 'open'
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['admin'] })
   const resolve = async (resolution: 'resolved' | 'dismissed') => {
-    setBusy(true)
-    try {
+    return run(async () => {
       await api.adminResolveReport(r.id, resolution, resolution === 'resolved' && hide)
       await refresh()
       toast(resolution === 'resolved' ? '조치 완료로 처리했어요' : '기각했어요')
       nav('/admin/reports', { replace: true })
-    } catch (e) { toast(errorText(e)) } finally { setBusy(false) }
+    })
   }
 
   return (

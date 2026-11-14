@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api, errorText, LOGIN_ID } from '@/api'
+import { api, LOGIN_ID } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { ConsentList, allRequired } from '@/components/ConsentList'
 import { Button } from '@/components/ui/Button'
 import { Alert } from '@/components/ui/Confirm'
 import { TextField } from '@/components/ui/Field'
 import { toast, useUI } from '@/store/ui'
+import { useRunFor } from '@/lib/actions'
 
 const clock = (sec: number) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`
 
@@ -16,7 +17,7 @@ export default function EmailAuth() {
   const nav = useNavigate()
   const setPending = useUI((s) => s.setPendingConsents)
   const [popup, setPopup] = useState<{ title: string; tone: 'danger' | 'success' } | null>(null)
-  const [busy, setBusy] = useState<'id' | 'send' | 'code' | 'submit' | null>(null)
+  const { busy, run } = useRunFor<'id' | 'send' | 'code' | 'submit'>()
 
   const [loginId, setLoginId] = useState('')
   const [idState, setIdState] = useState<'idle' | 'taken' | 'ok'>('idle')
@@ -45,11 +46,6 @@ export default function EmailAuth() {
 
   const resetEmail = () => { setTicket(null); setExpiresAt(null); setCode('') }
 
-  const run = async (what: NonNullable<typeof busy>, f: () => Promise<void>) => {
-    if (busy) return
-    setBusy(what)
-    try { await f() } catch (e) { toast(errorText(e)) } finally { setBusy(null) }
-  }
 
   const checkId = () => run('id', async () => {
     const free = await api.checkLoginId(loginId)

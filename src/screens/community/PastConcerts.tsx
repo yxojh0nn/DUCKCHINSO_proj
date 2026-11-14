@@ -7,7 +7,7 @@ import { useArtists, useConcerts } from '@/lib/queries'
 
 const PAGE = 30
 
-// 커뮤니티 > 후기 남기기: 지난 공연을 가장 최근에 끝난 순으로. 검색어는 공연명·공연장·출연 아티스트에서 찾는다
+// 커뮤니티 > 공연 후기: 지난 공연을 가장 최근에 끝난 순으로. 검색어는 공연명·공연장·출연 아티스트에서 찾는다
 // 공연을 누르면 공연 상세 → "후기 남기기"
 export function PastConcerts({ q }: { q: string }) {
   const concerts = useConcerts()

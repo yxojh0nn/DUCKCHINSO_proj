@@ -4,6 +4,7 @@ import { CONSENT_VERSION, REQUIRED_KEYS } from '@/data/consent'
 import { LOGIN_ID } from './types'
 import { ARTISTS, AUTO_REPLIES, DEMO_POSTS, DEMO_USERS, GENRES, buildConcerts } from './demoData'
 import type { Api, Artist, Concert, LoginMethod, NotifyPrefs, Message, Post, Profile, RealtimeEvent, UserCard } from './types'
+import { DAY_MS } from '@/lib/date'
 
 // pnpm fetch:opendata 로 받은 실제 공연·아티스트(KOPIS·MusicBrainz). 파일이 없거나 공연이 0건이면 샘플을 쓴다
 type OpenData = { fetchedAt: string; artists: Artist[]; concerts: Concert[] }
@@ -20,7 +21,7 @@ type Acc = Profile & {
   method: LoginMethod; loginId: string | null
   notify?: Partial<NotifyPrefs>
 }
-type Req = { id: string; from: string; to: string; status: 'pending' | 'accepted' | 'declined'; createdAt: number; expiresAt: number }
+type Req = { id: string; from: string; to: string; status: 'pending' | 'accepted' | 'declined' | 'cancelled'; createdAt: number; expiresAt: number }
 type RoomRow = { id: string; kind: 'dm' | 'support'; members: string[]; lastRead: Record<string, number>; createdAt: number }
 type MsgRow = Omit<Message, 'createdAt'> & { createdAt: number }
 type PostRow = { id: string; authorId: string; title: string; body: string; tags: string[]; imageUrls: string[]; likes: string[]; createdAt: number; concertId?: string | null; edited?: boolean }
@@ -40,7 +41,6 @@ type DB = {
 }
 
 const KEY = 'duckchinso-demo-v2'
-const DAY = 86_400_000
 const id = () => Math.random().toString(36).slice(2, 10)
 const iso = (ms: number) => new Date(ms).toISOString()
 const wait = (ms = 120) => new Promise((r) => setTimeout(r, ms))
@@ -118,8 +118,8 @@ export function createDemoApi(): Api {
     // 처음 들어온 계정에 받은 친구 요청 2건을 넣어 둔다
     const t = Date.now()
     db.requests.push(
-      { id: id(), from: 'u6', to: aid, status: 'pending', createdAt: t - 3_600_000, expiresAt: t + 3 * DAY },
-      { id: id(), from: 'u7', to: aid, status: 'pending', createdAt: t - DAY, expiresAt: t + 2 * DAY },
+      { id: id(), from: 'u6', to: aid, status: 'pending', createdAt: t - 3_600_000, expiresAt: t + 3 * DAY_MS },
+      { id: id(), from: 'u7', to: aid, status: 'pending', createdAt: t - DAY_MS, expiresAt: t + 2 * DAY_MS },
     )
     setSession(aid)
   }
@@ -301,7 +301,7 @@ export function createDemoApi(): Api {
       if (blockedBetween(a.id, uid)) throw new Error('unavailable')
       if (friendOf(a.id, uid)) throw new Error('already_friends')
       if (pending(a.id, uid)) throw new Error('duplicate')
-      const r: Req = { id: id(), from: a.id, to: uid, status: 'pending', createdAt: Date.now(), expiresAt: Date.now() + 3 * DAY }
+      const r: Req = { id: id(), from: a.id, to: uid, status: 'pending', createdAt: Date.now(), expiresAt: Date.now() + 3 * DAY_MS }
       db.requests.push(r)
       save()
       emit({ type: 'request' })
@@ -320,6 +320,14 @@ export function createDemoApi(): Api {
         .filter((r) => r.status === 'pending' && r.expiresAt > Date.now() && (r.from === a.id || r.to === a.id))
         .sort((x, y) => y.createdAt - x.createdAt)
         .map((r) => ({ id: r.id, direction: r.to === a.id ? 'in' : 'out', user: card(r.to === a.id ? r.from : r.to), createdAt: iso(r.createdAt), expiresAt: iso(r.expiresAt) }))
+    },
+    async cancelFriendRequest(uid) {
+      const a = me()
+      const r = db.requests.find((x) => x.from === a.id && x.to === uid && x.status === 'pending')
+      if (!r) throw new Error('not_found')
+      r.status = 'cancelled'
+      save()
+      emit({ type: 'request' })
     },
     async respondRequest(rid, accept) {
       const a = me()

@@ -1,28 +1,28 @@
 import { useState } from 'react'
-import { api, errorText } from '@/api'
+import { api } from '@/api'
 import { Button } from '@/components/ui/Button'
 import { TextField } from '@/components/ui/Field'
 import { Sheet } from '@/components/ui/Sheet'
 import { toast } from '@/store/ui'
+import { useRun } from '@/lib/actions'
 
 // 예매 오픈일 제보: 공식 공지를 본 회원이 날짜와 출처 링크를 보내면 운영자가 확인해 반영한다
 // (예매처 사이트는 약관·봇 차단 때문에 자동 수집하지 않는다)
 export function TicketTipSheet({ open, onClose, concertId }: { open: boolean; onClose: () => void; concertId: string }) {
   const [at, setAt] = useState('') // datetime-local 값 (이 기기 시간대 = 한국)
   const [url, setUrl] = useState('')
-  const [busy, setBusy] = useState(false)
+  const { busy, run } = useRun()
   const urlOk = /^https?:\/\/\S+$/.test(url)
   const ok = !!at && urlOk
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!ok || busy) return
-    setBusy(true)
-    try {
+    return run(async () => {
       await api.submitTicketTip(concertId, new Date(at).toISOString(), url)
       toast('제보를 보냈어요. 관리자가 확인한 뒤 반영돼요.')
       setAt(''); setUrl(''); onClose()
-    } catch (err) { toast(errorText(err)) } finally { setBusy(false) }
+    })
   }
 
   return (

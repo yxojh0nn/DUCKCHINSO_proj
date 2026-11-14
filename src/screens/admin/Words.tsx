@@ -9,6 +9,7 @@ import { Segmented } from '@/components/ui/Segmented'
 import { TextTabs } from '@/components/ui/TextTabs'
 import { toast } from '@/store/ui'
 import { adminKeys } from './AdminGate'
+import { useRun } from '@/lib/actions'
 
 const CATEGORY: Record<WordCategory, string> = { abuse: '욕설', sexual: '성적', hate: '혐오', scam: '사기' }
 // DB 는 NFKC 로 저장해 ㅅㅂ 가 첫소리 자모(ᄉᄇ)로 바뀐다. 화면에는 보통 자모로 보여 준다
@@ -23,15 +24,12 @@ export default function Words() {
   const [word, setWord] = useState('')
   const [category, setCategory] = useState<WordCategory>('abuse')
   const [exact, setExact] = useState(false)
-  const [busy, setBusy] = useState(false)
   const [sample, setSample] = useState('')
   const [result, setResult] = useState<{ word: string | null; masked: string } | null>(null)
 
-  const run = async (f: () => Promise<void>, done: string) => {
-    if (busy) return
-    setBusy(true)
-    try { await f(); await qc.invalidateQueries({ queryKey: adminKeys.words }); toast(done) } catch (e) { toast(errorText(e)) } finally { setBusy(false) }
-  }
+  const { busy, run: guarded } = useRun()
+  const run = (f: () => Promise<void>, done: string) =>
+    guarded(async () => { await f(); await qc.invalidateQueries({ queryKey: adminKeys.words }); toast(done) })
   const add = () => word.trim() && run(async () => {
     await api.adminAddWord(tab === 'allowed' ? { allowed: true, word } : { word, category, match: exact ? 'exact' : 'contains' })
     setWord('')

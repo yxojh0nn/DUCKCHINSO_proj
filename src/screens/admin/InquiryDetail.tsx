@@ -12,6 +12,7 @@ import { INQUIRY_QUESTIONS } from '@/screens/my/Inquiry'
 import { toast } from '@/store/ui'
 import { adminKeys } from './AdminGate'
 import { answerLabel, categoryLabel } from './Inquiries'
+import { useRun } from '@/lib/actions'
 
 // 문의 한 건: 설문·본문 확인 → 답변. 답변은 사용자의 운영팀 대화방으로 가고, 회원에게는 메일로도 알린다(answer-inquiry 함수)
 export default function InquiryDetail() {
@@ -26,7 +27,7 @@ function InquiryForm({ i }: { i: AdminInquiry }) {
   const nav = useNavigate()
   const qc = useQueryClient()
   const [answer, setAnswer] = useState('')
-  const [busy, setBusy] = useState(false)
+  const { busy, run } = useRun()
   const [del, setDel] = useState(false)
   // 답변 완료 문의 삭제: 사용자 대화방의 답변 메시지는 남는다. 누가 지웠는지는 운영 기록에 남는다
   const remove = async () => {
@@ -40,13 +41,12 @@ function InquiryForm({ i }: { i: AdminInquiry }) {
   }
   const send = async () => {
     if (!answer.trim() || busy) return
-    setBusy(true)
-    try {
+    return run(async () => {
       const { mailed } = await api.adminAnswerInquiry(i.id, answer.trim())
       await qc.invalidateQueries({ queryKey: ['admin'] })
       toast(mailed ? '답변을 보내고 메일로 알렸어요' : '답변을 운영팀 대화방으로 보냈어요 (메일 알림은 보내지 않았어요)')
       nav('/admin/inquiries', { replace: true })
-    } catch (e) { toast(errorText(e)) } finally { setBusy(false) }
+    })
   }
   const survey = INQUIRY_QUESTIONS.filter((q) => q.key !== 'category' && i.answers[q.key])
 

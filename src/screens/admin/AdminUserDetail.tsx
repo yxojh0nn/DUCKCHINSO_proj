@@ -20,7 +20,7 @@ export default function AdminUserDetail() {
   if (!d || !u) return <><AppHeader back title="사용자" />{q.isFetched && <Empty title="사용자를 찾을 수 없어요" body="탈퇴했거나 비회원 정리로 지워졌을 수 있어요." />}</>
 
   const rows: [string, React.ReactNode][] = [
-    ['상태', <span className={u.status === 'active' ? '' : 'font-semibold text-danger'}>{STATUS[u.status]}</span>],
+    ['상태', <span key="status" className={u.status === 'active' ? '' : 'font-semibold text-danger'}>{STATUS[u.status]}</span>],
     ['로그인', LOGIN_LABEL(u.login)],
     ['가입', fmtDateTime(u.createdAt)],
     ['최근 접속', fmtRelative(u.lastSeenAt)],

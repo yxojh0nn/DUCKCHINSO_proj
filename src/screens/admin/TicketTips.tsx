@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, errorText, type AdminTicketTip } from '@/api'
+import { api, type AdminTicketTip } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { IconExternal } from '@/components/icons'
 import { Button } from '@/components/ui/Button'
@@ -12,6 +12,7 @@ import { openTicket } from '@/lib/external'
 import { keys } from '@/lib/queries'
 import { toast } from '@/store/ui'
 import { adminKeys } from './AdminGate'
+import { useRunFor } from '@/lib/actions'
 
 const STATUS: Record<AdminTicketTip['status'], string> = { pending: '대기', approved: '반영함', rejected: '거절' }
 
@@ -19,19 +20,15 @@ const STATUS: Record<AdminTicketTip['status'], string> = { pending: '대기', ap
 export default function TicketTips() {
   const qc = useQueryClient()
   const [tab, setTab] = useState<'pending' | 'done'>('pending')
-  const [busy, setBusy] = useState<string | null>(null)
+  const { busy, run } = useRunFor<string>()
   const list = useQuery({ queryKey: adminKeys.tips, queryFn: () => api.adminTicketTips() })
   const shown = (list.data ?? []).filter((t) => (tab === 'pending') === (t.status === 'pending'))
 
-  const resolve = async (t: AdminTicketTip, approve: boolean) => {
-    if (busy) return
-    setBusy(t.id)
-    try {
-      await api.adminResolveTicketTip(t.id, approve)
-      await Promise.all([qc.invalidateQueries({ queryKey: adminKeys.tips }), qc.invalidateQueries({ queryKey: keys.concerts })])
-      toast(approve ? '예매 오픈일에 반영하고 제보자에게 알렸어요' : '거절했어요')
-    } catch (e) { toast(errorText(e)) } finally { setBusy(null) }
-  }
+  const resolve = (t: AdminTicketTip, approve: boolean) => run(t.id, async () => {
+    await api.adminResolveTicketTip(t.id, approve)
+    await Promise.all([qc.invalidateQueries({ queryKey: adminKeys.tips }), qc.invalidateQueries({ queryKey: keys.concerts })])
+    toast(approve ? '예매 오픈일에 반영하고 제보자에게 알렸어요' : '거절했어요')
+  })
 
   return (
     <>

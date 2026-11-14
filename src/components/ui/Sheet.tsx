@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
+import { trapTab, useDialogFocus } from './a11y'
 
 type Action = { label: string; onClick: () => void; danger?: boolean; icon?: React.ReactNode; note?: string }
 
@@ -12,17 +13,9 @@ type Props = {
 }
 
 // 아래에서 올라오는 선택지. 취소 버튼에 초점을 둬서 Enter 연타로 위험 동작이 실행되지 않게 한다
-// preventScroll: 초점 이동이 뒤 화면 스크롤을 움직여 화면이 흔들리던 문제 방지
 export function Sheet({ open, onClose, title, message, actions, children }: Props) {
   const cancel = useRef<HTMLButtonElement>(null)
-  useEffect(() => {
-    if (!open) return
-    const prev = document.activeElement as HTMLElement | null
-    cancel.current?.focus({ preventScroll: true })
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    window.addEventListener('keydown', onKey)
-    return () => { window.removeEventListener('keydown', onKey); prev?.focus({ preventScroll: true }) }
-  }, [open, onClose])
+  useDialogFocus(open, onClose, cancel)
 
   if (!open) return null
   return (
@@ -34,6 +27,7 @@ export function Sheet({ open, onClose, title, message, actions, children }: Prop
         aria-label={title ?? '선택'}
         className="mx-auto w-full max-w-[640px] px-2 pb-[max(8px,env(safe-area-inset-bottom))] [animation:sheet-up_240ms_cubic-bezier(.2,.9,.25,1)] md:max-h-[85%] md:max-w-[440px] md:overflow-y-auto md:px-0 md:pb-0 md:[animation:pop-in_160ms_ease-out]"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={trapTab}
       >
         <div className="overflow-hidden rounded-[16px] bg-paper">
           {(title || message) && (

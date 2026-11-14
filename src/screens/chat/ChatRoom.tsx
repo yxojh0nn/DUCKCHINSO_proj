@@ -1,265 +1,30 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, errorText, type Message } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { ImageButton } from '@/components/ImageButton'
-import { LoadMore } from '@/components/LoadMore'
 import { ReportSheet } from '@/components/ReportSheet'
-import { IconClose, IconDownload, IconMore, IconPhoto, IconSend, IconSmile, IconWave } from '@/components/icons'
+import { IconClose, IconPhoto, IconSend, IconSmile, IconWave } from '@/components/icons'
 import { Avatar } from '@/components/ui/Avatar'
 import { Confirm } from '@/components/ui/Confirm'
 import { Sheet } from '@/components/ui/Sheet'
-import { TextTabs } from '@/components/ui/TextTabs'
-import { fmtDay, fmtTime, kstDayKey } from '@/lib/date'
+import { fmtDay, kstDayKey } from '@/lib/date'
 import { openExternal } from '@/lib/external'
-import { customerId, isKlipyUrl, klipy, klipyOn, type KlipyGif } from '@/lib/klipy'
-import { saveMedia } from '@/lib/saveMedia'
+import { customerId, klipy, klipyOn, type KlipyGif } from '@/lib/klipy'
 import { keys, useMe, useRooms } from '@/lib/queries'
 import { toast } from '@/store/ui'
+import { Bubble } from '@/components/chat/Bubble'
+import { Viewer } from '@/components/chat/MediaViewer'
+import { EmojiPicker, GifPicker } from '@/components/chat/Pickers'
 
 const GREETING = '👋'
 // 사진은 기기가 읽을 수 있는 형식이면 모두(앱이 JPEG 로 바꿔 올림), 영상은 서버가 받는 형식만
 const MEDIA = 'image/*,video/mp4,video/webm,video/quicktime'
 const VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime']
-const EMOJIS = '😀 😂 🥹 😊 😍 🥰 😘 😎 🤩 🥳 😭 😢 😡 😱 🤔 🙄 😴 🤗 🙏 👍 👎 👏 🙌 💪 👋 🤞 ❤️ 🧡 💛 💚 💙 💜 🖤 💔 🔥 ✨ 🎉 🎶 🎤 🎸 🥁 🎧 📸 🍀 🌸 ⭐ 💯 👀'.split(' ')
-// 끝의 마침표·괄호 등은 링크에서 뺀다
-const URL_RE = /(https?:\/\/[^\s<>"]*[^\s<>".,!?)\]'])/g
 const LINK_WARN_OFF = 'chat-link-warn-off' // 기기마다 따로: '다시 표시하지 않기'
-const isVideo = (url: string) => /^data:video|\.(mp4|webm|mov)(\?|$)/i.test(url)
 
 const linkWarnOff = () => { try { return localStorage.getItem(LINK_WARN_OFF) === '1' } catch { return false } }
-
-// 받은 쪽과 같은 규칙: 말풍선 너비는 줄(row)의 72% 까지. (전에는 % 를 내 메시지를 감싼 버튼 기준으로 재서 내 말풍선만 세로로 길쭉했다)
-// 내 메시지 메뉴(onMenu): 휴대폰은 길게 누르기, 웹은 마우스를 올리면 나오는 … 버튼
-function Bubble({ m, mine, onMenu, onOpen, onLink }: {
-  m: Message; mine: boolean; onMenu?: () => void; onOpen: (url: string) => void; onLink: (url: string) => void
-}) {
-  const timer = useRef(0)
-  const held = useRef(false)
-  if (m.kind === 'system') return <p className="mx-auto my-3 max-w-[80%] text-center t-cap text-graphite">{m.body}</p>
-
-  const stop = () => window.clearTimeout(timer.current)
-  const press = onMenu ? {
-    onPointerDown: () => { held.current = false; timer.current = window.setTimeout(() => { held.current = true; onMenu() }, 500) },
-    onPointerUp: stop, onPointerLeave: stop, onPointerCancel: stop,
-    onContextMenu: (e: React.MouseEvent) => { e.preventDefault(); onMenu() }, // 안드로이드 길게 누르기·웹 우클릭
-    // 길게 눌러 메뉴를 연 뒤 손을 떼면서 사진·링크가 열리지 않게
-    onClickCapture: (e: React.MouseEvent) => { if (held.current) { e.preventDefault(); e.stopPropagation(); held.current = false } },
-  } : {}
-
-  const url = m.imageUrl
-  const content = m.deleted
-    ? <p className="rounded-[18px] border border-hairline px-3.5 py-2 t-body text-graphite">{m.body}</p>
-    : m.kind === 'image' && url
-      ? (
-        <button type="button" onClick={() => onOpen(url)} aria-label={isVideo(url) ? '영상 크게 보기' : '사진 크게 보기'} className="relative block overflow-hidden rounded-[16px] bg-mist">
-          {isVideo(url)
-            ? <><video src={url} muted playsInline preload="metadata" draggable={false} className="block max-h-64 max-w-full object-cover" />
-              <span aria-hidden className="absolute inset-0 m-auto flex h-11 w-11 items-center justify-center rounded-full bg-black/50 pl-0.5 text-[18px] text-white">▶</span></>
-            : <img src={url} alt={m.gifSlug ? 'GIF' : '보낸 사진'} draggable={false} className="block max-h-64 max-w-full object-cover" />}
-        </button>
-      )
-      : (
-        <p className={`whitespace-pre-wrap break-words rounded-[18px] px-3.5 py-2 t-body [overflow-wrap:anywhere] ${mine ? 'bg-ink text-paper' : 'bg-mist'}`}>
-          {m.body.split(URL_RE).map((part, i) => i % 2
-            ? <a key={i} href={part} onClick={(e) => { e.preventDefault(); onLink(part) }} className="underline underline-offset-2">{part}</a>
-            : part)}
-        </p>
-      )
-
-  return (
-    <div className={`group flex items-end gap-1.5 ${mine ? 'flex-row-reverse' : ''}`}>
-      <div className="min-w-0 max-w-[72%] [-webkit-touch-callout:none] [@media(hover:none)]:select-none" {...press}>{content}</div>
-      {onMenu && (
-        <button type="button" onClick={onMenu} aria-label="메시지 메뉴"
-          className="mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-graphite opacity-0 hover:bg-mist focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:hidden">
-          <IconMore size={18} />
-        </button>
-      )}
-      <span className={`flex shrink-0 flex-col pb-0.5 text-[10px] text-graphite num ${mine ? 'items-end' : 'items-start'}`}>
-        {m.edited && !m.deleted && <span>수정됨</span>}
-        {fmtTime(m.createdAt)}
-      </span>
-    </div>
-  )
-}
-
-type View = { s: number; x: number; y: number }
-const MAX_ZOOM = 2
-// 배율은 원본(화면에 맞춘 크기) 1 ~ 2배. 이동은 사진 가장자리가 원래 자리 안쪽으로 들어오지 않을 만큼만
-const clampView = (s: number, x: number, y: number, w: number, h: number): View => {
-  s = Math.min(MAX_ZOOM, Math.max(1, s))
-  const mx = (w * (s - 1)) / 2, my = (h * (s - 1)) / 2
-  return { s, x: Math.min(mx, Math.max(-mx, x)), y: Math.min(my, Math.max(-my, y)) }
-}
-// (px, py) 지점(가운데 기준)을 붙잡은 채로 배율 s 로
-const zoomAt = (v: View, s: number, px: number, py: number, w: number, h: number) => {
-  const k = Math.min(MAX_ZOOM, Math.max(1, s)) / v.s
-  return clampView(v.s * k, px - (px - v.x) * k, py - (py - v.y) * k, w, h)
-}
-
-// 사진·영상 크게 보기. 사진 확대: 웹은 휠(최대 200%, 반대로 굴리면 원본까지)·더블클릭 150%, 휴대폰은 두 손가락. 확대 중엔 끌어서 이동
-function Viewer({ url, onClose }: { url: string; onClose: () => void }) {
-  const [v, setV] = useState<View>({ s: 1, x: 0, y: 0 })
-  const box = useRef<HTMLDivElement>(null)
-  const img = useRef<HTMLImageElement>(null)
-  const pts = useRef(new Map<number, { x: number; y: number }>())
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
-
-  // 가운데 기준 좌표와 사진의 (확대 전) 크기
-  const geo = (cx: number, cy: number) => {
-    const r = box.current!.getBoundingClientRect()
-    return { px: cx - r.left - r.width / 2, py: cy - r.top - r.height / 2, w: img.current?.offsetWidth ?? 0, h: img.current?.offsetHeight ?? 0 }
-  }
-
-  useEffect(() => {
-    const el = box.current
-    if (!el || isVideo(url)) return
-    // React 의 onWheel 은 passive 라 기본 스크롤을 막을 수 없어 직접 단다
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault()
-      const { px, py, w, h } = geo(e.clientX, e.clientY)
-      setV((v) => zoomAt(v, v.s * Math.exp(-e.deltaY * 0.002), px, py, w, h))
-    }
-    el.addEventListener('wheel', onWheel, { passive: false })
-    return () => el.removeEventListener('wheel', onWheel)
-  }, [url])
-
-  const onDown = (e: React.PointerEvent) => {
-    pts.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
-    e.currentTarget.setPointerCapture(e.pointerId)
-  }
-  const onMove = (e: React.PointerEvent) => {
-    const prev = pts.current.get(e.pointerId)
-    if (!prev) return
-    const before = [...pts.current.values()]
-    pts.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
-    const after = [...pts.current.values()]
-    if (after.length >= 2) {
-      // 두 손가락: 손가락 사이 거리 비율만큼 배율, 가운데 점 이동만큼 이동
-      const [a0, b0] = before, [a1, b1] = after
-      const d0 = Math.hypot(a0.x - b0.x, a0.y - b0.y), d1 = Math.hypot(a1.x - b1.x, a1.y - b1.y)
-      const m = geo((a1.x + b1.x) / 2, (a1.y + b1.y) / 2)
-      const dx = (a1.x + b1.x - a0.x - b0.x) / 2, dy = (a1.y + b1.y - a0.y - b0.y) / 2
-      setV((v) => {
-        const z = zoomAt(v, d0 ? (v.s * d1) / d0 : v.s, m.px, m.py, m.w, m.h)
-        return clampView(z.s, z.x + dx, z.y + dy, m.w, m.h)
-      })
-    } else {
-      const { w, h } = geo(0, 0)
-      setV((v) => (v.s > 1 ? clampView(v.s, v.x + e.clientX - prev.x, v.y + e.clientY - prev.y, w, h) : v))
-    }
-  }
-  const onUp = (e: React.PointerEvent) => { pts.current.delete(e.pointerId) }
-  const onDouble = (e: React.MouseEvent) => {
-    const { px, py, w, h } = geo(e.clientX, e.clientY)
-    setV((v) => (v.s === 1 ? zoomAt(v, 1.5, px, py, w, h) : { s: 1, x: 0, y: 0 })) // 확대 중이면 원본으로
-  }
-
-  return (
-    <div role="dialog" aria-modal="true" aria-label="크게 보기" className="absolute inset-0 z-50 flex bg-black [animation:fade-in_140ms_ease-out]">
-      <div ref={box} className="flex flex-1 overflow-hidden"
-        {...(isVideo(url) ? {} : { onPointerDown: onDown, onPointerMove: onMove, onPointerUp: onUp, onPointerCancel: onUp, onDoubleClick: onDouble, style: { touchAction: 'none' } })}>
-        {isVideo(url)
-          ? <video src={url} controls autoPlay playsInline className="m-auto max-h-full max-w-full" />
-          : <img ref={img} src={url} alt="크게 본 사진" draggable={false}
-            style={{ transform: `translate(${v.x}px, ${v.y}px) scale(${v.s})` }}
-            className={`m-auto max-h-full max-w-full select-none object-contain ${v.s > 1 ? 'cursor-grab active:cursor-grabbing' : 'cursor-zoom-in'}`} />}
-      </div>
-      {/* KLIPY GIF 는 사본을 남기면 안 되는 콘텐츠라 저장 버튼을 두지 않는다 */}
-      {!isKlipyUrl(url) && (
-        <button onClick={() => saveMedia(url).catch((e) => e?.name !== 'AbortError' && toast('저장하지 못했어요. 다시 시도해 주세요.'))}
-          aria-label={isVideo(url) ? '영상 저장' : '사진 저장'}
-          className="absolute right-14 top-[max(8px,env(safe-area-inset-top))] flex h-11 w-11 items-center justify-center rounded-full bg-black/40 text-white">
-          <IconDownload />
-        </button>
-      )}
-      <button onClick={onClose} aria-label="닫기" autoFocus
-        className="absolute right-2 top-[max(8px,env(safe-area-inset-top))] flex h-11 w-11 items-center justify-center rounded-full bg-black/40 text-white">
-        <IconClose />
-      </button>
-    </div>
-  )
-}
-
-// 이모지 고르기: 누르면 입력칸에 넣는다
-function EmojiPicker({ onEmoji }: { onEmoji: (e: string) => void }) {
-  return (
-    <div className="h-56 overflow-y-auto border-t border-hairline bg-paper p-3">
-      <div className="grid grid-cols-8 gap-1">
-        {EMOJIS.map((e) => (
-          <button key={e} type="button" onClick={() => onEmoji(e)} aria-label={e} className="h-10 rounded-lg text-[24px] hover:bg-mist active:bg-mist">{e}</button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// KLIPY GIF: 검색 · 인기 · 최근 보낸 GIF. 누르면 바로 보낸다.
-// KLIPY 규칙: 검색칸 안내 문구는 'Search KLIPY'(필수), 결과는 받은 순서 그대로, 다른 GIF 와 섞지 않는다
-function GifPicker({ cid, busy, onPick }: { cid: string; busy: boolean; onPick: (g: KlipyGif, q: string) => void }) {
-  const qc = useQueryClient()
-  const [input, setInput] = useState('')
-  const [q, setQ] = useState('')
-  const [tab, setTab] = useState<'trending' | 'recent'>('trending')
-  useEffect(() => { const t = window.setTimeout(() => setQ(input.trim()), 300); return () => window.clearTimeout(t) }, [input])
-  const kind = q ? 'search' : tab
-  const list = useInfiniteQuery({
-    queryKey: ['klipy', kind, q, cid],
-    queryFn: ({ pageParam }) => klipy.list(kind, pageParam, cid, q),
-    initialPageParam: 1,
-    getNextPageParam: (p) => p.next,
-  })
-  const items = list.data?.pages.flatMap((p) => p.items) ?? []
-  const hide = async (slug: string) => {
-    try {
-      await klipy.hideRecent(slug, cid)
-      await qc.invalidateQueries({ queryKey: ['klipy', 'recent'] })
-    } catch { toast('지우지 못했어요. 다시 시도해 주세요.') }
-  }
-  return (
-    <div className="flex h-72 flex-col border-t border-hairline bg-paper">
-      <div className="px-3 pt-2">
-        <input type="search" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Search KLIPY" aria-label="GIF 검색"
-          enterKeyHint="search" autoComplete="off" className="h-9 w-full rounded-full bg-mist px-4 t-body outline-none" />
-      </div>
-      {!q && (
-        <div className="pt-1">
-          <TextTabs label="GIF 목록" value={tab} onChange={setTab} tabs={[{ value: 'trending', label: '인기' }, { value: 'recent', label: '최근 보낸' }]} />
-        </div>
-      )}
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-2 pt-2">
-        {items.length ? (
-          <div className="grid grid-cols-3 gap-1.5 md:grid-cols-4">
-            {items.map((g, i) => (
-              <div key={`${i}-${g.slug}`} className="relative">
-                <button type="button" disabled={busy} onClick={() => onPick(g, q)} aria-label="GIF 보내기"
-                  className="block aspect-square w-full overflow-hidden rounded-lg bg-mist active:opacity-70">
-                  <img src={g.preview} alt="" loading="lazy" draggable={false} className="h-full w-full object-cover" />
-                </button>
-                {kind === 'recent' && (
-                  <button type="button" onClick={() => hide(g.slug)} aria-label="최근 보낸 GIF 에서 지우기"
-                    className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-white"><IconClose size={14} /></button>
-                )}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="py-10 text-center t-sub text-graphite">
-            {list.isLoading ? '불러오는 중…' : list.isError ? 'GIF 를 불러오지 못했어요.' : kind === 'recent' ? '최근 보낸 GIF 가 없어요' : '찾는 GIF 가 없어요'}
-          </p>
-        )}
-        {list.hasNextPage && <LoadMore key={items.length} onMore={() => list.fetchNextPage()} loading={list.isFetchingNextPage} />}
-        <p className="mt-1 text-right text-[11px] text-graphite">Powered by KLIPY</p>
-      </div>
-    </div>
-  )
-}
 
 // 1:1 채팅방. 상단에 상대 프로필, 사진·영상·GIF·이모지 전송, 첫 대화엔 인사하기 버튼. 새 메시지는 실시간으로 들어온다
 export default function ChatRoom() {
@@ -356,7 +121,8 @@ export default function ChatRoom() {
       )} />
 
       {/* 키보드가 올라온 채로 대화를 아래로 쓸어내리면 키보드를 내린다 */}
-      <div ref={scroller} className="flex-1 space-y-2 overflow-y-auto px-4 pb-3 pt-2"
+      {/* role=log: 새 메시지가 오면 화면낭독기가 읽어 준다 */}
+      <div ref={scroller} role="log" aria-label="대화 내용" aria-live="polite" className="flex-1 space-y-2 overflow-y-auto px-4 pb-3 pt-2"
         onTouchStart={(e) => { touchY.current = e.touches[0].clientY }}
         onTouchMove={(e) => { if (e.touches[0].clientY - touchY.current > 24 && document.activeElement instanceof HTMLInputElement) document.activeElement.blur() }}>
         {list.map((m, i) => {

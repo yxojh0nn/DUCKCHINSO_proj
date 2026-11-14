@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { api, errorText, type InquiryInput } from '@/api'
+import { api, type InquiryInput } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
-import { Button } from '@/components/ui/Button'
+import { Button, Chip } from '@/components/ui/Button'
 import { Empty } from '@/components/ui/Empty'
 import { TextArea } from '@/components/ui/Field'
 import { keys, useMe } from '@/lib/queries'
 import { toast } from '@/store/ui'
+import { useRun } from '@/lib/actions'
 
 type Q = { key: string; title: string; options: { value: string; label: string }[] }
 
@@ -33,18 +34,17 @@ export default function Inquiry() {
   const me = useMe().data
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [body, setBody] = useState('')
-  const [busy, setBusy] = useState(false)
+  const { busy, run } = useRun()
   const ok = answers.category && body.trim().length >= 5
 
   const submit = async () => {
     if (!ok || busy) return
-    setBusy(true)
-    try {
+    return run(async () => {
       await api.submitInquiry({ category: answers.category as InquiryInput['category'], answers, body: body.trim() })
       await qc.invalidateQueries({ queryKey: keys.rooms })
       toast('문의를 보냈어요. 답변은 채팅 탭으로 와요.')
       nav('/chats')
-    } catch (e) { toast(errorText(e)) } finally { setBusy(false) }
+    })
   }
 
   // 문의(운영팀 대화방)는 회원만 (서버 ensure_support_room·inquiries 정책도 막는다)
@@ -61,8 +61,7 @@ export default function Inquiry() {
               {q.options.map((o) => {
                 const on = answers[q.key] === o.value
                 return (
-                  <button key={o.value} aria-pressed={on} onClick={() => setAnswers({ ...answers, [q.key]: o.value })}
-                    className={`h-9 rounded-full px-3.5 t-sub ${on ? 'bg-ink font-semibold text-paper' : 'bg-mist'}`}>{o.label}</button>
+                  <Chip key={o.value} on={on} onClick={() => setAnswers({ ...answers, [q.key]: o.value })}>{o.label}</Chip>
                 )
               })}
             </div>

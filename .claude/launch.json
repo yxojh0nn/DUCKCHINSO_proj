@@ -28,12 +28,33 @@
     {
       "name": "web-demo-klipy",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["exec", "vite", "--port", "5175", "--strictPort"],
+      "runtimeArgs": [
+        "exec",
+        "vite",
+        "--port",
+        "5175",
+        "--strictPort"
+      ],
       "port": 5175,
       "env": {
         "VITE_SUPABASE_URL": "",
         "VITE_SUPABASE_ANON_KEY": "",
         "VITE_KLIPY_APP_KEY": "test-key"
+      }
+    },
+    {
+      "name": "web-demo-node",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "node_modules/vite/bin/vite.js",
+        "--port",
+        "5176",
+        "--strictPort"
+      ],
+      "port": 5176,
+      "env": {
+        "VITE_SUPABASE_URL": "",
+        "VITE_SUPABASE_ANON_KEY": ""
       }
     }
   ]

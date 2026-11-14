@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api, errorText } from '@/api'
+import { api } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { Captcha, captchaOn } from '@/components/Captcha'
 import { Button } from '@/components/ui/Button'
 import { TextField } from '@/components/ui/Field'
 import { TextTabs } from '@/components/ui/TextTabs'
 import { toast } from '@/store/ui'
+import { useRun } from '@/lib/actions'
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const LOGIN_ID = /^[a-z][a-z0-9_]{3,19}$/
@@ -44,16 +45,6 @@ function useCaptcha() {
     reset: () => { setToken(null); setRound((n) => n + 1) },
     widget: <Captcha key={round} onToken={setToken} />,
   }
-}
-
-function useRun() {
-  const [busy, setBusy] = useState(false)
-  const run = async (f: () => Promise<void>, onError?: () => void) => {
-    if (busy) return
-    setBusy(true)
-    try { await f() } catch (err) { toast(errorText(err)); onError?.() } finally { setBusy(false) }
-  }
-  return { busy, run }
 }
 
 function FindId({ onReset }: { onReset: (s: ResetStart) => void }) {

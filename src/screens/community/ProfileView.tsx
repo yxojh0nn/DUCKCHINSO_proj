@@ -13,7 +13,7 @@ import { Sheet } from '@/components/ui/Sheet'
 import { ProfileHead } from '@/screens/my/ProfileHead'
 import { useFriendActions } from '@/lib/actions'
 import { kstDayKey } from '@/lib/date'
-import { keys, useArtists, useConcerts, useGenres, useMe } from '@/lib/queries'
+import { keys, useArtists, useConcerts, useGenres, useMe, namesOf } from '@/lib/queries'
 
 // 상대 프로필: 사진·배너·소개, 관심 공연, 다녀온 공연, 관심 아티스트·장르
 export default function ProfileView() {
@@ -43,16 +43,16 @@ export default function ProfileView() {
     <div className="pb-[max(24px,env(safe-area-inset-bottom))]">
       <AppHeader back right={!self && <HeaderButton label="더보기" onClick={() => setMenu(true)}><IconMore /></HeaderButton>} />
       <ProfileHead profile={p}
-        artistNames={p.artistIds.map((a) => artists.find((x) => x.id === a)?.name ?? '').filter(Boolean)}
-        genreNames={p.genreIds.map((g) => genres.find((x) => x.id === g)?.name ?? '').filter(Boolean)} />
+        artistNames={namesOf(artists, p.artistIds)}
+        genreNames={namesOf(genres, p.genreIds)} />
 
       {/* 친구 기능은 회원끼리만 (서버도 members_only 로 막는다) */}
       {!self && !viewerIsGuest && !p.isGuest && (
         <div className="px-5 pt-4">
           {p.relation === 'friend' && p.roomId ? <Button block size="md" onClick={() => nav(`/chats/${p.roomId}`)}>대화하기</Button>
-            : p.relation === 'sent' ? <Button block size="md" variant="secondary" disabled>요청을 보냈어요</Button>
+            : p.relation === 'sent' ? <Button block size="md" variant="secondary" onClick={() => actions.cancel(p.id)}>보낸 요청 취소하기</Button>
               : p.relation === 'received' ? <Button block size="md" onClick={() => nav('/community/requests')}>받은 요청 확인하기</Button>
-                : <Button block size="md" onClick={() => actions.request(p.id)}>친구 요청 보내기</Button>}
+                : <Button block size="md" onClick={() => actions.ask(p)}>친구 요청 보내기</Button>}
         </div>
       )}
 
@@ -75,6 +75,7 @@ export default function ProfileView() {
       <Confirm open={block} title={`${p.nickname} 님을 차단할까요?`} message="서로의 글·추천·요청·채팅이 보이지 않게 돼요. 상대에게는 알리지 않아요."
         confirmLabel="차단" danger onClose={() => setBlock(false)}
         onConfirm={async () => { setBlock(false); if (await actions.block(p.id)) nav(-1) }} />
+      {actions.dialog}
     </div>
   )
 }

@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ConcertRow } from '@/components/ConcertRow'
-import { IconBack, IconClose, IconSearch } from '@/components/icons'
+import { IconBack, IconSearch } from '@/components/icons'
+import { SearchField } from '@/components/ui/Field'
+import { Chip } from '@/components/ui/Button'
 import { Empty } from '@/components/ui/Empty'
-import { kstDayKey } from '@/lib/date'
+import { DAY_MS, kstDayKey } from '@/lib/date'
 import { useArtists, useConcerts, useGenres, useMe } from '@/lib/queries'
 
 const PRICES = [
@@ -18,21 +20,12 @@ const DATES = [
   { id: 'quarter', label: '3개월 이내', days: 92 },
 ]
 
-// 고르면 진하게, 다시 누르면 해제되는 글자 칩 (상자 없이 밑줄 대신 굵기·색으로 구분)
-function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button aria-pressed={on} onClick={onClick}
-      className={`h-9 shrink-0 rounded-full px-3.5 t-sub transition-colors ${on ? 'bg-ink font-semibold text-paper' : 'bg-mist text-ink'}`}>
-      {children}
-    </button>
-  )
-}
 
 // 공연 검색: 키워드 + 장르·가격·날짜·관심 공연 범주
 export default function Search() {
   const nav = useNavigate()
   const concerts = useConcerts().data ?? []
-  const artists = useArtists().data ?? []
+  const artists = useArtists().data // 불러오기 전 undefined → 불러온 뒤 한 번만 Map 을 만든다
   const genres = useGenres().data ?? []
   const favs = useMe().data?.favoriteIds ?? []
   const [q, setQ] = useState('')
@@ -41,7 +34,7 @@ export default function Search() {
   const [date, setDate] = useState<string | null>(null)
   const [favOnly, setFavOnly] = useState(false)
 
-  const names = useMemo(() => new Map(artists.map((a) => [a.id, [a.name, a.nameJa, a.nameEn].filter(Boolean).join(' ')])), [artists])
+  const names = useMemo(() => new Map((artists ?? []).map((a) => [a.id, [a.name, a.nameJa, a.nameEn].filter(Boolean).join(' ')])), [artists])
   const today = kstDayKey(Date.now())
   const active = !!(q.trim() || genre || price || date || favOnly)
 
@@ -59,22 +52,22 @@ export default function Search() {
     const days = c.schedules.map(kstDayKey)
     if (!days.some((d) => d >= today)) return false
     if (date) {
-      const until = kstDayKey(Date.now() + DATES.find((x) => x.id === date)!.days * 86_400_000)
+      const until = kstDayKey(Date.now() + DATES.find((x) => x.id === date)!.days * DAY_MS)
       if (!days.some((d) => d >= today && d <= until)) return false
     }
     return true
   })
+    // 캘린더 목록과 같은 순서: 오늘 이후 가장 가까운 공연일 순
+    .map((c) => ({ c, next: c.schedules.map(kstDayKey).find((d) => d >= today) ?? '' }))
+    .sort((a, b) => a.next.localeCompare(b.next))
+    .map((x) => x.c)
 
   return (
     <div className="flex min-h-full flex-col">
       <div className="sticky top-0 z-20 bg-paper pt-[env(safe-area-inset-top)]">
         <div className="flex items-center gap-1 pl-1 pr-4">
           <button aria-label="뒤로" onClick={() => nav(-1)} className="flex h-11 w-11 items-center justify-center"><IconBack /></button>
-          <label className="flex h-10 flex-1 items-center gap-2 rounded-[10px] bg-mist px-3">
-            <IconSearch size={18} className="text-graphite" />
-            <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="공연, 아티스트, 공연장" aria-label="공연 검색어" className="h-full flex-1 outline-none t-body" />
-            {q && <button aria-label="검색어 지우기" onClick={() => setQ('')} className="text-graphite"><IconClose size={16} /></button>}
-          </label>
+          <SearchField className="flex-1" autoFocus clearable value={q} onValue={setQ} placeholder="공연, 아티스트, 공연장" label="공연 검색어" />
         </div>
         <div className="space-y-2 pb-3 pt-3">
           {[

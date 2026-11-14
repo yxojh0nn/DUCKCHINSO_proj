@@ -20,7 +20,7 @@ export default function Reviews() {
     <>
       <AppHeader back title="내 공연 후기" />
       {posts.data?.length ? <ul>{posts.data.map((p) => <PostRow key={p.id} post={p} />)}</ul>
-        : <Empty title="아직 쓴 후기가 없어요" body="커뮤니티 > 후기 남기기에서 다녀온 공연을 골라 후기를 남겨 보세요."
+        : <Empty title="아직 쓴 후기가 없어요" body="커뮤니티 > 공연 후기에서 다녀온 공연을 골라 후기를 남겨 보세요."
             action={<Button size="md" onClick={() => nav('/community?tab=reviews')}>후기 남기기</Button>} />}
     </>
   )

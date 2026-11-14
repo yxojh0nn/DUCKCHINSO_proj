@@ -15,7 +15,7 @@ export default function CalendarScreen() {
   const nav = useNavigate()
   const me = useMe().data
   const concerts = useConcerts()
-  const artists = useArtists().data ?? []
+  const artists = useArtists().data // 불러오기 전 undefined → 불러온 뒤 한 번만 Map 을 만든다
   const { calMode, setCalMode } = useUI()
   const today = kstDayKey(Date.now())
   const [ym, setYm] = useState(() => ({ y: Number(today.slice(0, 4)), m: Number(today.slice(5, 7)) }))
@@ -23,7 +23,7 @@ export default function CalendarScreen() {
   const [scope, setScope] = useState<'all' | 'mine'>('all')
 
   const artistName = useMemo(() => {
-    const map = new Map(artists.map((a) => [a.id, a.nameEn && /^[\x20-\x7e]+$/.test(a.nameEn) && a.nameEn.length <= 8 ? a.nameEn : a.name]))
+    const map = new Map((artists ?? []).map((a) => [a.id, a.nameEn && /^[\x20-\x7e]+$/.test(a.nameEn) && a.nameEn.length <= 8 ? a.nameEn : a.name]))
     return (id: string) => map.get(id) ?? ''
   }, [artists])
 
@@ -72,6 +72,8 @@ export default function CalendarScreen() {
         </div>
         <MonthCalendar year={ym.y} month={ym.m} concerts={list} favoriteIds={favs} selected={day} today={today}
           mode={calMode} artistName={artistName} onSelect={(d) => setDay(d === day ? null : d)} />
+        {/* 색은 분류가 아니라 공연 구분용이라 범례 대신 읽는 법 한 줄 */}
+        {!day && <p className="px-5 pt-2 t-cap text-graphite">색은 공연마다 달라요. 이어진 선은 여러 날 하는 공연, 날짜를 누르면 그날 공연만 보여요.</p>}
       </section>
 
       <section aria-label="공연 목록" className="mt-5 flex-1 border-t border-hairline pb-6">

@@ -263,6 +263,7 @@ export interface Api {
   recommend(): Promise<Recommended[]>
   searchUsers(q: string, filter: { genreId?: number; artistId?: string }): Promise<UserCard[]>
   sendFriendRequest(userId: string): Promise<void>
+  cancelFriendRequest(userId: string): Promise<void> // 내가 보낸 대기 중 요청 취소 (없으면 not_found)
   listRequests(): Promise<FriendRequest[]>
   respondRequest(requestId: string, accept: boolean): Promise<string | null>
   listFriends(): Promise<Friend[]>
@@ -379,5 +380,7 @@ export const errorText = (e: unknown) => {
     'User already registered': '이미 가입된 이메일이에요. 로그인해 주세요.',
   }
   const key = Object.keys(map).find((k) => m.includes(k))
-  return key ? map[key] : '문제가 생겼어요. 잠시 후 다시 시도해 주세요.'
+  if (key) return map[key]
+  // 닉네임 중복·허용 문자 오류는 API 가 이미 사용자 문구로 만들어 던진다 (supabaseApi·demoApi updateMe)
+  return m.includes('닉네임') ? m : '문제가 생겼어요. 잠시 후 다시 시도해 주세요.'
 }

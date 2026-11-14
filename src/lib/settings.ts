@@ -7,7 +7,7 @@ export const APP_SETTINGS = {
 } as const
 
 // 닉네임 규칙: DB 제약 profiles_nickname_chars 와 같은 허용 문자 (한글·일본어·영문·숫자·공백 _ . -), 2~20자
-const NICKNAME_RE = /^[가-힣ㄱ-ㅎㅏ-ㅣぁ-ゖァ-ヺー一-龯A-Za-z0-9 _.\-]+$/
+const NICKNAME_RE = /^[가-힣ㄱ-ㅎㅏ-ㅣぁ-ゖァ-ヺー一-龯A-Za-z0-9 _.-]+$/
 export const nicknameError = (raw: string) => {
   const n = raw.trim()
   if (n.length < 2 || n.length > 20) return '2~20자로 정해 주세요.'

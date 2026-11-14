@@ -1,19 +1,16 @@
 import { useEffect, useRef } from 'react'
-import { Navigate, Outlet, Route, Routes, useLocation, useNavigate, useNavigationType } from 'react-router-dom'
-import { useQueryClient } from '@tanstack/react-query'
+import { Navigate, Route, Routes, useLocation, useNavigate, useNavigationType } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
 import { App as CapApp } from '@capacitor/app'
 import { Browser } from '@capacitor/browser'
-import { api } from '@/api'
-import { AppBar, BottomNav } from '@/components/BottomNav'
+import { AppBar, TAB_PATHS } from '@/components/BottomNav'
 import { SplitView, splitOf, useWide, type SplitGroup } from '@/components/Split'
 import { Toast } from '@/components/ui/Toast'
 import { NoticePopup } from '@/components/NoticePopup'
 import { supabase } from '@/lib/supabase'
-import { keys, useLiveSync, useMe, useSession } from '@/lib/queries'
+import { useLiveSync, useSession } from '@/lib/queries'
 import { applyTheme, useUI } from '@/store/ui'
 import Splash from '@/screens/auth/Splash'
-import { Wordmark } from '@/screens/auth/Wordmark'
 import Login from '@/screens/auth/Login'
 import MemberLogin from '@/screens/auth/MemberLogin'
 import EmailAuth from '@/screens/auth/EmailAuth'
@@ -65,92 +62,8 @@ import TicketTips from '@/screens/admin/TicketTips'
 import TicketClicks from '@/screens/admin/TicketClicks'
 import AdminUsers from '@/screens/admin/AdminUsers'
 import AdminUserDetail from '@/screens/admin/AdminUserDetail'
-
-// 로그인·동의가 끝나야 들어갈 수 있는 화면 묶음
-function Gate({ children }: { children?: React.ReactNode }) {
-  const session = useSession()
-  const me = useMe()
-  const qc = useQueryClient()
-  const { pathname } = useLocation()
-  const pending = useUI((s) => s.pendingConsents)
-  const setPending = useUI((s) => s.setPendingConsents)
-  const saving = useRef(false)
-
-  // 이메일 가입 때 받은 동의를 계정이 생긴 직후 한 번 저장
-  useEffect(() => {
-    if (!me.data || me.data.consentsOk || !pending || saving.current) return
-    saving.current = true
-    // 새 동의 값이 반영된 me 를 받은 뒤에 pending 을 비운다 (먼저 비우면 동의 화면으로 잘못 튕김)
-    api.saveConsents(pending)
-      .then(() => qc.invalidateQueries({ queryKey: keys.me }))
-      .then(() => setPending(null))
-      .finally(() => { saving.current = false })
-  }, [me.data, pending, setPending, qc])
-
-  if (session.isLoading) return null
-  if (!session.data) return <Navigate to="/login" replace />
-  if (me.isLoading || (me.data && !me.data.consentsOk && pending)) return null
-  if (me.isError) return <Navigate to="/login" replace />
-  if (me.data && !me.data.consentsOk && pathname !== '/consent') return <Navigate to="/consent" replace />
-  // 이메일로 가입한 사람은 아이디를 만들어야 다음으로 (docs/로그인_계정_암호화_설계.md 5장)
-  if (me.data?.consentsOk && me.data.needsLoginId && pathname !== '/login-id') return <Navigate to="/login-id" replace />
-  // 회원은 첫 로그인 때 메인 화면 전에 닉네임·프로필을 정한다 (비회원은 커뮤니티 첫 진입 때)
-  if (me.data?.consentsOk && !me.data.needsLoginId && !me.data.isGuest && !me.data.profileSetupDone && pathname !== '/community/setup') {
-    return <Navigate to="/community/setup" replace />
-  }
-  return children ?? <Outlet />
-}
-
-const TAB_PATHS = ['/calendar', '/community', '/chats', '/my']
-
-// 가로로 스크롤되는 영역(칩 줄, 사진 줄 등) 안에서 시작한 밀기는 탭 전환으로 보지 않는다
-const inHorizontalScroller = (el: EventTarget | null, root: HTMLElement) => {
-  for (let n = el as HTMLElement | null; n && n !== root; n = n.parentElement) {
-    if (n.scrollWidth > n.clientWidth && /auto|scroll/.test(getComputedStyle(n).overflowX)) return true
-  }
-  return false
-}
-
-function Tabs() {
-  const nav = useNavigate()
-  const { pathname } = useLocation()
-  const index = TAB_PATHS.indexOf(pathname)
-  // 탭이 바뀔 때만 방향을 정한다 (다시 그려질 때 애니메이션이 재시작되지 않게)
-  const last = useRef({ index, dir: 'right' })
-  if (last.current.index !== index) last.current = { index, dir: index > last.current.index ? 'right' : 'left' }
-  const dir = last.current.dir
-  const start = useRef<{ x: number; y: number } | null>(null)
-
-  // 모바일: 좌우로 밀어 이전·다음 탭으로
-  const onTouchStart = (e: React.TouchEvent) => {
-    const t = e.touches[0]
-    // 휴대폰 폭에서만 (768px 이상 터치 화면은 서랍 메뉴를 쓴다)
-    start.current = e.touches.length === 1 && !window.matchMedia('(min-width: 768px)').matches && !inHorizontalScroller(e.target, e.currentTarget as HTMLElement) ? { x: t.clientX, y: t.clientY } : null
-  }
-  const onTouchEnd = (e: React.TouchEvent) => {
-    const s = start.current
-    start.current = null
-    if (!s || index < 0) return
-    const t = e.changedTouches[0]
-    const dx = t.clientX - s.x
-    const dy = t.clientY - s.y
-    if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.5) return
-    const next = TAB_PATHS[index + (dx < 0 ? 1 : -1)]
-    if (next) nav(next)
-  }
-
-  return (
-    <div className="flex min-h-full flex-col">
-      {/* 휴대폰: 탭 화면 맨 위 가운데 로고 (768px 이상은 앱 바에 있다) */}
-      <div className="flex justify-center pb-1 pt-[max(10px,env(safe-area-inset-top))] md:hidden"><Wordmark small /></div>
-      <main key={pathname} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
-        className={`flex flex-1 flex-col ${dir === 'right' ? 'slide-right' : 'slide-left'}`}>
-        <Outlet />
-      </main>
-      <BottomNav />
-    </div>
-  )
-}
+import { Gate } from '@/app/Gate'
+import { Tabs } from '@/app/Tabs'
 
 // 앱: 로그인 후 커스텀 스킴으로 돌아온다. 구글·애플·메일은 ?code=… → 세션으로 교환,
 // 네이버·카카오는 #token_hash=…(또는 #error=…) → AuthCallback 이 처리

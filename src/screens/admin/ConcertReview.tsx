@@ -4,7 +4,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, errorText, type AdminConcert, type Artist } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { Poster } from '@/components/Poster'
-import { IconClose, IconSearch } from '@/components/icons'
+import { IconClose } from '@/components/icons'
+import { SearchField } from '@/components/ui/Field'
 import { Button } from '@/components/ui/Button'
 import { Confirm } from '@/components/ui/Confirm'
 import { Empty } from '@/components/ui/Empty'
@@ -12,6 +13,7 @@ import { fmtRange } from '@/lib/date'
 import { keys, useArtists } from '@/lib/queries'
 import { toast } from '@/store/ui'
 import { adminKeys } from './AdminGate'
+import { useRun } from '@/lib/actions'
 
 // 예매 오픈 일시: 화면은 KST(datetime-local), 저장은 ISO
 const toLocal = (iso: string | null) => iso ? new Date(new Date(iso).getTime() + 9 * 3_600_000).toISOString().slice(0, 16) : ''
@@ -33,7 +35,7 @@ function ReviewForm({ c }: { c: AdminConcert }) {
   const [picked, setPicked] = useState<string[]>(c.artistIds)
   const [q, setQ] = useState('')
   const [openAt, setOpenAt] = useState(toLocal(c.ticketOpenAt))
-  const [busy, setBusy] = useState(false)
+  const { busy, run } = useRun()
   const [hide, setHide] = useState(false)
 
   const term = q.trim().toLowerCase()
@@ -48,11 +50,10 @@ function ReviewForm({ c }: { c: AdminConcert }) {
   }
   const publish = async () => {
     if (!picked.length) return toast('아티스트를 한 명 이상 연결해 주세요.')
-    setBusy(true)
-    try {
+    return run(async () => {
       await api.adminPublishConcert(c.id, { artistIds: picked, ticketOpenAt: fromLocal(openAt) })
       await done('게시했어요')
-    } catch (e) { toast(errorText(e)) } finally { setBusy(false) }
+    })
   }
 
   return (
@@ -94,11 +95,7 @@ function ReviewForm({ c }: { c: AdminConcert }) {
           ))}
           {!picked.length && <li className="t-sub text-graphite">아직 없어요</li>}
         </ul>
-        <label className="mt-3 flex h-10 items-center gap-2 rounded-[10px] bg-mist px-3">
-          <IconSearch size={18} className="text-graphite" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="아티스트 이름 (한·일·영)" aria-label="연결할 아티스트 검색"
-            className="h-full min-w-0 flex-1 outline-none t-body" />
-        </label>
+        <SearchField className="mt-3" value={q} onValue={setQ} placeholder="아티스트 이름 (한·일·영)" label="연결할 아티스트 검색" />
         {matches.length > 0 && (
           <ul className="mt-1">
             {matches.map((a) => (

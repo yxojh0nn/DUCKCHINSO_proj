@@ -4,6 +4,7 @@ import { CheckMark } from './ui/Checkbox'
 import { IconChevronDown } from './icons'
 
 export const allRequired = (v: Record<string, boolean>) => CONSENT_ITEMS.every((c) => !c.required || v[c.key])
+export const missingRequired = (v: Record<string, boolean>) => CONSENT_ITEMS.filter((c) => c.required && !v[c.key]).length
 
 // 동의 항목 목록: 전체 동의 + 항목별 체크 + 전문 펼쳐보기 (기획서 9.2)
 export function ConsentList({ value, onChange }: { value: Record<string, boolean>; onChange: (v: Record<string, boolean>) => void }) {
@@ -18,7 +19,7 @@ export function ConsentList({ value, onChange }: { value: Record<string, boolean
   }
   return (
     <div>
-      <button onClick={() => onChange(Object.fromEntries(CONSENT_ITEMS.map((c) => [c.key, !all])))} aria-pressed={all}
+      <button onClick={() => onChange(Object.fromEntries(CONSENT_ITEMS.map((c) => [c.key, !all])))} role="checkbox" aria-checked={all}
         className="flex min-h-14 w-full items-center gap-3 border-b border-hairline px-1 text-left t-head">
         <CheckMark checked={all} />전체 동의
       </button>
@@ -26,7 +27,7 @@ export function ConsentList({ value, onChange }: { value: Record<string, boolean
         {CONSENT_ITEMS.map((c) => (
           <li key={c.key}>
             <div className="flex items-center">
-              <button onClick={() => set(c.key, !value[c.key])} aria-pressed={!!value[c.key]} className="flex min-h-11 flex-1 items-center gap-3 px-1 text-left t-body">
+              <button onClick={() => set(c.key, !value[c.key])} role="checkbox" aria-checked={!!value[c.key]} className="flex min-h-11 flex-1 items-center gap-3 px-1 text-left t-body">
                 <CheckMark checked={!!value[c.key]} />
                 <span>{c.required && <span className="font-semibold">[필수] </span>}{c.label.replace(' (선택)', '')}{!c.required && <span className="text-graphite"> (선택)</span>}</span>
               </button>

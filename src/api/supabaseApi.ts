@@ -295,6 +295,9 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     async sendFriendRequest(userId) {
       ok(await sb.rpc('send_friend_request', { target: userId }))
     },
+    async cancelFriendRequest(userId) {
+      ok(await sb.rpc('cancel_friend_request', { target: userId }))
+    },
     async listRequests() {
       const me = await uid()
       const rows = ok(await sb.from('friend_requests')

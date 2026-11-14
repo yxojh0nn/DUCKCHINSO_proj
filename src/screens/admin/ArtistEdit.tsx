@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, errorText, type AdminArtist } from '@/api'
+import { api, type AdminArtist } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { Button } from '@/components/ui/Button'
 import { TextArea, TextField } from '@/components/ui/Field'
 import { keys } from '@/lib/queries'
 import { toast } from '@/store/ui'
+import { useRun } from '@/lib/actions'
 
 // 아티스트 추가·수정. 별칭은 KOPIS 공연명·출연진과 맞춰 볼 이름 (예: 레갈릴리, Regal Lily). 저장하면 다음 수집부터 반영
 export default function ArtistEdit() {
@@ -23,18 +24,17 @@ function ArtistForm({ artist }: { artist: AdminArtist | null }) {
   const [nameJa, setNameJa] = useState(artist?.nameJa ?? '')
   const [nameEn, setNameEn] = useState(artist?.nameEn ?? '')
   const [aliases, setAliases] = useState((artist?.aliases ?? []).join('\n'))
-  const [busy, setBusy] = useState(false)
+  const { busy, run } = useRun()
   const ok = name.trim().length >= 1
 
   const save = async () => {
     if (!ok || busy) return
-    setBusy(true)
-    try {
+    return run(async () => {
       await api.adminSaveArtist({ id: artist?.id, name, nameJa, nameEn, aliases: aliases.split(/[\n,]/) })
       await Promise.all([qc.invalidateQueries({ queryKey: ['admin'] }), qc.invalidateQueries({ queryKey: keys.artists })])
       toast('저장했어요. 다음 수집부터 반영돼요')
       nav(-1)
-    } catch (e) { toast(errorText(e)) } finally { setBusy(false) }
+    })
   }
 
   return (

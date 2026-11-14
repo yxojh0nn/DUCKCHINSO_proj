@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, errorText } from '@/api'
+import { api } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
-import { IconSearch } from '@/components/icons'
+import { SearchField } from '@/components/ui/Field'
 import { Button } from '@/components/ui/Button'
 import { Empty } from '@/components/ui/Empty'
-import { toast } from '@/store/ui'
 import { adminKeys } from './AdminGate'
+import { useRunFor } from '@/lib/actions'
 
 const STATUS = { published: '게시됨', review: '검수 대기', hidden: '숨김' } as const
 const day = (d: string | null) => d ? d.slice(5).replace('-', '.') : ''
@@ -18,27 +18,20 @@ export default function InboxSearch() {
   const qc = useQueryClient()
   const [input, setInput] = useState('')
   const [q, setQ] = useState('')
-  const [busy, setBusy] = useState<string | null>(null)
+  const { busy, run } = useRunFor<string>()
   const list = useQuery({ queryKey: adminKeys.inbox(q), queryFn: () => api.adminSearchInbox(q), enabled: !!q })
 
-  const take = async (kopisId: string) => {
-    setBusy(kopisId)
-    try {
-      const id = await api.adminImportConcert(kopisId)
-      await qc.invalidateQueries({ queryKey: ['admin'] })
-      nav(`/admin/concerts/${id}`)
-    } catch (e) { toast(errorText(e)) } finally { setBusy(null) }
-  }
+  const take = (kopisId: string) => run(kopisId, async () => {
+    const id = await api.adminImportConcert(kopisId)
+    await qc.invalidateQueries({ queryKey: ['admin'] })
+    nav(`/admin/concerts/${id}`)
+  })
 
   return (
     <>
       <AppHeader back title="공연 찾기" />
       <form className="px-5 pt-1" onSubmit={(e) => { e.preventDefault(); setQ(input.trim()) }}>
-        <label className="flex h-10 items-center gap-2 rounded-[10px] bg-mist px-3">
-          <IconSearch size={18} className="text-graphite" />
-          <input value={input} onChange={(e) => setInput(e.target.value)} enterKeyHint="search" placeholder="공연명 (예: Regallily, 유우리)"
-            aria-label="수집한 공연 검색" className="h-full min-w-0 flex-1 outline-none t-body" />
-        </label>
+        <SearchField value={input} onValue={setInput} enterKeyHint="search" placeholder="공연명 (예: Regallily, 유우리)" label="수집한 공연 검색" />
       </form>
       {!q ? <Empty title="공연명으로 검색하세요" body="최근 수집한 대중음악 공연 전체에서 찾아요." />
         : list.data?.length ? (

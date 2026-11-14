@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { api, errorText, type SanctionLevel } from '@/api'
+import { api, type SanctionLevel } from '@/api'
 import { Button } from '@/components/ui/Button'
 import { Confirm } from '@/components/ui/Confirm'
 import { TextField } from '@/components/ui/Field'
 import { toast } from '@/store/ui'
+import { useRun } from '@/lib/actions'
 
 type Choice = { value: string; label: string; level: SanctionLevel; days?: number }
 const SANCTIONS: Choice[] = [
@@ -22,16 +23,15 @@ export function SanctionPanel({ target, defaultReason = '', title = '제재' }: 
   const [choice, setChoice] = useState<Choice>(SANCTIONS[0])
   const [why, setWhy] = useState(defaultReason)
   const [confirm, setConfirm] = useState(false)
-  const [busy, setBusy] = useState(false)
+  const { busy, run } = useRun()
 
   const apply = async () => {
     setConfirm(false)
-    setBusy(true)
-    try {
+    return run(async () => {
       await api.adminSanction(target.id, choice.level, why, choice.days)
       await qc.invalidateQueries({ queryKey: ['admin'] })
       toast(`${target.nickname} 님에게 ${choice.label}을 적용하고 알렸어요`)
-    } catch (e) { toast(errorText(e)) } finally { setBusy(false) }
+    })
   }
 
   return (

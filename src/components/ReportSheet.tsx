@@ -1,8 +1,8 @@
-import { useState } from 'react'
-import { api, errorText, type ReportReason, type ReportTarget } from '@/api'
+import { api, type ReportReason, type ReportTarget } from '@/api'
 import { klipy } from '@/lib/klipy'
 import { toast } from '@/store/ui'
 import { Sheet } from './ui/Sheet'
+import { useRun } from '@/lib/actions'
 
 export const REPORT_REASONS: { value: ReportReason; label: string }[] = [
   { value: 'abuse', label: '욕설·괴롭힘' },
@@ -27,11 +27,10 @@ const GIF_REASONS: { value: ReportReason; label: string; klipy: string }[] = [
 export function ReportSheet({ target, open, onClose, onDone, gif }: {
   target: ReportTarget; open: boolean; onClose: () => void; onDone?: () => void; gif?: { slug: string; customerId: string }
 }) {
-  const [busy, setBusy] = useState(false)
+  const { busy, run } = useRun()
   const submit = async (reason: ReportReason) => {
     if (busy) return
-    setBusy(true)
-    try {
+    await run(async () => {
       let detail: string | undefined
       if (gif) {
         const k = GIF_REASONS.find((r) => r.value === reason)!.klipy
@@ -41,12 +40,8 @@ export function ReportSheet({ target, open, onClose, onDone, gif }: {
       await api.report(target, reason, detail)
       toast(gif ? 'KLIPY 와 운영팀에 신고했어요.' : '신고가 접수됐어요. 운영팀이 확인할게요.')
       onDone?.()
-    } catch (e) {
-      toast(errorText(e))
-    } finally {
-      setBusy(false)
-      onClose()
-    }
+    })
+    onClose() // 성공·실패 모두 시트를 닫는다
   }
   return (
     <Sheet open={open} onClose={onClose} title="신고 사유를 골라 주세요" message="신고한 사실은 상대에게 알리지 않아요."

@@ -2,10 +2,8 @@
 // 대중음악(CCCD) 공연을 judgeConcert(점수제)로 판별: 4점 이상 게시, 2~3점과 아티스트 미등록 일본 내한 공연은 검수 대기
 // 예매 오픈 일시는 KOPIS 에 없어 운영자가 입력한다
 import { admin, isServiceCall, json } from '../_shared/supabase.ts'
-import { isCandidate, judgeConcert, parseList } from '../_shared/kopis.ts'
-import { fetchDetail, KOPIS_BASE as BASE, loadArtists, loadPromoters, saveConcert } from '../_shared/concerts.ts'
-
-const ymd = (d: Date) => d.toISOString().slice(0, 10).replace(/-/g, '')
+import { isCandidate, judgeConcert } from '../_shared/kopis.ts'
+import { fetchDetail, fetchListPage, loadArtists, loadPromoters, saveConcert } from '../_shared/concerts.ts'
 
 Deno.serve(async (req) => {
   if (!(await isServiceCall(req))) return json({ error: 'forbidden' }, 403)
@@ -27,15 +25,7 @@ Deno.serve(async (req) => {
   const found = []
   let more = false
   for (let page = from; page < from + pages; page++) {
-    // 연속 요청은 KOPIS 가 막는다(빈 응답·HTTP 400): 점점 길게 쉬며 세 번까지 다시
-    let xml = ''
-    for (const wait of [300, 3000, 6000, 10000]) {
-      await new Promise((r) => setTimeout(r, wait))
-      const res = await fetch(`${BASE}/pblprfr?service=${key}&stdate=${ymd(st)}&eddate=${ymd(ed)}&cpage=${page}&rows=100&shcate=CCCD`)
-      xml = await res.text()
-      if (res.ok && /<dbs/.test(xml) && !/<returncode>/.test(xml)) break
-    }
-    const items = parseList(xml)
+    const { items } = await fetchListPage(key, st, ed, page)
     found.push(...items)
     more = items.length === 100
     if (!more) break

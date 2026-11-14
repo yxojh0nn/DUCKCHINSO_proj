@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { api } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
-import { IconSearch } from '@/components/icons'
+import { SearchField } from '@/components/ui/Field'
 import { LoadMore } from '@/components/LoadMore'
 import { Empty } from '@/components/ui/Empty'
 import { adminKeys } from './AdminGate'
@@ -26,11 +26,7 @@ export default function Artists() {
         <button onClick={() => nav('/admin/artists/new')} className="flex h-11 items-center px-3 t-body font-semibold">추가</button>
       } />
       <form className="px-5 pt-1" onSubmit={(e) => { e.preventDefault(); setQ(input.trim()) }}>
-        <label className="flex h-10 items-center gap-2 rounded-[10px] bg-mist px-3">
-          <IconSearch size={18} className="text-graphite" />
-          <input value={input} onChange={(e) => setInput(e.target.value)} enterKeyHint="search" placeholder="한국어·일본어·영문 이름"
-            aria-label="아티스트 검색" className="h-full min-w-0 flex-1 outline-none t-body" />
-        </label>
+        <SearchField value={input} onValue={setInput} enterKeyHint="search" placeholder="한국어·일본어·영문 이름" label="아티스트 검색" />
       </form>
       {artists.length ? (<>
         <ul className="pb-8 pt-2">

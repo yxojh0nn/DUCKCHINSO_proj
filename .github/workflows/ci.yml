@@ -1,0 +1,21 @@
+# PR·푸시마다 타입 검사 → 린트 → 테스트 → 빌드 (개발환경 가이드 4.6)
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main, dev]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4 # 버전은 package.json packageManager 를 따른다
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build
