@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { api, errorText } from '@/api'
+import { api } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { Button } from '@/components/ui/Button'
 import { CheckMark } from '@/components/ui/Checkbox'
 import { keys, useMe } from '@/lib/queries'
 import { toast } from '@/store/ui'
+import { useRun } from '@/lib/actions'
 
 const LOST = [
   '프로필, 닉네임, 소개글, 프로필·배너 사진',
@@ -21,18 +22,17 @@ export default function Withdraw() {
   const qc = useQueryClient()
   const me = useMe().data
   const [ok, setOk] = useState(false)
-  const [busy, setBusy] = useState(false)
+  const { busy, run } = useRun()
   if (me?.isGuest) return <Navigate to="/my" replace />
 
   const withdraw = async () => {
-    setBusy(true)
-    try {
+    return run(async () => {
       await api.deleteAccount()
       qc.clear()
       qc.setQueryData(keys.session, null)
       nav('/login', { replace: true })
       toast('탈퇴가 끝났어요. 그동안 고마웠어요.')
-    } catch (e) { toast(errorText(e)); setBusy(false) }
+    })
   }
 
   return (

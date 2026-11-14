@@ -6,15 +6,21 @@ import { toast } from '@/store/ui'
 import { keys } from './queries'
 
 // 처리 중 표시 + 실패하면 오류 토스트. 처리 중에 다시 부르면 무시한다 (버튼 연타 방지)
-// onError: 토스트 뒤에 할 일 (캡차 다시 받기 등)
-export function useRun() {
-  const [busy, setBusy] = useState(false)
-  const run = async (f: () => Promise<unknown>, onError?: () => void) => {
-    if (busy) return
-    setBusy(true)
-    try { await f() } catch (err) { toast(errorText(err)); onError?.() } finally { setBusy(false) }
+// busy: 지금 처리 중인 항목(key) — 버튼마다 "보내는 중…"을 따로 보일 때. onError: 토스트 뒤에 할 일 (캡차 다시 받기 등)
+export function useRunFor<K>() {
+  const [busy, setBusy] = useState<K | null>(null)
+  const run = async (key: K, f: () => Promise<unknown>, onError?: () => void) => {
+    if (busy !== null) return
+    setBusy(key)
+    try { await f() } catch (err) { toast(errorText(err)); onError?.() } finally { setBusy(null) }
   }
   return { busy, run }
+}
+
+// 항목 구분이 필요 없을 때
+export function useRun() {
+  const { busy, run } = useRunFor<true>()
+  return { busy: busy !== null, run: (f: () => Promise<unknown>, onError?: () => void) => run(true, f, onError) }
 }
 
 // 여러 화면에서 같은 결과(문구·캐시 갱신)를 내야 하는 동작 모음

@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, errorText } from '@/api'
+import { api } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { SearchField } from '@/components/ui/Field'
 import { Button } from '@/components/ui/Button'
 import { Empty } from '@/components/ui/Empty'
-import { toast } from '@/store/ui'
 import { adminKeys } from './AdminGate'
+import { useRunFor } from '@/lib/actions'
 
 const STATUS = { published: '게시됨', review: '검수 대기', hidden: '숨김' } as const
 const day = (d: string | null) => d ? d.slice(5).replace('-', '.') : ''
@@ -18,17 +18,14 @@ export default function InboxSearch() {
   const qc = useQueryClient()
   const [input, setInput] = useState('')
   const [q, setQ] = useState('')
-  const [busy, setBusy] = useState<string | null>(null)
+  const { busy, run } = useRunFor<string>()
   const list = useQuery({ queryKey: adminKeys.inbox(q), queryFn: () => api.adminSearchInbox(q), enabled: !!q })
 
-  const take = async (kopisId: string) => {
-    setBusy(kopisId)
-    try {
-      const id = await api.adminImportConcert(kopisId)
-      await qc.invalidateQueries({ queryKey: ['admin'] })
-      nav(`/admin/concerts/${id}`)
-    } catch (e) { toast(errorText(e)) } finally { setBusy(null) }
-  }
+  const take = (kopisId: string) => run(kopisId, async () => {
+    const id = await api.adminImportConcert(kopisId)
+    await qc.invalidateQueries({ queryKey: ['admin'] })
+    nav(`/admin/concerts/${id}`)
+  })
 
   return (
     <>

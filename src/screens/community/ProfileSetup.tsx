@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { api, errorText } from '@/api'
+import { api } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { ImageButton } from '@/components/ImageButton'
 import { PickList } from '@/components/PickList'
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/Button'
 import { TextArea, TextField } from '@/components/ui/Field'
 import { APP_SETTINGS, nicknameError } from '@/lib/settings'
 import { keys, useArtists, useGenres, useMe } from '@/lib/queries'
-import { toast } from '@/store/ui'
+import { useRun } from '@/lib/actions'
 
 // 프로필 설정: 닉네임·사진·소개글 → 관심 아티스트 → 관심 장르
 // 회원: 첫 로그인 때 메인 화면 전에 꼭 거친다 (Gate 가 보냄, 단계별로 건너뛸 수 있음) / 비회원: 커뮤니티 첫 진입 때
@@ -28,7 +28,7 @@ export default function ProfileSetup() {
   const [bio, setBio] = useState(me?.bio ?? '')
   const [avatar, setAvatar] = useState<Blob | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
+  const { busy, run } = useRun()
   const nickErr = nicknameError(nickname)
   const nickOk = !nickErr
 
@@ -36,24 +36,22 @@ export default function ProfileSetup() {
   const saveNickname = async () => {
     if (!nickOk || busy || !me) return
     if (nickname.trim() === me.nickname) return setStep(1)
-    setBusy(true)
-    try {
+    return run(async () => {
       await api.updateMe({ nickname: nickname.trim() })
       setStep(1)
-    } catch (e) { toast(e instanceof Error && e.message.includes('닉네임') ? e.message : errorText(e)) } finally { setBusy(false) }
+    })
   }
 
   const from = (useLocation().state as { from?: string } | null)?.from
   const finish = async () => {
-    setBusy(true)
-    try {
+    return run(async () => {
       await api.setMyArtists(artistIds)
       await api.setMyGenres(genreIds)
       const avatarUrl = avatar ? await api.uploadImage('avatar', avatar) : undefined
       await api.updateMe({ bio: bio.trim(), profileSetupDone: true, ...(avatarUrl ? { avatarUrl } : {}) })
       await qc.invalidateQueries({ queryKey: keys.me })
       nav(from ?? '/community', { replace: true })
-    } catch (e) { toast(errorText(e)) } finally { setBusy(false) }
+    })
   }
 
   const steps = [

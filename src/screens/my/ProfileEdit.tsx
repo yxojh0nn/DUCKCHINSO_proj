@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { api, errorText } from '@/api'
+import { api } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { ImageButton } from '@/components/ImageButton'
 import { IconPhoto } from '@/components/icons'
@@ -10,6 +10,7 @@ import { TextArea, TextField } from '@/components/ui/Field'
 import { keys, useMe } from '@/lib/queries'
 import { nicknameError } from '@/lib/settings'
 import { toast } from '@/store/ui'
+import { useRun } from '@/lib/actions'
 
 // 프로필 편집: 배너·프로필 사진, 닉네임, 소개글
 export default function ProfileEdit() {
@@ -20,15 +21,14 @@ export default function ProfileEdit() {
   const [bio, setBio] = useState(me?.bio ?? '')
   const [avatar, setAvatar] = useState<Blob | null>(null)
   const [banner, setBanner] = useState<Blob | null>(null)
-  const [busy, setBusy] = useState(false)
+  const { busy, run } = useRun()
   if (!me) return null
 
   const nickErr = nicknameError(nickname)
   const nickOk = !nickErr
   const save = async () => {
     if (!nickOk || busy) return
-    setBusy(true)
-    try {
+    return run(async () => {
       const [avatarUrl, bannerUrl] = await Promise.all([
         avatar ? api.uploadImage('avatar', avatar) : undefined,
         banner ? api.uploadImage('banner', banner) : undefined,
@@ -37,7 +37,7 @@ export default function ProfileEdit() {
       await qc.invalidateQueries({ queryKey: keys.me })
       toast('프로필을 저장했어요')
       nav(-1)
-    } catch (e) { toast(e instanceof Error && e.message.includes('닉네임') ? e.message : errorText(e)) } finally { setBusy(false) }
+    })
   }
   const bannerSrc = banner ? URL.createObjectURL(banner) : me.bannerUrl
 
