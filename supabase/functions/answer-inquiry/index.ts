@@ -1,15 +1,13 @@
 // 운영자 문의 답변: 운영팀 대화방에 답변을 남기고, 가입 이메일로 "답변이 도착했어요" 메일을 보낸다
 // 메일 발송은 _shared/mail.ts (RESEND_API_KEY 가 없거나 카카오 계정처럼 이메일이 없으면 메일만 건너뛴다)
-import { admin, callerOf, cors, json } from '../_shared/supabase.ts'
+import { admin, adminGate, cors, json } from '../_shared/supabase.ts'
 import { sendMail } from '../_shared/mail.ts'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
-  const caller = await callerOf(req)
-  if (!caller) return json({ error: 'not_authenticated' }, 401)
   const db = admin()
-  const { data: isAdmin } = await db.from('admins').select('user_id').eq('user_id', caller.id).maybeSingle()
-  if (!isAdmin) return json({ error: 'forbidden' }, 403)
+  const denied = await adminGate(req, db)
+  if (denied) return denied
 
   const { inquiryId, answer } = await req.json()
   if (typeof inquiryId !== 'string' || typeof answer !== 'string' || !answer.trim()) return json({ error: 'bad_request' }, 400)

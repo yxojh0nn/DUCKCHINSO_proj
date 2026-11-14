@@ -6,9 +6,10 @@ import { AppHeader, HeaderButton } from '@/components/AppHeader'
 import { PostRow } from '@/components/PostRow'
 import { UserRow } from '@/components/UserRow'
 import { PastConcerts } from './PastConcerts'
-import { IconClose, IconFilter, IconPlus, IconRequests, IconSearch } from '@/components/icons'
+import { IconFilter, IconPlus, IconRequests } from '@/components/icons'
+import { SearchField } from '@/components/ui/Field'
 import { Badge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
+import { Button, Chip } from '@/components/ui/Button'
 import { Empty } from '@/components/ui/Empty'
 import { Sheet } from '@/components/ui/Sheet'
 import { TextTabs } from '@/components/ui/TextTabs'
@@ -62,12 +63,8 @@ export default function Community() {
         </HeaderButton>
       </>} />
       <div className={`flex items-center gap-1 pl-5 ${tab === 'friends' ? 'pr-2' : 'pr-5'}`}>
-        <label className="flex h-10 flex-1 items-center gap-2 rounded-[10px] bg-mist px-3">
-          <IconSearch size={18} className="text-graphite" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} aria-label="검색어"
-            placeholder={tab === 'feed' ? '글 제목, 내용, 태그' : tab === 'notice' ? '공지 제목, 내용' : tab === 'reviews' ? '지난 공연 검색' : '닉네임이나 소개글 키워드'} className="h-full min-w-0 flex-1 outline-none t-body" />
-          {q && <button aria-label="검색어 지우기" onClick={() => setQ('')} className="-mr-3 flex h-10 w-10 shrink-0 items-center justify-center text-graphite"><IconClose size={16} /></button>}
-        </label>
+        <SearchField className="flex-1" clearable value={q} onValue={setQ} label="검색어"
+          placeholder={tab === 'feed' ? '글 제목, 내용, 태그' : tab === 'notice' ? '공지 제목, 내용' : tab === 'reviews' ? '지난 공연 검색' : '닉네임이나 소개글 키워드'} />
         {/* 범주(장르·아티스트)는 덕친 찾기에만 있다 → 그 탭에서만 보인다 (다른 탭에서 누르면 몰래 탭이 바뀌던 문제) */}
         {tab === 'friends' && (
           <HeaderButton label={filtered ? '검색 범주 설정 (적용 중)' : '검색 범주 설정'} onClick={() => setFilterOpen(true)}>
@@ -127,15 +124,13 @@ export default function Community() {
           <p className="pb-1 pt-1 t-sub font-semibold text-graphite">장르</p>
           <div className="flex flex-wrap gap-2">
             {genres.map((g) => (
-              <button key={g.id} aria-pressed={filter.genreId === g.id} onClick={() => { setFilter({ genreId: g.id }); setFilterOpen(false) }}
-                className={`h-9 rounded-full px-3.5 t-sub ${filter.genreId === g.id ? 'bg-ink font-semibold text-paper' : 'bg-mist'}`}>{g.name}</button>
+              <Chip key={g.id} on={filter.genreId === g.id} onClick={() => { setFilter({ genreId: g.id }); setFilterOpen(false) }}>{g.name}</Chip>
             ))}
           </div>
           <p className="pb-1 pt-4 t-sub font-semibold text-graphite">아티스트</p>
           <div className="flex flex-wrap gap-2">
             {artists.slice(0, 40).map((a) => (
-              <button key={a.id} aria-pressed={filter.artistId === a.id} onClick={() => { setFilter({ artistId: a.id }); setFilterOpen(false) }}
-                className={`h-9 rounded-full px-3.5 t-sub ${filter.artistId === a.id ? 'bg-ink font-semibold text-paper' : 'bg-mist'}`}>{a.name}</button>
+              <Chip key={a.id} on={filter.artistId === a.id} onClick={() => { setFilter({ artistId: a.id }); setFilterOpen(false) }}>{a.name}</Chip>
             ))}
           </div>
         </div>

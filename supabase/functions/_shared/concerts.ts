@@ -1,9 +1,22 @@
 // KOPIS 공연을 DB 에 저장하는 공통 부분 (sync-concerts 정기 수집, import-concert 운영자 가져오기)
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.118.0'
-import { type ArtistKey, expandSchedule, JPOP_PROMOTERS, type KopisDetail, parseDetail, parsePrice, shortRegion, type Verdict } from './kopis.ts'
+import { type ArtistKey, expandSchedule, JPOP_PROMOTERS, type KopisDetail, parseDetail, parseList, parsePrice, shortRegion, type Verdict } from './kopis.ts'
+import { sleep, ymd } from './time.ts'
 
 export const KOPIS_BASE = 'http://www.kopis.or.kr/openApi/restful'
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+// 대중음악(CCCD) 목록 한 쪽(100건). 연속 요청은 KOPIS 가 막는다(빈 응답·HTTP 400): 점점 길게 쉬며 세 번까지 다시
+// 실패해도 마지막 응답에서 읽은 항목을 돌려준다 (ok 로 성공 여부를 알린다)
+export async function fetchListPage(key: string, st: Date, ed: Date, page: number) {
+  let res: Response | undefined, xml = ''
+  for (const wait of [300, 3000, 6000, 10000]) {
+    await sleep(wait)
+    res = await fetch(`${KOPIS_BASE}/pblprfr?service=${key}&stdate=${ymd(st)}&eddate=${ymd(ed)}&cpage=${page}&rows=100&shcate=CCCD`)
+    xml = await res.text()
+    if (res.ok && /<dbs/.test(xml) && !/<returncode>/.test(xml)) return { ok: true, status: res.status, items: parseList(xml) }
+  }
+  return { ok: false, status: res?.status ?? 0, items: parseList(xml) }
+}
 
 // 연달아 부르면 KOPIS 가 빈 응답을 준다: 간격을 두고, 비어 있으면 두 번까지 다시
 export async function fetchDetail(key: string, kopisId: string): Promise<KopisDetail | null> {

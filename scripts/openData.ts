@@ -1,19 +1,13 @@
 // 오픈 API 응답 → 앱 데이터(src/api/types.ts 모양). 네트워크 없는 순수 함수만 둔다 (openData.test.ts 로 확인)
 import type { Artist, Concert } from '../src/api/types.ts'
 import { norm, parsePrice, expandSchedule, shortRegion, type KopisDetail } from '../supabase/functions/_shared/kopis.ts'
+import { mbNames, type MbArtist } from '../supabase/functions/_shared/musicbrainz.ts'
 
-export type MbAlias = { name: string; locale?: string | null; primary?: boolean | null }
-export type MbArtist = { id: string; name: string; aliases?: MbAlias[] }
 export type KeyedArtist = Artist & { names: string[] } // names: KOPIS 공연명 대조용 (한·일·영·별칭)
 
-const pick = (aliases: MbAlias[] = [], locale: string) =>
-  aliases.find((a) => a.locale === locale && a.primary)?.name ?? aliases.find((a) => a.locale === locale)?.name ?? null
-
-// sync-artists 함수와 같은 규칙: 한국어 별칭은 locale 없이 등록된 경우가 많아 한글이 든 별칭도 한국어 이름으로 쓴다
+// 이름 규칙은 sync-artists 함수와 같은 mbNames (_shared/musicbrainz.ts)
 export const fromMusicBrainz = (a: MbArtist): KeyedArtist => {
-  const ko = pick(a.aliases, 'ko') ?? a.aliases?.find((x) => /[가-힣]/.test(x.name))?.name ?? null
-  const ja = pick(a.aliases, 'ja') ?? (/[぀-ヿ一-鿿]/.test(a.name) ? a.name : null)
-  const en = pick(a.aliases, 'en') ?? (/^[\x20-\x7e]+$/.test(a.name) ? a.name : null)
+  const { ko, ja, en } = mbNames(a)
   const names = [...new Set([a.name, ko, ja, en, ...(a.aliases ?? []).map((x) => x.name)].filter(Boolean) as string[])].slice(0, 24)
   return { id: `mb:${a.id}`, name: ko ?? a.name, nameJa: ja, nameEn: en, names }
 }

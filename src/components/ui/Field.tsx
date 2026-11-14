@@ -1,5 +1,5 @@
 import { useId, useState, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from 'react'
-import { IconCheck, IconEye, IconEyeOff } from '@/components/icons'
+import { IconCheck, IconClose, IconEye, IconEyeOff, IconSearch } from '@/components/icons'
 
 // 입력창: 상자 대신 밑줄 한 줄 (과한 박스 자제). 초점이 오면 밑줄만 굵어진다
 // (inset 그림자로 1px 더해 굵게 → 높이가 변하지 않아 글자가 흔들리지 않음)
@@ -47,6 +47,23 @@ export function TextArea({ label, hint, error, className = '', ...rest }: Base &
       <span className="t-sub font-semibold text-graphite">{label}</span>
       <textarea className={`mt-1 block w-full resize-none py-2 ${LINE} ${lineColor(!!error)}`} {...rest} />
       {(error || hint) && <span className={`mt-1 block t-sub ${error ? 'text-danger' : 'text-graphite'}`}>{error ?? hint}</span>}
+    </label>
+  )
+}
+
+// 회색 둥근 검색창 (돋보기 + 입력). clearable 이면 글자가 있을 때 오른쪽에 지우기 버튼 (누르는 영역 40px)
+type SearchProps = { value: string; onValue: (v: string) => void; label: string; clearable?: boolean; className?: string }
+  & Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'className'>
+export function SearchField({ value, onValue, label, clearable, className = '', ...rest }: SearchProps) {
+  return (
+    <label className={`flex h-10 items-center gap-2 rounded-[10px] bg-mist px-3 ${className}`}>
+      <IconSearch size={18} className="text-graphite" />
+      <input value={value} onChange={(e) => onValue(e.target.value)} aria-label={label} className="h-full min-w-0 flex-1 outline-none t-body" {...rest} />
+      {clearable && value && (
+        <button type="button" aria-label="검색어 지우기" onClick={() => onValue('')} className="-mr-3 flex h-10 w-10 shrink-0 items-center justify-center text-graphite">
+          <IconClose size={16} />
+        </button>
+      )}
     </label>
   )
 }

@@ -4,6 +4,7 @@ import { CONSENT_VERSION, REQUIRED_KEYS } from '@/data/consent'
 import { LOGIN_ID } from './types'
 import { ARTISTS, AUTO_REPLIES, DEMO_POSTS, DEMO_USERS, GENRES, buildConcerts } from './demoData'
 import type { Api, Artist, Concert, LoginMethod, NotifyPrefs, Message, Post, Profile, RealtimeEvent, UserCard } from './types'
+import { DAY_MS } from '@/lib/date'
 
 // pnpm fetch:opendata 로 받은 실제 공연·아티스트(KOPIS·MusicBrainz). 파일이 없거나 공연이 0건이면 샘플을 쓴다
 type OpenData = { fetchedAt: string; artists: Artist[]; concerts: Concert[] }
@@ -40,7 +41,6 @@ type DB = {
 }
 
 const KEY = 'duckchinso-demo-v2'
-const DAY = 86_400_000
 const id = () => Math.random().toString(36).slice(2, 10)
 const iso = (ms: number) => new Date(ms).toISOString()
 const wait = (ms = 120) => new Promise((r) => setTimeout(r, ms))
@@ -118,8 +118,8 @@ export function createDemoApi(): Api {
     // 처음 들어온 계정에 받은 친구 요청 2건을 넣어 둔다
     const t = Date.now()
     db.requests.push(
-      { id: id(), from: 'u6', to: aid, status: 'pending', createdAt: t - 3_600_000, expiresAt: t + 3 * DAY },
-      { id: id(), from: 'u7', to: aid, status: 'pending', createdAt: t - DAY, expiresAt: t + 2 * DAY },
+      { id: id(), from: 'u6', to: aid, status: 'pending', createdAt: t - 3_600_000, expiresAt: t + 3 * DAY_MS },
+      { id: id(), from: 'u7', to: aid, status: 'pending', createdAt: t - DAY_MS, expiresAt: t + 2 * DAY_MS },
     )
     setSession(aid)
   }
@@ -301,7 +301,7 @@ export function createDemoApi(): Api {
       if (blockedBetween(a.id, uid)) throw new Error('unavailable')
       if (friendOf(a.id, uid)) throw new Error('already_friends')
       if (pending(a.id, uid)) throw new Error('duplicate')
-      const r: Req = { id: id(), from: a.id, to: uid, status: 'pending', createdAt: Date.now(), expiresAt: Date.now() + 3 * DAY }
+      const r: Req = { id: id(), from: a.id, to: uid, status: 'pending', createdAt: Date.now(), expiresAt: Date.now() + 3 * DAY_MS }
       db.requests.push(r)
       save()
       emit({ type: 'request' })

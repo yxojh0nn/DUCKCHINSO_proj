@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { useDialogFocus } from './ui/a11y'
 import { Link, NavLink } from 'react-router-dom'
 import { useRequests, useRooms } from '@/lib/queries'
 import { Wordmark } from '@/screens/auth/Wordmark'
@@ -55,14 +56,7 @@ export function AppBar() {
   const first = useRef<HTMLAnchorElement>(null)
   const total = badges.unread + badges.requests
 
-  useEffect(() => {
-    if (!open) return
-    const opener = button.current // 서랍을 닫으면 초점을 열었던 버튼으로 되돌린다
-    first.current?.focus({ preventScroll: true })
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
-    window.addEventListener('keydown', onKey)
-    return () => { window.removeEventListener('keydown', onKey); opener?.focus({ preventScroll: true }) }
-  }, [open])
+  useDialogFocus(open, () => setOpen(false), first, button) // 닫으면 초점은 햄버거 버튼으로
 
   return (
     <header className="hidden h-14 shrink-0 items-center gap-1 border-b border-hairline bg-paper px-2 md:flex">

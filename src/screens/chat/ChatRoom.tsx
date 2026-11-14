@@ -1,4 +1,4 @@
-import { trapTab } from '@/components/ui/a11y'
+import { trapTab, useDialogFocus } from '@/components/ui/a11y'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -108,11 +108,7 @@ function Viewer({ url, onClose }: { url: string; onClose: () => void }) {
   const box = useRef<HTMLDivElement>(null)
   const img = useRef<HTMLImageElement>(null)
   const pts = useRef(new Map<number, { x: number; y: number }>())
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  useDialogFocus(true, onClose)
 
   // 가운데 기준 좌표와 사진의 (확대 전) 크기
   const geo = (cx: number, cy: number) => {

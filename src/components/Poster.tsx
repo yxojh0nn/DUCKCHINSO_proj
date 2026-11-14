@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { colorOf } from '@/lib/calendar'
 import { posterThumb, posterUrl } from '@/lib/poster'
 import { IconClose } from './icons'
-import { trapTab } from './ui/a11y'
+import { trapTab, useDialogFocus } from './ui/a11y'
 
 // 공연 포스터(썸네일). 이미지가 없으면 공연 색 + 제목으로 대신 그린다
 // eager: 화면 맨 위에 바로 보이는 포스터(공연 상세)는 먼저 받는다
@@ -27,13 +27,7 @@ export function Poster({ id, url, title, className = '', eager }: { id: string; 
 // KOPIS 포스터 원본은 대부분 430×602(일부 750×1000)라 고해상도 화면에서는 흐리다. 원본보다 크게 늘리지는 않는다
 export function PosterViewer({ url, title, onClose }: { url: string; title: string; onClose: () => void }) {
   const close = useRef<HTMLButtonElement>(null)
-  useEffect(() => {
-    const prev = document.activeElement as HTMLElement | null
-    close.current?.focus({ preventScroll: true })
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    window.addEventListener('keydown', onKey)
-    return () => { window.removeEventListener('keydown', onKey); prev?.focus({ preventScroll: true }) }
-  }, [onClose])
+  useDialogFocus(true, onClose, close)
   // 화면 전환 애니메이션(transform) 안에서는 fixed 가 화면 기준이 아니게 되므로 body 에 바로 그린다
   return createPortal(
     <div role="dialog" aria-modal="true" aria-label={`${title} 포스터`} onClick={onClose} onKeyDown={trapTab}

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { IconCheck, IconSearch } from './icons'
+import { IconCheck } from './icons'
+import { SearchField } from './ui/Field'
 import { LoadMore } from './LoadMore'
 
 const PAGE = 50
@@ -20,10 +21,7 @@ export function PickList<T extends string | number>({ items, value, onChange, ma
     <div>
       <p className="px-5 t-sub text-graphite num" aria-live="polite">{label} {value.length}/{max}</p>
       {searchable && (
-        <label className="mx-5 mt-3 flex h-10 items-center gap-2 rounded-[10px] bg-mist px-3">
-          <IconSearch size={18} className="text-graphite" />
-          <input value={q} onChange={(e) => { setQ(e.target.value); setLimit(PAGE) }} placeholder="이름으로 찾기" aria-label={`${label} 검색`} className="h-full flex-1 outline-none t-body" />
-        </label>
+        <SearchField className="mx-5 mt-3" value={q} onValue={(v) => { setQ(v); setLimit(PAGE) }} placeholder="이름으로 찾기" label={`${label} 검색`} />
       )}
       {items.length === 0 && <p className="px-5 py-8 t-sub text-graphite">목록을 준비하고 있어요. 나중에 MY &gt; 내 정보에서 고를 수 있어요.</p>}
       <ul className="mt-2">

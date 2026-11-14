@@ -4,7 +4,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, errorText, type AdminConcert, type Artist } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { Poster } from '@/components/Poster'
-import { IconClose, IconSearch } from '@/components/icons'
+import { IconClose } from '@/components/icons'
+import { SearchField } from '@/components/ui/Field'
 import { Button } from '@/components/ui/Button'
 import { Confirm } from '@/components/ui/Confirm'
 import { Empty } from '@/components/ui/Empty'
@@ -94,11 +95,7 @@ function ReviewForm({ c }: { c: AdminConcert }) {
           ))}
           {!picked.length && <li className="t-sub text-graphite">아직 없어요</li>}
         </ul>
-        <label className="mt-3 flex h-10 items-center gap-2 rounded-[10px] bg-mist px-3">
-          <IconSearch size={18} className="text-graphite" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="아티스트 이름 (한·일·영)" aria-label="연결할 아티스트 검색"
-            className="h-full min-w-0 flex-1 outline-none t-body" />
-        </label>
+        <SearchField className="mt-3" value={q} onValue={setQ} placeholder="아티스트 이름 (한·일·영)" label="연결할 아티스트 검색" />
         {matches.length > 0 && (
           <ul className="mt-1">
             {matches.map((a) => (

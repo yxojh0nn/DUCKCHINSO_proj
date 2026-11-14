@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { api, errorText, type InquiryInput } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
-import { Button } from '@/components/ui/Button'
+import { Button, Chip } from '@/components/ui/Button'
 import { Empty } from '@/components/ui/Empty'
 import { TextArea } from '@/components/ui/Field'
 import { keys, useMe } from '@/lib/queries'
@@ -61,8 +61,7 @@ export default function Inquiry() {
               {q.options.map((o) => {
                 const on = answers[q.key] === o.value
                 return (
-                  <button key={o.value} aria-pressed={on} onClick={() => setAnswers({ ...answers, [q.key]: o.value })}
-                    className={`h-9 rounded-full px-3.5 t-sub ${on ? 'bg-ink font-semibold text-paper' : 'bg-mist'}`}>{o.label}</button>
+                  <Chip key={o.value} on={on} onClick={() => setAnswers({ ...answers, [q.key]: o.value })}>{o.label}</Chip>
                 )
               })}
             </div>

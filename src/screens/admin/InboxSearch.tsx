@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, errorText } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
-import { IconSearch } from '@/components/icons'
+import { SearchField } from '@/components/ui/Field'
 import { Button } from '@/components/ui/Button'
 import { Empty } from '@/components/ui/Empty'
 import { toast } from '@/store/ui'
@@ -34,11 +34,7 @@ export default function InboxSearch() {
     <>
       <AppHeader back title="공연 찾기" />
       <form className="px-5 pt-1" onSubmit={(e) => { e.preventDefault(); setQ(input.trim()) }}>
-        <label className="flex h-10 items-center gap-2 rounded-[10px] bg-mist px-3">
-          <IconSearch size={18} className="text-graphite" />
-          <input value={input} onChange={(e) => setInput(e.target.value)} enterKeyHint="search" placeholder="공연명 (예: Regallily, 유우리)"
-            aria-label="수집한 공연 검색" className="h-full min-w-0 flex-1 outline-none t-body" />
-        </label>
+        <SearchField value={input} onValue={setInput} enterKeyHint="search" placeholder="공연명 (예: Regallily, 유우리)" label="수집한 공연 검색" />
       </form>
       {!q ? <Empty title="공연명으로 검색하세요" body="최근 수집한 대중음악 공연 전체에서 찾아요." />
         : list.data?.length ? (
