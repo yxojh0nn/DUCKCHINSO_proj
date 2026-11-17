@@ -3,7 +3,7 @@
 import { CONSENT_VERSION, REQUIRED_KEYS } from '@/data/consent'
 import { LOGIN_ID } from './types'
 import { ARTISTS, AUTO_REPLIES, DEMO_POSTS, DEMO_USERS, GENRES, buildConcerts } from './demoData'
-import type { Api, Artist, Concert, LoginMethod, NotifyPrefs, Message, Post, Profile, RealtimeEvent, UserCard } from './types'
+import type { Api, Artist, Concert, LoginMethod, NotifyPrefs, Message, MyInquiry, Post, Profile, RealtimeEvent, UserCard } from './types'
 import { DAY_MS } from '@/lib/date'
 
 // pnpm fetch:opendata 로 받은 실제 공연·아티스트(KOPIS·MusicBrainz). 파일이 없거나 공연이 0건이면 샘플을 쓴다
@@ -494,16 +494,16 @@ export function createDemoApi(): Api {
 
     async submitInquiry(input) {
       const a = me()
-      db.inquiries.push({ userId: a.id, ...input, at: Date.now() })
-      let room = db.rooms.find((r) => r.kind === 'support' && r.members.includes(a.id))
-      if (!room) {
-        room = { id: id(), kind: 'support', members: [a.id], lastRead: { [a.id]: Date.now() }, createdAt: Date.now() }
-        db.rooms.push(room)
-        pushMsg(room.id, null, 'system', '문의 답변이 이 대화방으로 도착해요.')
-      }
-      const rid = room.id
-      setTimeout(() => pushMsg(rid, null, 'text', '문의 주셔서 감사합니다. 데모 모드라 자동 답변이 왔어요. 실제 서비스에서는 관리자가 확인 후 답변하고 메일로도 알려 드려요.'), 2000)
+      // 데모: 바로 자동 답변을 붙인다 (실제 서비스에서는 운영자가 답변)
+      const now = new Date().toISOString()
+      db.inquiries.push({ id: id(), userId: a.id, category: input.category, body: input.body, status: 'answered', createdAt: now, answeredAt: now,
+        answer: '문의 주셔서 감사합니다. 데모 모드라 자동 답변이 왔어요. 실제 서비스에서는 관리자가 확인 후 답변하고 메일로도 알려 드려요.' })
       save()
+    },
+    async myInquiries() {
+      const a = me()
+      return (db.inquiries as (MyInquiry & { userId: string })[]).filter((i) => i.userId === a.id && i.id)
+        .sort((x, y) => y.createdAt.localeCompare(x.createdAt))
     },
 
     // 데모에는 운영자가 없다 (메뉴도 보이지 않음)

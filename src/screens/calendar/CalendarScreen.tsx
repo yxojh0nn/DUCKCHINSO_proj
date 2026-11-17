@@ -73,7 +73,6 @@ export default function CalendarScreen() {
         <MonthCalendar year={ym.y} month={ym.m} concerts={list} favoriteIds={favs} selected={day} today={today}
           mode={calMode} artistName={artistName} onSelect={(d) => setDay(d === day ? null : d)} />
         {/* 색은 분류가 아니라 공연 구분용이라 범례 대신 읽는 법 한 줄 */}
-        {!day && <p className="px-5 pt-2 t-cap text-graphite">색은 공연마다 달라요. 이어진 선은 여러 날 하는 공연, 날짜를 누르면 그날 공연만 보여요.</p>}
       </section>
 
       <section aria-label="공연 목록" className="mt-5 flex-1 border-t border-hairline pb-6">

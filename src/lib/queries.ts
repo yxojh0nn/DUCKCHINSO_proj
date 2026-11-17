@@ -23,6 +23,7 @@ export const keys = {
   post: (id: string) => ['post', id] as const,
   comments: (id: string) => ['comments', id] as const,
   notices: ['notices'] as const,
+  inquiries: ['inquiries'] as const,
   notice: (id: string) => ['notice', id] as const,
 }
 
