@@ -25,7 +25,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql', '20261111000030_inquiry_delete_and_hardening.sql', '20261111000031_nickname_validate.sql', '20261111000032_revoke_sessions.sql', '20261112000033_notices.sql', '20261112000034_notice_period.sql', '20261112000035_notice_schedule.sql', '20261112000036_admin_badge.sql', '20261112000037_chat_media_gifs.sql', '20261113000038_klipy_gifs.sql', '20261113000039_fk_indexes.sql', '20261113000040_ticket_link_clicks.sql', '20261115000041_cancel_friend_request.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql', '20261111000030_inquiry_delete_and_hardening.sql', '20261111000031_nickname_validate.sql', '20261111000032_revoke_sessions.sql', '20261112000033_notices.sql', '20261112000034_notice_period.sql', '20261112000035_notice_schedule.sql', '20261112000036_admin_badge.sql', '20261112000037_chat_media_gifs.sql', '20261113000038_klipy_gifs.sql', '20261113000039_fk_indexes.sql', '20261113000040_ticket_link_clicks.sql', '20261115000041_cancel_friend_request.sql', '20261117000042_my_inquiries.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -546,4 +546,13 @@ await assert.rejects(as('d', `select * from public.admin_ticket_clicks(30)`), /f
 await assert.rejects(as('d', `select * from public.ticket_link_clicks`), /permission denied/)
 await db.exec('set role anon')
 try { await assert.rejects(db.query(`select public.log_ticket_click($1, 'https://ticket.yes24.com/x')`, [con]), /permission denied/) } finally { await db.exec('reset role') }
+
+// ── 마이그 42: 내 문의 내역 — 본인 문의만, 답변까지 보인다 ──
+const myInq = await db.query(`insert into public.inquiries (user_id, category, body) values ($1, 'bug', '문의 하나') returning id`, [ids.d])
+await db.query(`insert into public.inquiries (user_id, category, body, status, answer, answered_at) values ($1, 'etc', '문의 둘', 'answered', '답변이에요', now())`, [ids.d])
+const dInq = (await as('d', `select * from public.my_inquiries()`)).rows
+assert.deepEqual(dInq.map((r) => [r.body, r.status, r.answer]).sort(), [['문의 둘', 'answered', '답변이에요'], ['문의 하나', 'open', null]])
+assert.ok(!(await as('c', `select * from public.my_inquiries()`)).rows.some((r) => r.id === myInq.rows[0].id)) // 남의 문의는 안 보인다
+await db.exec('set role anon')
+try { await assert.rejects(db.query(`select * from public.my_inquiries()`), /permission denied/) } finally { await db.exec('reset role') }
 console.log('ALL OK')

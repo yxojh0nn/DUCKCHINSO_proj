@@ -446,8 +446,11 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
 
     async submitInquiry(input) {
       const me = await uid()
-      ok(await sb.rpc('ensure_support_room'))
       ok(await sb.from('inquiries').insert({ user_id: me, category: input.category, answers: input.answers, body: input.body }))
+    },
+    async myInquiries() {
+      const rows = ok(await sb.rpc('my_inquiries')) as Row[]
+      return rows.map((r) => ({ id: r.id, category: r.category, body: r.body, status: r.status, answer: r.answer, answeredAt: r.answered_at, createdAt: r.created_at }))
     },
 
     // ─── 운영자 (RLS 가 is_admin() 으로 막으므로 여기서는 권한을 따로 확인하지 않는다) ───

@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useQueryClient } from '@tanstack/react-query'
-import { api, type InquiryInput } from '@/api'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { api, type InquiryInput, type MyInquiry } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { Button, Chip } from '@/components/ui/Button'
+import { Checkbox } from '@/components/ui/Checkbox'
 import { Empty } from '@/components/ui/Empty'
 import { TextArea } from '@/components/ui/Field'
+import { TextTabs } from '@/components/ui/TextTabs'
+import { fmtDateTime } from '@/lib/date'
 import { keys, useMe } from '@/lib/queries'
 import { toast } from '@/store/ui'
 import { useRun } from '@/lib/actions'
@@ -27,11 +29,71 @@ export const INQUIRY_QUESTIONS: Q[] = [
   ] },
 ]
 
-// 문의: 설문으로 불편 요소를 받아 저장 → 운영자가 채팅(덕친소 운영팀)으로 답변, 답변 시 가입 메일로 알림
+const categoryText = (c: string) => INQUIRY_QUESTIONS[0].options.find((o) => o.value === c)?.label ?? c
+
+// 문의: 문의 작성 | 문의 내역. 운영자 답변은 문의 내역에서 보고, 답변 시 가입 메일로도 알린다(answer-inquiry 함수)
 export default function Inquiry() {
-  const nav = useNavigate()
-  const qc = useQueryClient()
   const me = useMe().data
+  const [tab, setTab] = useState<'write' | 'list'>('write')
+
+  // 문의는 회원만 (서버 inquiries 정책도 막는다)
+  if (me?.isGuest) return (<><AppHeader back title="문의" /><Empty title="문의는 회원만 보낼 수 있어요" body="회원으로 로그인한 뒤 다시 찾아 주세요." /></>)
+
+  return (
+    <div className="flex min-h-full flex-col">
+      <AppHeader back title="문의" />
+      <div className="border-b border-hairline">
+        <TextTabs label="문의" value={tab} onChange={setTab} tabs={[{ value: 'write', label: '문의 작성' }, { value: 'list', label: '문의 내역' }]} />
+      </div>
+      {tab === 'write' ? <WriteForm email={me?.email ?? null} onSent={() => setTab('list')} /> : <InquiryList />}
+    </div>
+  )
+}
+
+function InquiryList() {
+  const list = useQuery({ queryKey: keys.inquiries, queryFn: () => api.myInquiries() })
+  const [answeredOnly, setAnsweredOnly] = useState(false)
+  const [open, setOpen] = useState<string | null>(null)
+  const rows = (list.data ?? []).filter((i) => !answeredOnly || i.status === 'answered')
+  return (
+    <>
+      <div className="px-5 pt-1">
+        <Checkbox checked={answeredOnly} onChange={setAnsweredOnly}>답변 완료만 보기</Checkbox>
+      </div>
+      {rows.length ? (
+        <ul className="pb-8">
+          {rows.map((i) => <InquiryRow key={i.id} i={i} open={open === i.id} onToggle={() => setOpen(open === i.id ? null : i.id)} />)}
+        </ul>
+      ) : <Empty title={list.isLoading ? '불러오는 중…' : list.isError ? '불러오지 못했어요' : answeredOnly ? '답변 완료된 문의가 없어요' : '보낸 문의가 없어요'} />}
+      {!!list.data?.length && <p className="px-5 pb-8 t-cap text-graphite">답변을 받은 문의는 1년이 지나면 정리돼요.</p>}
+    </>
+  )
+}
+
+function InquiryRow({ i, open, onToggle }: { i: MyInquiry; open: boolean; onToggle: () => void }) {
+  const done = i.status === 'answered'
+  return (
+    <li className="border-b border-hairline">
+      <button onClick={onToggle} aria-expanded={open} className="block w-full px-5 py-3.5 text-left active:bg-mist">
+        <span className="flex items-center justify-between gap-3">
+          <span className="t-body font-semibold">{categoryText(i.category)}</span>
+          <span className={`shrink-0 t-cap font-semibold ${done ? 'text-ink' : 'text-graphite'}`}>{done ? '답변 완료' : '답변 대기'}</span>
+        </span>
+        <span className={`mt-1 block t-sub text-graphite ${open ? 'whitespace-pre-wrap break-words' : 'truncate'}`}>{i.body}</span>
+        <span className="mt-1 block t-cap text-graphite num">{fmtDateTime(i.createdAt)}</span>
+      </button>
+      {open && done && (
+        <div className="mx-5 mb-4 rounded-[12px] bg-mist px-4 py-3">
+          <p className="t-cap text-graphite">덕친소 운영팀 답변{i.answeredAt ? ` · ${fmtDateTime(i.answeredAt)}` : ''}</p>
+          <p className="mt-1 whitespace-pre-wrap break-words t-body">{i.answer}</p>
+        </div>
+      )}
+    </li>
+  )
+}
+
+function WriteForm({ email, onSent }: { email: string | null; onSent: () => void }) {
+  const qc = useQueryClient()
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [body, setBody] = useState('')
   const { busy, run } = useRun()
@@ -41,18 +103,14 @@ export default function Inquiry() {
     if (!ok || busy) return
     return run(async () => {
       await api.submitInquiry({ category: answers.category as InquiryInput['category'], answers, body: body.trim() })
-      await qc.invalidateQueries({ queryKey: keys.rooms })
-      toast('문의를 보냈어요. 답변은 채팅 탭으로 와요.')
-      nav('/chats')
+      await qc.invalidateQueries({ queryKey: keys.inquiries })
+      toast('문의를 보냈어요. 답변은 문의 내역에서 볼 수 있어요.')
+      onSent()
     })
   }
 
-  // 문의(운영팀 대화방)는 회원만 (서버 ensure_support_room·inquiries 정책도 막는다)
-  if (me?.isGuest) return (<><AppHeader back title="문의" /><Empty title="문의는 회원만 보낼 수 있어요" body="회원으로 로그인한 뒤 다시 찾아 주세요." /></>)
-
   return (
-    <div className="flex min-h-full flex-col">
-      <AppHeader back title="문의" />
+    <>
       <div className="flex-1 px-5 pb-6">
         {INQUIRY_QUESTIONS.map((q) => (
           <fieldset key={q.key} className="mt-5 first:mt-2">
@@ -70,13 +128,13 @@ export default function Inquiry() {
         <TextArea className="mt-7" label="자세한 내용" rows={5} maxLength={2000} value={body} onChange={(e) => setBody(e.target.value)}
           placeholder="언제, 무엇을 하다가 어떤 일이 있었는지 적어 주세요." hint={`${body.length}/2000`} />
         <p className="mt-5 t-sub text-graphite">
-          답변은 채팅 탭의 ‘덕친소 운영팀’ 대화방으로 보내 드려요.
-          {me?.email ? ` 답변이 오면 ${me.email}로도 알려 드려요.` : ' 비회원은 메일 알림 없이 채팅으로만 답변을 받아요.'}
+          답변은 ‘문의 내역’에서 볼 수 있어요.
+          {email ? ` 답변이 오면 ${email}로도 알려 드려요.` : ''}
         </p>
       </div>
       <div className="px-5 pb-[max(24px,env(safe-area-inset-bottom))]">
         <Button block disabled={!ok || busy} onClick={submit}>{busy ? '보내는 중…' : '문의 보내기'}</Button>
       </div>
-    </div>
+    </>
   )
 }

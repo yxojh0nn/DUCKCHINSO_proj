@@ -191,6 +191,16 @@ export type NotifyPrefs = { friend: boolean; like: boolean; comment: boolean; co
 export type ReportReason = 'abuse' | 'sexual' | 'scam' | 'spam' | 'harmful_image' | 'etc'
 export type ReportTarget = { userId?: string; postId?: string; commentId?: string; messageId?: string }
 
+export type MyInquiry = {
+  id: string
+  category: InquiryInput['category']
+  body: string
+  status: 'open' | 'answered'
+  answer: string | null
+  answeredAt: string | null
+  createdAt: string
+}
+
 export type InquiryInput = {
   category: 'bug' | 'concert_info' | 'account' | 'report' | 'suggestion' | 'etc'
   answers: Record<string, string>
@@ -304,6 +314,7 @@ export interface Api {
 
   // 문의
   submitInquiry(input: InquiryInput): Promise<void>
+  myInquiries(): Promise<MyInquiry[]> // 최신순. 답변 완료는 1년 뒤 정리된다
 
   // 운영자 (is_admin() 계정만. 그 밖의 계정은 DB 가 막는다)
   adminReviewConcerts(): Promise<AdminConcert[]>
