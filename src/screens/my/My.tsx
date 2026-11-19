@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { api } from '@/api'
+import { BusinessFooter } from '@/components/BusinessFooter'
 import { MenuGroup, MenuRow } from '@/components/MenuRow'
 import { IconAdmin, IconFriends, IconGear, IconInfo, IconInquiry, IconLogout, IconMembership, IconWithdraw } from '@/components/icons'
 import { Button } from '@/components/ui/Button'
@@ -40,6 +41,7 @@ export default function My() {
         <MenuRow icon={<IconLogout />} label="로그아웃" onClick={() => setLogout(true)} />
         {!me.isGuest && <MenuRow icon={<IconWithdraw />} label="회원탈퇴" to="/my/withdraw" danger />}
       </MenuGroup>
+      <BusinessFooter className="mx-5 mt-8 border-t border-hairline pt-5" />
 
       <Confirm open={logout} title="정말 로그아웃 하시겠습니까?"
         message={me.isGuest ? '비회원은 로그아웃하면 지금까지의 기록이 모두 지워져요. 함께 쓰는 기기라면 다 쓴 뒤 꼭 로그아웃해 주세요.' : undefined}
