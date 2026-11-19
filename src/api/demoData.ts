@@ -24,12 +24,12 @@ export const ARTISTS: Artist[] = [
 
 export type DemoUser = {
   id: string; nickname: string; bio: string; artistIds: string[]; genreIds: number[]
-  favoriteIdx: number[]; willAccept: boolean
+  favoriteIdx: number[]; willAccept: boolean; region?: string
 }
 
 export const DEMO_USERS: DemoUser[] = [
-  { id: 'u1', nickname: '밤의소설', bio: '요아소비랑 즛토마요 라이브 같이 가요', artistIds: ['a1', 'a6', 'a10'], genreIds: [7, 4], favoriteIdx: [0, 7], willAccept: true },
-  { id: 'u2', nickname: '마리골드', bio: '아이묭 노래로 하루를 시작해요', artistIds: ['a2', 'a3', 'a9'], genreIds: [2, 10], favoriteIdx: [1], willAccept: true },
+  { id: 'u1', nickname: '밤의소설', bio: '요아소비랑 즛토마요 라이브 같이 가요', artistIds: ['a1', 'a6', 'a10'], genreIds: [7, 4], favoriteIdx: [0, 7], willAccept: true, region: '서울' },
+  { id: 'u2', nickname: '마리골드', bio: '아이묭 노래로 하루를 시작해요', artistIds: ['a2', 'a3', 'a9'], genreIds: [2, 10], favoriteIdx: [1], willAccept: true, region: '부산' },
   { id: 'u3', nickname: '하쿠기', bio: '킹누 공연은 무조건 스탠딩', artistIds: ['a4', 'a5'], genreIds: [1], favoriteIdx: [2], willAccept: false },
   { id: 'u4', nickname: '라이락', bio: '미세스 그린 애플 입덕 3년차', artistIds: ['a8', 'a12', 'a1'], genreIds: [5, 10], favoriteIdx: [6], willAccept: true },
   { id: 'u5', nickname: '전전전세', bio: '래드윔프스 내한 기다리는 중', artistIds: ['a7', 'a3'], genreIds: [1, 2], favoriteIdx: [5], willAccept: false },

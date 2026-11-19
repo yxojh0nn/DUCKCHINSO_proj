@@ -1,43 +1,38 @@
 import { Navigate, useParams } from 'react-router-dom'
 import { AppHeader } from '@/components/AppHeader'
-import { ConsentBody } from '@/components/ConsentList'
 import { BusinessFooter } from '@/components/BusinessFooter'
-import { COMMUNITY_RULES, CONSENT_ITEMS, CONSENT_VERSION } from '@/data/consent'
+import { COMMUNITY_RULES } from '@/data/consent'
 import { BENEFITS, BUSINESS, MEMBERSHIP_PRODUCT, REFUND_POLICY } from '@/data/business'
+import { COOKIES, LEGAL_EFFECTIVE, LEGAL_NOTICED, PRIVACY, TERMS, type LegalDoc } from '@/data/legal'
 import { won } from '@/lib/payment'
 
 // 로그인 없이 열리는 공개 문서. 스토어 등록에 필요한 주소:
 // /legal/privacy (개인정보처리방침, 두 스토어 필수) · /legal/terms (이용약관) · /legal/delete-account (Google Play 계정 삭제 안내 URL)
-// /legal/refund (환불 정책) · /legal/membership (상품 안내): PG 심사(상품·가격·환불 공개)용
-// 문안은 consent.ts 와 같은 원본을 쓴다 (동의 화면과 내용이 갈라지지 않게). 법률 검토 전 초안
-const DOCS = {
-  privacy: { title: '개인정보처리방침', items: ['privacy', 'push', 'marketing', 'nightMarketing'] },
-  terms: { title: '이용약관', items: ['age14', 'terms', 'policy'] },
-} as const
+// /legal/refund (환불 정책) · /legal/cookies (쿠키 정책) · /legal/membership (상품 안내): PG 심사(상품·가격·환불 공개)용
+// 본문은 src/data/legal.ts. 법률 검토 전 초안
+const DOCS: Record<string, LegalDoc> = { privacy: PRIVACY, terms: TERMS, cookies: COOKIES }
 
 export default function LegalPage() {
   const { doc = '' } = useParams()
   if (doc === 'delete-account') return <DeleteAccount />
   if (doc === 'refund') return <Refund />
   if (doc === 'membership') return <Product />
-  const d = DOCS[doc as keyof typeof DOCS]
+  const d = DOCS[doc]
   if (!d) return <Navigate to="/" replace />
   return (
-    <div className="mx-auto max-w-[720px] pb-12">
-      <AppHeader title={d.title} />
-      <p className="px-5 t-cap text-graphite num">시행일 {CONSENT_VERSION} · 덕친소</p>
-      {d.items.map((key) => {
-        const item = CONSENT_ITEMS.find((c) => c.key === key)!
-        return (
-          <section key={key} className="mt-6 px-5">
-            <h2 className="t-head">{item.label.replace(' (선택)', '')}</h2>
-            <div className="-ml-9 mt-2"><ConsentBody item={item} /></div>
-          </section>
-        )
-      })}
+    <Page title={d.title}>
+      {d.intro && <p className="mt-4 px-5 t-sub text-graphite">{d.intro}</p>}
+      {d.sections.map((s) => (
+        <section key={s.h} className="mt-6 px-5">
+          <h2 className="t-head">{s.h}</h2>
+          {s.p?.map((t) => <p key={t} className="mt-2 t-sub text-graphite">{t}</p>)}
+          {s.list && <ul className="mt-2 list-disc space-y-1.5 pl-5 t-sub text-graphite">{s.list.map((t) => <li key={t}>{t}</li>)}</ul>}
+          {s.table && <Table rows={s.table} />}
+        </section>
+      ))}
       {doc === 'terms' && (
         <section className="mt-6 px-5">
-          <h2 className="t-head">커뮤니티 이용 규약</h2>
+          <h2 className="t-head">별첨: 커뮤니티 이용 규약</h2>
           <ol className="mt-2 space-y-3">
             {COMMUNITY_RULES.map((r, i) => (
               <li key={r.title} className="t-sub"><span className="font-semibold">{i + 1}. {r.title}</span><br /><span className="text-graphite">{r.body}</span></li>
@@ -45,28 +40,29 @@ export default function LegalPage() {
           </ol>
         </section>
       )}
-      {doc === 'terms' && (
-        <section className="mt-6 px-5">
-          <h2 className="t-head">유료 서비스 (멤버십)</h2>
-          <p className="mt-2 t-sub text-graphite">{MEMBERSHIP_PRODUCT.name}은 매월 같은 날 자동 결제되는 정기결제 상품입니다. 요금은 월 {won(MEMBERSHIP_PRODUCT.priceKrw)}이며, 처음 구독하는 회원은 첫 달 {won(MEMBERSHIP_PRODUCT.firstPriceKrw)}입니다. 결제 전에 금액·결제일·해지 방법·환불 조건을 알리고 동의를 받습니다.</p>
-          <h3 className="mt-4 t-body font-semibold">취소·환불·청약철회</h3>
-          <RefundList />
-        </section>
-      )}
-      {doc === 'privacy' && (
-        <section className="mt-6 px-5 t-sub text-graphite">
-          <h2 className="t-head text-ink">파기와 문의</h2>
-          <p className="mt-2">회원탈퇴하면 계정과 연결된 정보(프로필, 관심 아티스트, 글, 댓글, 채팅, 사진)를 지체 없이 지웁니다. 신고·제재 기록은 법령에 따라 사용자와의 연결을 끊고 1년간 보관합니다.</p>
-          <h2 className="mt-6 t-head text-ink">외부 서비스</h2>
-          <p className="mt-2">채팅의 GIF 검색·전송은 KLIPY(GIF 제공 서비스)를 이용합니다. GIF 를 찾거나 보낼 때 이용자 기기가 KLIPY 에 직접 접속하므로 IP 주소·기기 정보와, 회원 ID 를 알아볼 수 없게 바꾼 식별값·검색어·신고 사유가 KLIPY 에 전달됩니다. 이 정보는 GIF 제공, 최근 보낸 GIF 목록, 부적절한 GIF 신고 처리에 쓰입니다.</p>
-          <h2 className="mt-6 t-head text-ink">결제 정보</h2>
-          <p className="mt-2">멤버십 결제는 결제대행사(포트원과 이용자가 고른 카드사·간편결제사)가 처리합니다. 덕친소는 카드번호를 받거나 저장하지 않고, 결제대행사가 발급한 정기결제용 식별값, 결제 수단 이름(예: 카드사명), 결제·환불 기록만 보관합니다. 결제 기록은 전자상거래법에 따라 5년간 보관합니다.</p>
-          <h2 className="mt-6 t-head text-ink">개인정보 보호책임자</h2>
-          <p className="mt-2">{BUSINESS.owner} ({BUSINESS.email}, {BUSINESS.phone})</p>
-          <p className="mt-2">개인정보 관련 문의는 앱의 MY &gt; 문의 또는 위 연락처로 보내 주세요.</p>
-        </section>
-      )}
+    </Page>
+  )
+}
+
+function Page({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="mx-auto max-w-[720px] pb-12">
+      <AppHeader title={title} />
+      <p className="px-5 t-cap text-graphite num">시행일 {LEGAL_EFFECTIVE} · 공고일 {LEGAL_NOTICED} · {BUSINESS.name}</p>
+      {children}
       <BusinessFooter className="mt-10 border-t border-hairline px-5 pt-5" />
+    </div>
+  )
+}
+
+// 넓은 표는 가로로 밀어 본다 (화면 전체가 가로로 밀리지 않게)
+function Table({ rows: [head, ...body] }: { rows: string[][] }) {
+  return (
+    <div className="mt-3 overflow-x-auto">
+      <table className="w-full min-w-[480px] border-collapse t-cap">
+        <thead><tr>{head.map((h) => <th key={h} scope="col" className="border-b border-hairline bg-mist px-2 py-2 text-left font-semibold">{h}</th>)}</tr></thead>
+        <tbody>{body.map((r) => <tr key={r[0]}>{r.map((c, i) => <td key={i} className="border-b border-hairline px-2 py-2 align-top text-graphite">{c}</td>)}</tr>)}</tbody>
+      </table>
     </div>
   )
 }
@@ -108,7 +104,7 @@ function Refund() {
   return (
     <div className="mx-auto max-w-[720px] pb-12">
       <AppHeader title="환불 정책" />
-      <p className="px-5 t-cap text-graphite num">시행일 {CONSENT_VERSION} · 덕친소</p>
+      <p className="px-5 t-cap text-graphite num">시행일 {LEGAL_EFFECTIVE} · 공고일 {LEGAL_NOTICED} · {BUSINESS.name}</p>
       <section className="mt-4 px-5">
         <p className="t-sub text-graphite">{MEMBERSHIP_PRODUCT.name}의 취소·환불·청약철회 기준입니다. 전자상거래 등에서의 소비자보호에 관한 법률을 따릅니다.</p>
         <RefundList />

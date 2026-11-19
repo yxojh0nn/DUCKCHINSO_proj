@@ -30,6 +30,7 @@ export type Profile = UserCard & {
   profileSetupDone: boolean
   communityAgreedAt: string | null
   notifyEnabled: boolean
+  region: string | null // 활동 지역(시·도, 선택). 덕친 추천에서 가까운 사람을 앞에 둔다
 }
 
 export type Me = Profile & {
@@ -138,7 +139,7 @@ export type PublicProfile = Profile & {
   roomId: string | null
 }
 
-export type Recommended = UserCard & { score: number; commonArtists: number }
+export type Recommended = UserCard & { score: number; commonArtists: number; region: string | null }
 
 export type FriendRequest = { id: string; user: UserCard; direction: 'in' | 'out'; createdAt: string; expiresAt: string }
 
@@ -262,7 +263,7 @@ export type RealtimeEvent = { type: 'message'; roomId: string } | { type: 'reque
 // startsAt: 공개 시각(예약 공지는 그 전까지 운영자에게만 보인다), endsAt: 상단 팝업을 띄우는 마지막 시각 (null = 제한 없음)
 export type Notice = { id: string; title: string; body: string; startsAt: string; endsAt: string | null }
 
-export type ProfilePatch = Partial<Pick<Profile, 'nickname' | 'bio' | 'avatarUrl' | 'bannerUrl' | 'profileSetupDone' | 'notifyEnabled'>> & {
+export type ProfilePatch = Partial<Pick<Profile, 'nickname' | 'bio' | 'avatarUrl' | 'bannerUrl' | 'profileSetupDone' | 'notifyEnabled' | 'region'>> & {
   notify?: Partial<NotifyPrefs>
   communityAgreed?: boolean
 }

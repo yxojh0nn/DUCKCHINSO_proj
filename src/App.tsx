@@ -7,6 +7,7 @@ import { AppBar, TAB_PATHS } from '@/components/BottomNav'
 import { SplitView, splitOf, useWide, type SplitGroup } from '@/components/Split'
 import { Toast } from '@/components/ui/Toast'
 import { NoticePopup } from '@/components/NoticePopup'
+import { PermissionNotice } from '@/components/PermissionNotice'
 import { supabase } from '@/lib/supabase'
 import { useLiveSync, useSession } from '@/lib/queries'
 import { applyTheme, useUI } from '@/store/ui'
@@ -40,6 +41,7 @@ import { RecapDetail, RecapShelfScreen } from '@/screens/membership/Recap'
 import Settings from '@/screens/my/Settings'
 import ConsentHistory from '@/screens/my/ConsentHistory'
 import OpenApiInfo from '@/screens/my/OpenApiInfo'
+import Permissions from '@/screens/my/Permissions'
 import Friends from '@/screens/my/Friends'
 import MyInfo from '@/screens/my/MyInfo'
 import ProfileEdit from '@/screens/my/ProfileEdit'
@@ -166,6 +168,7 @@ export default function App() {
               <Route path="/my/settings" element={<Settings />} />
               <Route path="/my/settings/consents" element={<ConsentHistory />} />
               <Route path="/my/settings/api" element={<OpenApiInfo />} />
+              <Route path="/my/settings/permissions" element={<Permissions />} />
               <Route path="/my/friends" element={<Friends />} />
               <Route path="/my/info" element={<MyInfo />} />
               <Route path="/my/info/profile" element={<ProfileEdit />} />
@@ -201,6 +204,7 @@ export default function App() {
           </div>
         </div>
         {showBar && <NoticePopup />}
+        <PermissionNotice />
         <Toast />
       </div>
     </div>

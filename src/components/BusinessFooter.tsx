@@ -10,6 +10,7 @@ export function BusinessFooter({ className = '' }: { className?: string }) {
         <Link to="/legal/terms" className="underline underline-offset-2">이용약관</Link>
         <Link to="/legal/privacy" className="font-semibold underline underline-offset-2">개인정보처리방침</Link>
         <Link to="/legal/refund" className="underline underline-offset-2">환불 정책</Link>
+        <Link to="/legal/cookies" className="underline underline-offset-2">쿠키 정책</Link>
         <Link to="/legal/membership" className="underline underline-offset-2">멤버십 안내</Link>
       </nav>
       <p className="mt-2 leading-relaxed">

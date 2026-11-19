@@ -171,7 +171,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       sb.from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', id).then(() => {})
       return {
         ...card(prof), bannerUrl: prof.banner_url, isGuest: prof.is_guest, profileSetupDone: prof.profile_setup_done,
-        communityAgreedAt: prof.community_agreed_at, notifyEnabled: prof.notify_enabled,
+        communityAgreedAt: prof.community_agreed_at, notifyEnabled: prof.notify_enabled, region: prof.region ?? null,
         artistIds: (ok(a) as Row[]).map((r) => r.artist_id),
         genreIds: (ok(g) as Row[]).map((r) => r.genre_id),
         favoriteIds: (ok(f) as Row[]).map((r) => r.concert_id),
@@ -194,6 +194,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       if (patch.bannerUrl !== undefined) row.banner_url = patch.bannerUrl
       if (patch.profileSetupDone !== undefined) row.profile_setup_done = patch.profileSetupDone
       if (patch.notifyEnabled !== undefined) row.notify_enabled = patch.notifyEnabled
+      if (patch.region !== undefined) row.region = patch.region
       for (const [k, v] of Object.entries(patch.notify ?? {})) row[`notify_${k}`] = v
       // 동의 시각은 서버가 동의 기록과 함께 찍는다 (직접 수정 권한 없음)
       if (patch.communityAgreed) ok(await sb.rpc('agree_community', { ver: CONSENT_VERSION }))
@@ -305,7 +306,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       const friend = ok(fr) as Row | null
       return {
         ...card(prof), bannerUrl: prof.banner_url, isGuest: prof.is_guest, profileSetupDone: prof.profile_setup_done,
-        communityAgreedAt: null, notifyEnabled: false,
+        communityAgreedAt: null, notifyEnabled: false, region: prof.region ?? null,
         artistIds: prof.artist_ids ?? [], genreIds: prof.genre_ids ?? [], favoriteIds: prof.favorite_ids ?? [],
         upcomingCount: prof.upcoming_count ?? 0,
         relation: userId === me ? 'self' : friend ? 'friend' : req ? (req.from_user === me ? 'sent' : 'received') : 'none',
@@ -314,7 +315,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     },
     async recommend() {
       const rows = ok(await sb.rpc('recommend_friends', { lim: 30 })) as Row[]
-      return rows.map((r) => ({ ...card(r), score: r.score, commonArtists: r.common_artists }))
+      return rows.map((r) => ({ ...card(r), score: r.score, commonArtists: r.common_artists, region: r.region ?? null }))
     },
     async searchUsers(q, filter) {
       const rows = ok(await sb.rpc('search_users', { q, genre: filter.genreId ?? null, artist: filter.artistId ?? null })) as Row[]
