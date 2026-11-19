@@ -4,7 +4,7 @@ import { AppHeader } from '@/components/AppHeader'
 import { MenuGroup, MenuRow } from '@/components/MenuRow'
 import { Segmented } from '@/components/ui/Segmented'
 import { Toggle } from '@/components/ui/Toggle'
-import { keys, useMe } from '@/lib/queries'
+import { keys, useMe, useRecapPublic } from '@/lib/queries'
 import { toast, useUI, type Theme } from '@/store/ui'
 
 // 알림 종류 (docs/푸시_알림_설계.md 2장과 같은 묶음)
@@ -20,6 +20,7 @@ export default function Settings() {
   const qc = useQueryClient()
   const me = useMe().data
   const { theme, setTheme } = useUI()
+  const recapPublic = useRecapPublic(!!me && !me.isGuest)
   if (!me) return null
 
   const setConsent = async (values: Record<string, boolean>, done: string) => {
@@ -65,6 +66,24 @@ export default function Settings() {
             setConsent({ nightMarketing: v }, v ? '야간 수신에 동의했어요' : '야간 수신을 철회했어요')
           }} />} />
       </MenuGroup>
+
+      {!me.isGuest && (
+        <MenuGroup title="공개 범위">
+          <li className="flex items-start gap-3 px-5 py-3">
+            <div className="min-w-0 flex-1">
+              <p className="t-body">내 리캡 공개</p>
+              <p className="mt-0.5 t-cap text-graphite">켜면 내 프로필에서 다른 사람도 리캡 카드를 볼 수 있어요. 덕질 사진은 늘 나만 봐요.</p>
+            </div>
+            <Toggle label="내 리캡 공개" checked={recapPublic.data ?? true} onChange={async (v) => {
+              try {
+                await api.setRecapPublic(v)
+                await qc.invalidateQueries({ queryKey: keys.recapPublic })
+                toast(v ? '리캡을 공개했어요' : '리캡을 나만 보게 했어요')
+              } catch (e) { toast(errorText(e)) }
+            }} />
+          </li>
+        </MenuGroup>
+      )}
 
       <MenuGroup title="테마">
         <li className="px-5 py-2">

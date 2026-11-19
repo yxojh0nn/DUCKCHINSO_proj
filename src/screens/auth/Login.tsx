@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { api } from '@/api'
+import { BusinessFooter } from '@/components/BusinessFooter'
 import { Button } from '@/components/ui/Button'
 import { Wordmark } from './Wordmark'
 
@@ -25,6 +26,7 @@ export default function Login() {
           비회원은 캘린더와 커뮤니티 읽기만 할 수 있어요. 글·댓글·덕친(같은 아티스트를 좋아하는 덕질 친구) 찾기·채팅은 회원 전용이에요. 로그아웃하거나 14일 동안 들어오지 않으면 기록이 사라져요.
         </p>
         {api.mode === 'demo' && <p className="text-center t-cap text-graphite">데모 모드: 데이터가 이 브라우저에만 저장돼요.</p>}
+        <BusinessFooter className="mt-4 border-t border-hairline pt-4" />
       </div>
     </div>
   )

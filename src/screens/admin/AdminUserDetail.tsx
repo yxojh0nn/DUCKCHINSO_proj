@@ -7,6 +7,7 @@ import { fmtDateTime, fmtRelative } from '@/lib/date'
 import { adminKeys } from './AdminGate'
 import { LOGIN_LABEL } from './AdminUsers'
 import { SanctionPanel } from './SanctionPanel'
+import { MembershipPanel } from './MembershipPanel'
 
 const STATUS = { active: '정상', suspended: '이용 제한 중', banned: '영구 제한' } as const
 const LEVEL = { warning: '경고', suspend: '이용 제한', ban: '영구 제한' } as const
@@ -57,6 +58,7 @@ export default function AdminUserDetail() {
 
       {/* 운영자·영구 제한된 사람은 제재할 수 없다 (DB 도 막는다) */}
       {!u.isAdmin && u.status !== 'banned' && <SanctionPanel target={u} title="바로 제재" />}
+      {!u.isGuest && <MembershipPanel userId={u.id} />}
     </div>
   )
 }

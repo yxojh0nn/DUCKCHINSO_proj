@@ -2,13 +2,15 @@ import { useState } from 'react'
 import type { Profile } from '@/api'
 import { IconChevronDown } from '@/components/icons'
 import { Avatar } from '@/components/ui/Avatar'
+import { MemberBadge } from '@/components/MemberBadge'
 
 // 프로필 머리: 배너 사진 위에 프로필 사진, 닉네임, 소개글, 관심 아티스트(넘치면 … + 펼치기)
-export function ProfileHead({ profile, artistNames, genreNames, action }: {
+export function ProfileHead({ profile, artistNames, genreNames, action, badge }: {
   profile: Pick<Profile, 'nickname' | 'bio' | 'avatarUrl' | 'bannerUrl' | 'isGuest'>
   artistNames: string[]
   genreNames?: string[]
   action?: React.ReactNode
+  badge?: number | null // 구독 개월 수 (월 구독자만)
 }) {
   const [open, setOpen] = useState(false)
   const line = artistNames.join(' · ')
@@ -21,7 +23,11 @@ export function ProfileHead({ profile, artistNames, genreNames, action }: {
         {action}
       </div>
       <div className="px-5 pt-3">
-        <h1 className="t-title">{profile.nickname}{profile.isGuest && <span className="ml-2 t-sub font-medium text-graphite">비회원</span>}</h1>
+        <h1 className="flex flex-wrap items-center gap-x-2 gap-y-1 t-title">
+          <span>{profile.nickname}</span>
+          {profile.isGuest && <span className="t-sub font-medium text-graphite">비회원</span>}
+          {badge != null && <MemberBadge months={badge} />}
+        </h1>
         <p className="mt-1 whitespace-pre-wrap t-body text-graphite">{profile.bio || '소개글이 아직 없어요.'}</p>
         {artistNames.length > 0 && (
           <div className="mt-3 flex items-start gap-1">

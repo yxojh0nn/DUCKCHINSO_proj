@@ -11,13 +11,15 @@ import { Confirm } from '@/components/ui/Confirm'
 import { Empty } from '@/components/ui/Empty'
 import { Sheet } from '@/components/ui/Sheet'
 import { ProfileHead } from '@/screens/my/ProfileHead'
+import { RecapShelfSection } from '@/screens/membership/Recap'
 import { useFriendActions } from '@/lib/actions'
 import { kstDayKey } from '@/lib/date'
-import { keys, useArtists, useConcerts, useGenres, useMe, namesOf } from '@/lib/queries'
+import { keys, useArtists, useConcerts, useGenres, useMe, useMemberBadge, namesOf } from '@/lib/queries'
 
 // 상대 프로필: 사진·배너·소개, 관심 공연, 다녀온 공연, 관심 아티스트·장르
 export default function ProfileView() {
   const { id = '' } = useParams()
+  const badge = useMemberBadge(id).data
   const nav = useNavigate()
   const profile = useQuery({ queryKey: keys.profile(id), queryFn: () => api.getProfile(id) })
   const concerts = useConcerts().data ?? []
@@ -42,7 +44,7 @@ export default function ProfileView() {
   return (
     <div className="pb-[max(24px,env(safe-area-inset-bottom))]">
       <AppHeader back right={!self && <HeaderButton label="더보기" onClick={() => setMenu(true)}><IconMore /></HeaderButton>} />
-      <ProfileHead profile={p}
+      <ProfileHead profile={p} badge={badge}
         artistNames={namesOf(artists, p.artistIds)}
         genreNames={namesOf(genres, p.genreIds)} />
 
@@ -62,6 +64,12 @@ export default function ProfileView() {
             {/* 다가오는 관심 공연은 미래 동선이라 친구에게만 목록이 온다 */}
             {!self && p.relation !== 'friend' && p.upcomingCount ? `관심 공연 ${p.upcomingCount}개 · 친구가 되면 볼 수 있어요` : '아직 없어요'}</p>}
       </section>
+      {!p.isGuest && (
+        <section className="mt-6">
+          <h2 className="px-5 pb-1 t-head">리캡</h2>
+          <RecapShelfSection userId={p.id} />
+        </section>
+      )}
       <section className="mt-4">
         <h2 className="px-5 pb-1 t-head">다녀온 공연</h2>
         {past.length ? <ul>{past.map((c) => <ConcertRow key={c.id} concert={c} />)}</ul> : <p className="px-5 py-3 t-sub text-graphite">아직 없어요</p>}

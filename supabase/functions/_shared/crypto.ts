@@ -18,20 +18,21 @@ function secret(name: string) {
   if (!raw || raw.length < 32) throw new Error(`missing_secret:${name}`) // 값은 로그에 남기지 않는다
   return raw
 }
-const aesKey = () => crypto.subtle.importKey('raw', secret('PII_ENC_KEY'), 'AES-GCM', false, ['encrypt', 'decrypt'])
+const aesKey = (name: string) => crypto.subtle.importKey('raw', secret(name), 'AES-GCM', false, ['encrypt', 'decrypt'])
 const hmacKey = (name: string) => crypto.subtle.importKey('raw', secret(name), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify'])
 
 // "v1:iv:암호문". AAD = 사용자 id + 항목 이름 → 다른 사람·다른 칸의 암호문을 옮겨 붙이면 복호화가 실패한다
-export async function encrypt(userId: string, field: string, text: string) {
+// keyName: 결제 빌링키는 개인정보 키와 다른 BILLING_ENC_KEY 로 (한 키가 새도 다른 쪽은 안전하게)
+export async function encrypt(userId: string, field: string, text: string, keyName = 'PII_ENC_KEY') {
   const iv = crypto.getRandomValues(new Uint8Array(12))
-  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: enc.encode(`${userId}:${field}`) }, await aesKey(), enc.encode(text))
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: enc.encode(`${userId}:${field}`) }, await aesKey(keyName), enc.encode(text))
   return `v1:${b64(iv)}:${b64(ct)}`
 }
 
-export async function decrypt(userId: string, field: string, value: string) {
+export async function decrypt(userId: string, field: string, value: string, keyName = 'PII_ENC_KEY') {
   const [v, iv, ct] = value.split(':')
   if (v !== 'v1' || !iv || !ct) throw new Error('bad_ciphertext')
-  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(iv), additionalData: enc.encode(`${userId}:${field}`) }, await aesKey(), unb64(ct))
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(iv), additionalData: enc.encode(`${userId}:${field}`) }, await aesKey(keyName), unb64(ct))
   return new TextDecoder().decode(pt)
 }
 

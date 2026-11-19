@@ -3,7 +3,7 @@ import { useDialogFocus } from './ui/a11y'
 import { Link, NavLink } from 'react-router-dom'
 import { useRequests, useRooms } from '@/lib/queries'
 import { Wordmark } from '@/screens/auth/Wordmark'
-import { IconCalendar, IconChat, IconClose, IconCommunity, IconMenu, IconMy } from './icons'
+import { IconCalendar, IconChat, IconClose, IconCommunity, IconMembership, IconMenu, IconMy } from './icons'
 import { Badge } from './ui/Badge'
 
 // 주요 메뉴: 휴대폰은 아래 탭 바, 768px 이상은 앱 바의 햄버거 서랍. 이름·경로·배지를 둘이 같이 쓴다
@@ -11,6 +11,7 @@ const ITEMS = [
   { to: '/calendar', label: '공연·캘린더', Icon: IconCalendar, badge: 'none' },
   { to: '/community', label: '커뮤니티', Icon: IconCommunity, badge: 'requests' },
   { to: '/chats', label: '채팅', Icon: IconChat, badge: 'unread' },
+  { to: '/membership', label: '멤버십', Icon: IconMembership, badge: 'none' },
   { to: '/my', label: 'MY', Icon: IconMy, badge: 'none' },
 ] as const
 // 탭 화면 주소 (밀어서 탭 넘기기·화면 전환이 같이 쓴다)
@@ -26,7 +27,7 @@ function useBadges() {
   }
 }
 
-// 하단 앱 바 (인앱 상세 기획: 공연·캘린더 / 커뮤니티 / 채팅 / MY). 768px 이상에서는 숨기고 서랍을 쓴다
+// 하단 앱 바 (인앱 상세 기획: 공연·캘린더 / 커뮤니티 / 채팅 / 멤버십 / MY). 768px 이상에서는 숨기고 서랍을 쓴다
 export function BottomNav() {
   const badges = useBadges()
   return (

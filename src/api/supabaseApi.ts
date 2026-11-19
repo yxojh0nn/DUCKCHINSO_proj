@@ -155,8 +155,8 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       const [{ data: s }, p, a, g, f, c, adm, login] = await Promise.all([
         sb.auth.getSession(),
         sb.rpc('my_profile').single(), // profiles 표는 공개 칸만 읽힌다 → 내 칸 전부는 함수로
-        sb.from('user_artists').select('artist_id').eq('user_id', id),
-        sb.from('user_genres').select('genre_id').eq('user_id', id),
+        sb.from('user_artists').select('artist_id').eq('user_id', id).order('created_at'), // 담은 순서 (멤버십 한도를 넘으면 앞에서부터 유효)
+        sb.from('user_genres').select('genre_id').eq('user_id', id).order('created_at').order('genre_id'),
         sb.from('favorites').select('concert_id').eq('user_id', id),
         sb.from('consents').select('item, agreed, version').eq('user_id', id).order('created_at', { ascending: false }),
         sb.rpc('is_admin'),
@@ -202,15 +202,43 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       if (error) throw new Error(error.code === '23505' ? '이미 쓰고 있는 닉네임이에요.'
         : error.message.includes('profiles_nickname_chars') ? '닉네임에는 한글·일본어·영문·숫자와 공백 _ . - 만 쓸 수 있어요.' : error.message)
     },
+    // 바뀐 것만 지우고 넣는다 (이미 담은 것은 담은 시각이 그대로 → 순서 유지)
     async setMyArtists(ids) {
-      const id = await uid()
-      ok(await sb.from('user_artists').delete().eq('user_id', id))
-      if (ids.length) ok(await sb.from('user_artists').insert(ids.map((artist_id) => ({ user_id: id, artist_id }))))
+      ok(await sb.rpc('set_my_artists', { ids }))
     },
     async setMyGenres(ids) {
-      const id = await uid()
-      ok(await sb.from('user_genres').delete().eq('user_id', id))
-      if (ids.length) ok(await sb.from('user_genres').insert(ids.map((genre_id) => ({ user_id: id, genre_id }))))
+      ok(await sb.rpc('set_my_genres', { ids }))
+    },
+    async myMembership() {
+      const r = ok(await sb.rpc('my_membership').single()) as Row
+      return { tier: r.tier, subStartedAt: r.sub_started_at, subUntil: r.sub_until,
+        maxArtists: r.max_artists, maxGenres: r.max_genres, months: r.months, autoRenew: r.auto_renew,
+        platform: r.platform, methodLabel: r.method_label, nextChargeAt: r.next_charge_at, nextAmountKrw: r.next_amount_krw, pastDue: r.past_due }
+    },
+    async membershipOffer() {
+      const r = ok(await sb.rpc('membership_offer').single()) as Row
+      return { priceKrw: r.price_krw, firstPriceKrw: r.first_price_krw, available: r.available }
+    },
+    // 결제는 서버 함수만 한다 (금액·확인 모두 서버). 앱은 1회용 번호와 결제창이 준 빌링키만 넘긴다
+    async pgCheckout() { return fnCall(sb, 'pg-checkout', {}) },
+    async pgStart(issueId, billingKey) {
+      const r = await fnCall<{ ok?: boolean; pending?: boolean }>(sb, 'pg-start', { issueId, billingKey })
+      return { pending: !!r.pending }
+    },
+    // shortcut: 다녀온 공연 기록은 데모 백엔드에만 있다. DB(concert_attendance 테이블·함수)를 붙이면 여기를 채운다
+    async myAttendance() { return [] },
+    async setAttendance() { throw new Error('not_ready') },
+    async removeAttendance() { throw new Error('not_ready') },
+    async myDailyPhotos() { return [] },
+    async setDailyPhoto() { throw new Error('not_ready') },
+    async userRecaps() { return { visible: false, records: [] } },
+    async myRecapPublic() { return true },
+    async setRecapPublic() { throw new Error('not_ready') },
+    async setMyAutoRenew(on) {
+      ok(await sb.rpc('set_my_auto_renew', { turn_on: on }))
+    },
+    async memberBadge(userId) {
+      return (ok(await sb.rpc('member_badge', { target: userId })) as number | null) ?? null
     },
     async saveConsents(values) {
       const id = await uid()
@@ -569,6 +597,18 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     },
     async adminSanction(userId, level, reason, days) {
       ok(await sb.rpc('admin_sanction', { target: userId, level, reason, days: days ?? null }))
+    },
+    async adminMembership(userId) {
+      const rows = ok(await sb.rpc('admin_membership', { target: userId })) as Row[]
+      const r = rows[0]
+      return r ? { subStartedAt: r.sub_started_at, subUntil: r.sub_until, months: r.months, methodLabel: r.method_label,
+        subscriptionId: r.subscription_id, subState: r.sub_state, refundableKrw: r.refundable_krw, paidAt: r.paid_at, within7days: !!r.within_7days } : null
+    },
+    async adminRefund(subscriptionId, reason, amountKrw) {
+      return fnCall(sb, 'pg-refund', { subscriptionId, reason, amountKrw })
+    },
+    async adminSetMembership(userId, action, months) {
+      ok(await sb.rpc('admin_set_membership', { target: userId, kind: action, months: months ?? 1 }))
     },
     async adminInquiries() {
       const rows = ok(await sb.rpc('admin_inquiries')) as Row[]

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/api'
@@ -7,7 +7,7 @@ import { ImageButton } from '@/components/ImageButton'
 import { IconClose, IconPhoto } from '@/components/icons'
 import { TextArea, TextField } from '@/components/ui/Field'
 import { APP_SETTINGS } from '@/lib/settings'
-import { keys, useConcerts, useMe } from '@/lib/queries'
+import { keys, useAttendance, useConcerts, useMe } from '@/lib/queries'
 import { Empty } from '@/components/ui/Empty'
 import { useRun } from '@/lib/actions'
 
@@ -46,6 +46,14 @@ export default function PostWrite() {
   const ok = title.trim() && body.trim()
   const guest = useMe().data?.isGuest
   useEffect(() => { if (!editId) writeDraft(key, { title, body, tags }) }, [editId, key, title, body, tags])
+  // 다녀온 공연 기록에 후기 사진이 있으면 첫 사진으로 한 번만 채워 둔다 (지우면 다시 안 채움)
+  const recordPhoto = useAttendance().data?.find((a) => a.concertId === concertId && a.photoUrl)?.photoUrl
+  const filled = useRef(false)
+  useEffect(() => {
+    if (!recordPhoto || editId || filled.current) return
+    filled.current = true
+    fetch(recordPhoto).then((r) => r.blob()).then((blob) => setImages((cur) => (cur.length ? cur : [{ blob, url: recordPhoto }]))).catch(() => {})
+  }, [recordPhoto, editId])
   const discard = () => { writeDraft(key, null); setTitle(''); setBody(''); setTags(concertId ? '후기' : ''); setRestored(false) }
   if (editing.data && !loaded) { setTitle(editing.data.title); setBody(editing.data.body); setTags(editing.data.tags.join(' ')); setLoaded(true) }
 
@@ -59,7 +67,7 @@ export default function PostWrite() {
       }
       const id = await api.createPost({ title: title.trim(), body: body.trim(), tags: parseTags(tags), images: images.map((i) => i.blob), concertId: concert?.id ?? null })
       writeDraft(key, null)
-      await qc.invalidateQueries({ queryKey: ['posts'] })
+      await Promise.all([qc.invalidateQueries({ queryKey: ['posts'] }), qc.invalidateQueries({ queryKey: keys.attendance })]) // 다녀온 기록에 후기가 이어진다
       nav(`/community/post/${id}`, { replace: true })
     })
   }
