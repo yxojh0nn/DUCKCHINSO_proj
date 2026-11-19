@@ -35,6 +35,8 @@ import ProfileView from '@/screens/community/ProfileView'
 import ChatList from '@/screens/chat/ChatList'
 import ChatRoom from '@/screens/chat/ChatRoom'
 import My from '@/screens/my/My'
+import Membership from '@/screens/membership/Membership'
+import { RecapDetail, RecapShelfScreen } from '@/screens/membership/Recap'
 import Settings from '@/screens/my/Settings'
 import ConsentHistory from '@/screens/my/ConsentHistory'
 import OpenApiInfo from '@/screens/my/OpenApiInfo'
@@ -145,10 +147,13 @@ export default function App() {
                 <Route path="/calendar" element={<CalendarScreen />} />
                 <Route path="/community" element={<Community />} />
                 <Route path="/chats" element={<ChatList />} />
+                <Route path="/membership" element={<Membership />} />
                 <Route path="/my" element={<My />} />
               </Route>
               <Route path="/login-id" element={<LoginIdSetup />} />
               <Route path="/search" element={<Search />} />
+              <Route path="/recap/:userId" element={<RecapShelfScreen />} />
+              <Route path="/recap/:userId/:period" element={<RecapDetail />} />
               <Route path="/concert/:id" element={<ConcertDetail />} />
               <Route path="/community/rules" element={<CommunityRules />} />
               <Route path="/community/setup" element={<ProfileSetup />} />

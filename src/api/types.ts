@@ -191,6 +191,49 @@ export type NotifyPrefs = { friend: boolean; like: boolean; comment: boolean; co
 export type ReportReason = 'abuse' | 'sexual' | 'scam' | 'spam' | 'harmful_image' | 'etc'
 export type ReportTarget = { userId?: string; postId?: string; commentId?: string; messageId?: string }
 
+// 멤버십: 무료 / 월 구독(아티스트·장르 20, 개월 수 뱃지)
+export type MembershipTier = 'free' | 'subscriber'
+export type Membership = {
+  tier: MembershipTier
+  subStartedAt: string | null
+  subUntil: string | null // 지난 날짜면 끝난 구독
+  maxArtists: number
+  maxGenres: number
+  months: number | null // 구독 중일 때 결제일부터 꽉 채운 달 수, 첫 달 0 (뱃지). 구독 중이 아니면 null
+  autoRenew: boolean // false = 해지 예약 (subUntil 까지만 이용)
+  platform: 'pg' | 'apple' | 'google' | null // 결제 수단 (null = 결제 없음·운영자 지급)
+  methodLabel: string | null // '카카오페이', '신한카드 ****1234'
+  nextChargeAt: string | null // 다음 결제일 (결제 실패 중이면 다음 재시도). 해지 예약이면 null
+  nextAmountKrw: number | null
+  pastDue: boolean // 결제 실패: 유예 기간 동안 혜택 유지하며 재시도 중
+}
+// 멤버십 가격 안내 (서버가 정한 값. 결제 금액도 서버가 다시 정한다)
+export type MembershipOffer = { priceKrw: number; firstPriceKrw: number | null; available: boolean }
+// 결제 준비 (1회용 번호 15분)
+export type Checkout = { issueId: string; customerId: string; orderName: string; amountKrw: number; promo: boolean }
+export type AdminMembershipAction = 'subscribe' | 'end_sub' | 'clear'
+// 운영자 화면: 멤버십 + 마지막 PG 결제 구독 (환불할 수 있는 금액은 이번 기간 결제에서 이미 환불한 만큼 뺀 값)
+export type AdminMembership = Pick<Membership, 'subStartedAt' | 'subUntil' | 'months' | 'methodLabel'> & {
+  subscriptionId: number | null
+  subState: 'active' | 'past_due' | 'ended' | 'revoked' | null
+  refundableKrw: number | null
+  paidAt: string | null
+  within7days: boolean
+}
+
+// 다녀온 공연 기록 (덕질 캘린더·리캡의 바탕). 기록은 회원 누구나, 후기 사진 한 장은 멤버십 회원만
+export type Attendance = {
+  concertId: string
+  day: string // 다녀온 날 YYYY-MM-DD (KST)
+  photoUrl: string | null // 후기 사진 (멤버십 전용)
+  postId: string | null // 이 공연으로 쓴 내 후기 글
+  createdAt: string
+}
+// 덕질 캘린더의 하루 한 장 사진 (멤버십 전용, 본인만 봄)
+export type DailyPhoto = { day: string; photoUrl: string }
+// 리캡 재료. 남의 리캡은 그 사람이 공개로 둔 구독자일 때만 visible
+export type RecapSource = { visible: boolean; records: Pick<Attendance, 'concertId' | 'day'>[] }
+
 export type MyInquiry = {
   id: string
   category: InquiryInput['category']
@@ -256,6 +299,21 @@ export interface Api {
   updateMe(patch: ProfilePatch): Promise<void>
   setMyArtists(ids: string[]): Promise<void>
   setMyGenres(ids: number[]): Promise<void>
+  myMembership(): Promise<Membership>
+  setMyAutoRenew(on: boolean): Promise<void> // 구독 해지 예약(false)·해지 취소(true)
+  membershipOffer(): Promise<MembershipOffer>
+  pgCheckout(): Promise<Checkout> // 웹 PG 결제 준비 (already_subscribed·not_ready)
+  pgStart(issueId: string, billingKey: string): Promise<{ pending: boolean }> // 빌링키로 첫 달 결제. 서버가 포트원에 확인한 뒤 반영 (payment_failed)
+  myAttendance(): Promise<Attendance[]> // 내가 다녀온 공연 (최근 순)
+  // 다녀온 공연 기록 넣기·고치기. photo: 후기 사진 한 장 (멤버십 회원만, 아니면 membership_only). photo 를 빼면 있던 사진은 그대로, null 이면 지운다
+  setAttendance(input: { concertId: string; day: string; photo?: Blob | null }): Promise<void>
+  removeAttendance(concertId: string, day: string): Promise<void>
+  myDailyPhotos(): Promise<DailyPhoto[]>
+  setDailyPhoto(day: string, photo: Blob | null): Promise<void> // null 이면 지운다. 멤버십 회원만 (membership_only)
+  userRecaps(userId: string): Promise<RecapSource> // 본인은 늘 보이고, 남은 리캡 공개한 구독자만
+  myRecapPublic(): Promise<boolean>
+  setRecapPublic(on: boolean): Promise<void>
+  memberBadge(userId: string): Promise<number | null> // 구독 개월 수 (구독 중이 아니면 null)
   saveConsents(values: Record<string, boolean>): Promise<void>
   uploadImage(kind: ImageKind, file: Blob): Promise<string>
 
@@ -329,6 +387,9 @@ export interface Api {
   adminReports(): Promise<AdminReport[]> // 처리 대기 전체 + 최근 처리분
   adminResolveReport(id: string, resolution: 'resolved' | 'dismissed', hideContent: boolean): Promise<void>
   adminSanction(userId: string, level: SanctionLevel, reason: string, days?: number): Promise<void>
+  adminMembership(userId: string): Promise<AdminMembership | null>
+  adminSetMembership(userId: string, action: AdminMembershipAction, months?: number): Promise<void> // 시험 지급 (결제 구독이 있으면 has_paid_subscription)
+  adminRefund(subscriptionId: number, reason: string, amountKrw?: number): Promise<{ refundedKrw: number }> // 이번 기간 결제 (일부) 취소 + 구독 바로 끝 (pg-refund)
   adminInquiries(): Promise<AdminInquiry[]> // 답변 대기 전체 + 최근 답변분
   adminAnswerInquiry(id: string, answer: string): Promise<{ mailed: boolean }>
   adminDeleteInquiry(id: string): Promise<void> // 답변 완료 문의만 (대기 중이면 not_answered)
@@ -356,6 +417,19 @@ export const errorText = (e: unknown) => {
     daily_limit: '오늘 보낼 수 있는 친구 요청을 모두 보냈어요.',
     unavailable: '지금은 이 사용자에게 요청할 수 없어요.',
     limit_reached: '선택할 수 있는 개수를 넘었어요.',
+    not_subscribed: '구독 중일 때만 바꿀 수 있어요.',
+    too_many_requests: '잠시 후 다시 시도해 주세요.',
+    already_subscribed: '이미 멤버십을 이용 중이에요.',
+    checkout_expired: '결제 시간이 지났어요. 처음부터 다시 시도해 주세요.',
+    payment_failed: '결제하지 못했어요. 결제 수단을 확인하고 다시 시도해 주세요.',
+    payment_canceled: '결제를 취소했어요.',
+    payment_retry: '결제가 실패한 상태예요. 결제 수단을 바꿔 다시 결제해 주세요.',
+    use_store: '앱스토어·구글 플레이에서 구독을 관리해 주세요.',
+    has_paid_subscription: '결제로 이용 중인 구독은 바꿀 수 없어요.',
+    refund_failed: '환불하지 못했어요. 포트원 콘솔에서 결제 상태를 확인해 주세요.',
+    bad_amount: '환불할 수 있는 금액을 넘었어요.',
+    membership_only: '후기 사진은 멤버십 회원만 기록할 수 있어요.',
+    not_ready: '아직 준비 중인 기능이에요.',
     account_restricted: '이용이 제한된 계정이에요. 문의하기로 연락해 주세요.',
     not_found: '이미 처리됐거나 사라진 항목이에요.',
     not_answered: '답변을 마친 문의만 삭제할 수 있어요.',

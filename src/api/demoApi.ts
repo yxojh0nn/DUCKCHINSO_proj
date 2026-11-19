@@ -3,7 +3,8 @@
 import { CONSENT_VERSION, REQUIRED_KEYS } from '@/data/consent'
 import { LOGIN_ID } from './types'
 import { ARTISTS, AUTO_REPLIES, DEMO_POSTS, DEMO_USERS, GENRES, buildConcerts } from './demoData'
-import type { Api, Artist, Concert, LoginMethod, NotifyPrefs, Message, MyInquiry, Post, Profile, RealtimeEvent, UserCard } from './types'
+import { fullMonths } from '@/lib/months'
+import type { Api, Artist, Attendance, Concert, DailyPhoto, LoginMethod, NotifyPrefs, Membership, Message, MyInquiry, Post, Profile, RealtimeEvent, UserCard } from './types'
 import { DAY_MS } from '@/lib/date'
 
 // pnpm fetch:opendata 로 받은 실제 공연·아티스트(KOPIS·MusicBrainz). 파일이 없거나 공연이 0건이면 샘플을 쓴다
@@ -14,12 +15,33 @@ const allArtists = () => real?.artists ?? ARTISTS
 const allConcerts = () => real?.concerts ?? buildConcerts(Date.now())
 const noAdmin = async (): Promise<never> => { throw new Error('demo_admin') }
 
+// 멤버십 (DB 의 my_membership·pref_limit 과 같은 규칙)
+const membershipOf = (a: Acc): Membership => {
+  const m = a.membership ?? { subStartedAt: null, subUntil: null }
+  const sub = !!m.subUntil && Date.parse(m.subUntil) > Date.now()
+  const since = m.subStartedAt ? new Date(m.subStartedAt) : null
+  const now = new Date()
+  const months = sub && since ? fullMonths(since, now) : null
+  const paid = sub && !!m.methodLabel && (m.autoRenew ?? true)
+  return { tier: sub ? 'subscriber' : 'free', subStartedAt: m.subStartedAt, subUntil: m.subUntil,
+    maxArtists: sub ? 20 : 5, maxGenres: sub ? 20 : 5, months, autoRenew: m.autoRenew ?? true,
+    platform: sub && m.methodLabel ? 'pg' : null, methodLabel: sub ? m.methodLabel ?? null : null,
+    nextChargeAt: paid ? m.subUntil : null, nextAmountKrw: paid ? DEMO_PRICE.price : null, pastDue: false }
+}
+// 데모 가격 (실제 값은 DB membership_products: 월 4,900원, 첫 달 990원)
+const DEMO_PRICE = { price: 4900, first: 990 }
+const DEMO_METHODS: Record<string, string> = { card: '데모카드 ****1234', kakaopay: '카카오페이', naverpay: '네이버페이', tosspay: '토스페이' }
+
 type Acc = Profile & {
   artistIds: string[]; genreIds: number[]; favoriteIds: string[]
   consents: { item: string; agreed: boolean; version: string }[]
   email: string | null; password: string | null
   method: LoginMethod; loginId: string | null
   notify?: Partial<NotifyPrefs>
+  membership?: { subStartedAt: string | null; subUntil: string | null; autoRenew?: boolean; methodLabel?: string | null; everPaid?: boolean }
+  attendance?: Attendance[]
+  dailyPhotos?: DailyPhoto[]
+  recapPublic?: boolean // 없으면 공개
 }
 type Req = { id: string; from: string; to: string; status: 'pending' | 'accepted' | 'declined' | 'cancelled'; createdAt: number; expiresAt: number }
 type RoomRow = { id: string; kind: 'dm' | 'support'; members: string[]; lastRead: Record<string, number>; createdAt: number }
@@ -229,8 +251,121 @@ export function createDemoApi(): Api {
       }
       save()
     },
-    async setMyArtists(ids) { me().artistIds = ids.slice(0, 5); save() },
-    async setMyGenres(ids) { me().genreIds = ids.slice(0, 5); save() },
+    // 한도를 넘는 새 항목만 막는다 (이미 담은 것은 한도를 넘어도 남긴다 — DB 트리거와 같음)
+    async setMyArtists(ids) {
+      const a = me()
+      const kept = a.artistIds.filter((x) => ids.includes(x))
+      const added = ids.filter((x) => !kept.includes(x))
+      if (added.length && kept.length + added.length > membershipOf(a).maxArtists) throw new Error('limit_reached')
+      a.artistIds = [...kept, ...added]; save()
+    },
+    async setMyGenres(ids) {
+      const a = me()
+      const kept = a.genreIds.filter((x) => ids.includes(x))
+      const added = ids.filter((x) => !kept.includes(x))
+      if (added.length && kept.length + added.length > membershipOf(a).maxGenres) throw new Error('limit_reached')
+      a.genreIds = [...kept, ...added]; save()
+    },
+    async myMembership() { await wait(); return membershipOf(me()) },
+    async myAttendance() {
+      await wait()
+      return [...(me().attendance ?? [])].sort((x, y) => y.day.localeCompare(x.day) || y.createdAt.localeCompare(x.createdAt))
+    },
+    async setAttendance({ concertId, day, photo }) {
+      const a = me()
+      if (a.isGuest) throw new Error('not_authenticated')
+      if (photo && membershipOf(a).tier !== 'subscriber') throw new Error('membership_only')
+      const list = a.attendance ?? []
+      const old = list.find((x) => x.concertId === concertId && x.day === day)
+      const photoUrl = photo === undefined ? old?.photoUrl ?? null : photo ? await api.uploadImage('posts', photo) : null
+      // 이미 이 공연으로 쓴 내 후기가 있으면 바로 잇는다
+      const postId = old?.postId ?? db.posts.find((p) => p.authorId === a.id && p.concertId === concertId)?.id ?? null
+      a.attendance = [...list.filter((x) => x !== old), { concertId, day, photoUrl, postId, createdAt: old?.createdAt ?? iso(Date.now()) }]
+      save()
+    },
+    async myDailyPhotos() { await wait(); return [...(me().dailyPhotos ?? [])].sort((x, y) => x.day.localeCompare(y.day)) },
+    async setDailyPhoto(day, photo) {
+      const a = me()
+      if (photo && membershipOf(a).tier !== 'subscriber') throw new Error('membership_only')
+      const rest = (a.dailyPhotos ?? []).filter((x) => x.day !== day)
+      a.dailyPhotos = photo ? [...rest, { day, photoUrl: await api.uploadImage('posts', photo) }] : rest
+      save()
+    },
+    async userRecaps(uid) {
+      const a = db.accounts[uid]
+      if (!a) return { visible: false, records: [] }
+      const visible = uid === db.session || ((a.recapPublic ?? true) && membershipOf(a).tier === 'subscriber')
+      return { visible, records: visible ? (a.attendance ?? []).map(({ concertId, day }) => ({ concertId, day })) : [] }
+    },
+    async myRecapPublic() { return me().recapPublic ?? true },
+    async setRecapPublic(on) { me().recapPublic = on; save() },
+    async removeAttendance(concertId, day) {
+      const a = me()
+      a.attendance = (a.attendance ?? []).filter((x) => !(x.concertId === concertId && x.day === day))
+      save()
+    },
+    async setMyAutoRenew(on) {
+      const a = me()
+      if (!a.membership?.subUntil || Date.parse(a.membership.subUntil) <= Date.now()) throw new Error('not_subscribed')
+      a.membership = { ...a.membership, autoRenew: on }
+      save()
+    },
+    async membershipOffer() {
+      await wait()
+      return { priceKrw: DEMO_PRICE.price, firstPriceKrw: me().membership?.everPaid ? null : DEMO_PRICE.first, available: true }
+    },
+    // 데모 결제: 결제창 없이 바로 결제된 것으로 (실제 서비스는 포트원 결제창 → 서버 확인)
+    async pgCheckout() {
+      const a = me()
+      if (a.isGuest) throw new Error('members_only')
+      if (membershipOf(a).tier === 'subscriber') throw new Error('already_subscribed')
+      const promo = !a.membership?.everPaid
+      return { issueId: crypto.randomUUID(), customerId: 'demo', orderName: '덕친소 멤버십 월간', amountKrw: promo ? DEMO_PRICE.first : DEMO_PRICE.price, promo }
+    },
+    async pgStart(_issueId, billingKey) {
+      const a = me()
+      if (membershipOf(a).tier === 'subscriber') throw new Error('already_subscribed')
+      const m = a.membership
+      const now = Date.now()
+      // 이전 구독이 끝난 뒤 14일 안이면 개월 수를 잇는다 (DB membership_started 와 같은 규칙)
+      const keep = m?.subStartedAt && m.subUntil && now <= Date.parse(m.subUntil) + 14 * 86_400_000
+      const until = new Date(now); until.setMonth(until.getMonth() + 1)
+      a.membership = { subStartedAt: keep ? m!.subStartedAt : iso(now), subUntil: until.toISOString(), autoRenew: true,
+        methodLabel: DEMO_METHODS[billingKey.replace('demo-', '')] ?? '데모 결제', everPaid: true }
+      save()
+      return { pending: false }
+    },
+    async memberBadge(userId) {
+      const a = db.accounts[userId]
+      if (a) return membershipOf(a).months
+      // 데모 사용자는 순서대로 여러 단계 뱃지를 달아 둔다 (글 목록에서 뱃지·말풍선을 바로 볼 수 있게, 일부는 비구독)
+      const i = DEMO_USERS.findIndex((u) => u.id === userId)
+      return [36, 24, null, 12, 6, 3, 1][i % 7] ?? null
+    },
+    // 데모: 운영자 화면이 없으니 멤버십 화면에서 내 계정에만 시험 지급
+    async adminMembership(userId) {
+      const a = db.accounts[userId]
+      if (!a?.membership) return null
+      const m = membershipOf(a)
+      return { subStartedAt: m.subStartedAt, subUntil: m.subUntil, months: m.months, methodLabel: m.methodLabel,
+        subscriptionId: null, subState: null, refundableKrw: null, paidAt: null, within7days: false } // 데모는 실제 결제가 없어 환불할 것도 없다
+    },
+    adminRefund: noAdmin,
+    async adminSetMembership(userId, action, months = 1) {
+      const a = db.accounts[userId]
+      if (!a || userId !== db.session) throw new Error('demo_admin')
+      const m = a.membership ?? { subStartedAt: null, subUntil: null }
+      const now = Date.now()
+      const live = !!m.subUntil && Date.parse(m.subUntil) > now
+      if (action === 'clear') delete a.membership
+      else if (action === 'end_sub') a.membership = { ...m, subUntil: live ? iso(now) : m.subUntil }
+      else {
+        const until = new Date(live ? Date.parse(m.subUntil!) : now)
+        until.setMonth(until.getMonth() + months)
+        a.membership = { ...m, subStartedAt: live ? m.subStartedAt : iso(now), subUntil: until.toISOString(), autoRenew: live ? m.autoRenew : true }
+      }
+      save()
+    },
     async saveConsents(values) {
       const a = me()
       Object.entries(values).forEach(([item, agreed]) => a.consents.push({ item, agreed, version: CONSENT_VERSION }))
@@ -452,12 +587,15 @@ export function createDemoApi(): Api {
       const urls = await Promise.all(images.map((b) => api.uploadImage('posts', b)))
       const p: PostRow = { id: id(), authorId: a.id, title, body, tags, imageUrls: urls, likes: [], createdAt: Date.now(), concertId: concertId ?? null }
       db.posts.push(p)
+      // 다녀온 공연 기록에 아직 후기가 없으면 이 글을 잇는다
+      a.attendance?.forEach((x) => { if (x.concertId === concertId && !x.postId) x.postId = p.id })
       save()
       return p.id
     },
     async deletePost(pid) {
       const a = me()
       db.posts = db.posts.filter((p) => !(p.id === pid && p.authorId === a.id))
+      a.attendance?.forEach((x) => { if (x.postId === pid) x.postId = null })
       save()
     },
     async toggleLike(pid) {

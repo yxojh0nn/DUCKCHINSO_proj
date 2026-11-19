@@ -5,15 +5,18 @@ import { ConcertRow } from '@/components/ConcertRow'
 import { MonthCalendar } from '@/components/MonthCalendar'
 import { IconBack, IconChevron, IconSearch, IconViewMarks, IconViewNames } from '@/components/icons'
 import { Empty } from '@/components/ui/Empty'
+import { Segmented } from '@/components/ui/Segmented'
 import { TextTabs } from '@/components/ui/TextTabs'
 import { kstDayKey } from '@/lib/date'
-import { useArtists, useConcerts, useMe } from '@/lib/queries'
+import { useArtists, useAttendance, useConcerts, useDailyPhotos, useMe, useMembership } from '@/lib/queries'
+import { DailyPhotoBlock, ReviewList, ReviewMonth } from './ReviewCalendar'
 import { useUI } from '@/store/ui'
 
 // 공연·캘린더 탭 (인앱 상세 기획)
 export default function CalendarScreen() {
   const nav = useNavigate()
   const me = useMe().data
+  const { m } = useMembership()
   const concerts = useConcerts()
   const artists = useArtists().data // 불러오기 전 undefined → 불러온 뒤 한 번만 Map 을 만든다
   const { calMode, setCalMode } = useUI()
@@ -21,13 +24,18 @@ export default function CalendarScreen() {
   const [ym, setYm] = useState(() => ({ y: Number(today.slice(0, 4)), m: Number(today.slice(5, 7)) }))
   const [day, setDay] = useState<string | null>(null)
   const [scope, setScope] = useState<'all' | 'mine'>('all')
+  const [view, setView] = useState<'concerts' | 'reviews'>('concerts') // 공연 캘린더 / 덕질 캘린더 (다녀온 공연 + 하루 한 장 사진)
+  const attendance = useAttendance().data
+  const daily = useDailyPhotos().data
+  const photos = useMemo(() => new Map((daily ?? []).map((p) => [p.day, p.photoUrl])), [daily])
 
   const artistName = useMemo(() => {
     const map = new Map((artists ?? []).map((a) => [a.id, a.nameEn && /^[\x20-\x7e]+$/.test(a.nameEn) && a.nameEn.length <= 8 ? a.nameEn : a.name]))
     return (id: string) => map.get(id) ?? ''
   }, [artists])
 
-  const mine = me?.artistIds ?? []
+  // 멤버십이 끝나 한도를 넘게 담겨 있으면 먼저 담은 한도만큼만 '내 아티스트'로 본다
+  const mine = (me?.artistIds ?? []).slice(0, m.maxArtists)
   const favs = me?.favoriteIds ?? []
   const list = (concerts.data ?? []).filter((c) => scope === 'all' || c.artistIds.some((a) => mine.includes(a)) || favs.includes(c.id))
   // 이번 달: 다가오는 공연 / 다른 달(지난 달 포함): 그 달 공연 전체 / 날짜를 누르면: 그날 공연
@@ -41,6 +49,10 @@ export default function CalendarScreen() {
       : list.filter((c) => c.schedules.some((s) => kstDayKey(s).startsWith(ymKey)))
           .sort((a, b) => (a.schedules.find((s) => kstDayKey(s).startsWith(ymKey)) ?? '').localeCompare(b.schedules.find((s) => kstDayKey(s).startsWith(ymKey)) ?? ''))
 
+  // 덕질 캘린더: 다녀온 기록 + 공연 정보 (보관 기간이 지나 정리된 공연은 이름 없이)
+  const records = (attendance ?? []).map((a) => ({ ...a, concert: concerts.data?.find((c) => c.id === a.concertId) }))
+  const recShown = records.filter((r) => (day ? r.day === day : r.day.startsWith(ymKey)))
+
   const move = (d: number) => {
     const t = new Date(Date.UTC(ym.y, ym.m - 1 + d, 1))
     setYm({ y: t.getUTCFullYear(), m: t.getUTCMonth() + 1 })
@@ -51,12 +63,18 @@ export default function CalendarScreen() {
     <>
       <AppHeader large title="공연" right={
         <>
-          <HeaderButton label={calMode === 'marks' ? '아티스트 이름으로 보기' : '점과 선으로 보기'} onClick={() => setCalMode(calMode === 'marks' ? 'names' : 'marks')}>
-            {calMode === 'marks' ? <IconViewNames /> : <IconViewMarks />}
-          </HeaderButton>
+          {view === 'concerts' && (
+            <HeaderButton label={calMode === 'marks' ? '아티스트 이름으로 보기' : '점과 선으로 보기'} onClick={() => setCalMode(calMode === 'marks' ? 'names' : 'marks')}>
+              {calMode === 'marks' ? <IconViewNames /> : <IconViewMarks />}
+            </HeaderButton>
+          )}
           <HeaderButton label="공연 검색" onClick={() => nav('/search')}><IconSearch /></HeaderButton>
         </>
       } />
+      <div className="px-5 pb-3">
+        <Segmented label="캘린더 종류" value={view} onChange={(v) => { setView(v); setDay(null) }}
+          options={[{ value: 'concerts', label: '공연 캘린더' }, { value: 'reviews', label: '덕질 캘린더' }]} />
+      </div>
 
       <section aria-label="월간 캘린더" className="px-2">
         <div className="flex items-center justify-between px-3 pb-2">
@@ -70,11 +88,22 @@ export default function CalendarScreen() {
             <button aria-label="다음 달" onClick={() => move(1)} className="flex h-11 w-11 items-center justify-center active:opacity-50"><IconChevron size={20} /></button>
           </div>
         </div>
-        <MonthCalendar year={ym.y} month={ym.m} concerts={list} favoriteIds={favs} selected={day} today={today}
-          mode={calMode} artistName={artistName} onSelect={(d) => setDay(d === day ? null : d)} />
+        {view === 'concerts'
+          ? <MonthCalendar year={ym.y} month={ym.m} concerts={list} favoriteIds={favs} selected={day} today={today}
+              mode={calMode} artistName={artistName} onSelect={(d) => setDay(d === day ? null : d)} />
+          : <ReviewMonth year={ym.y} month={ym.m} records={records} photos={photos} selected={day} today={today} onSelect={(d) => setDay(d === day ? null : d)} />}
         {/* 색은 분류가 아니라 공연 구분용이라 범례 대신 읽는 법 한 줄 */}
       </section>
 
+      {view === 'reviews' ? (
+        <section aria-label="다녀온 공연" className="mt-5 flex-1 border-t border-hairline pb-6">
+          {me?.isGuest ? <Empty title="덕질 캘린더는 회원만 쓸 수 있어요" body="회원으로 로그인하면 다녀온 공연과 하루 한 장 사진을 기록할 수 있어요." />
+            : <>
+                {day && day <= today && <DailyPhotoBlock day={day} url={photos.get(day) ?? null} />}
+                <ReviewList records={recShown} title={day ? `${Number(day.slice(5, 7))}월 ${Number(day.slice(8))}일 다녀온 공연` : `${ym.m}월에 다녀온 공연 ${recShown.length}개`} />
+              </>}
+        </section>
+      ) : (
       <section aria-label="공연 목록" className="mt-5 flex-1 border-t border-hairline pb-6">
         <div className="flex items-center justify-between pr-3 pt-1">
           <TextTabs label="공연 범위" value={scope} onChange={setScope} tabs={[{ value: 'all', label: '전체' }, { value: 'mine', label: '내 아티스트' }]} />
@@ -89,6 +118,7 @@ export default function CalendarScreen() {
         {/* KOPIS 이용 조건: 출처 표시 */}
         <p className="px-5 pt-4 t-cap text-graphite">공연 정보 일부 출처: (재)예술경영지원센터 공연예술통합전산망(KOPIS)</p>
       </section>
+      )}
     </>
   )
 }

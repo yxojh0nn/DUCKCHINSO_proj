@@ -4,11 +4,28 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
-      "source": "/((?!assets/|_vercel/|\\.well-known/).*)",
+      "source": "/poster/:path*",
+      "destination": "https://kopis.or.kr/upload/:path*"
+    },
+    {
+      "source": "/((?!assets/|_vercel/|poster/|\\.well-known/).*)",
       "destination": "/index.html"
     }
   ],
   "headers": [
+    {
+      "source": "/poster/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=2592000"
+        }
+      ]
+    },
     {
       "source": "/(.*)",
       "headers": [
@@ -26,7 +43,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://www.kopis.or.kr https://kopis.or.kr https://ynzktqolittllfgfifug.supabase.co https://static.klipy.com https://static1.klipy.com https://static2.klipy.com; media-src 'self' blob: https://ynzktqolittllfgfifug.supabase.co https://static.klipy.com https://static1.klipy.com https://static2.klipy.com; font-src 'self' data:; connect-src 'self' https://ynzktqolittllfgfifug.supabase.co wss://ynzktqolittllfgfifug.supabase.co https://challenges.cloudflare.com https://api.klipy.com; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'; upgrade-insecure-requests"
+          "value": "default-src 'self'; script-src 'self' https://challenges.cloudflare.com https://cdn.portone.io; frame-src https://challenges.cloudflare.com https://*.portone.io https://*.iamport.co https://*.kakao.com https://*.kakaopay.com https://*.naver.com https://*.tosspayments.com https://*.toss.im https://*.inicis.com https://*.kcp.co.kr https://*.nicepay.co.kr; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://www.kopis.or.kr https://kopis.or.kr https://ynzktqolittllfgfifug.supabase.co https://static.klipy.com https://static1.klipy.com https://static2.klipy.com; media-src 'self' blob: https://ynzktqolittllfgfifug.supabase.co https://static.klipy.com https://static1.klipy.com https://static2.klipy.com; font-src 'self' data:; connect-src 'self' https://*.portone.io https://ynzktqolittllfgfifug.supabase.co wss://ynzktqolittllfgfifug.supabase.co https://challenges.cloudflare.com https://api.klipy.com; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self' https://*.portone.io https://*.iamport.co https://*.kakao.com https://*.kakaopay.com https://*.naver.com https://*.tosspayments.com https://*.toss.im https://*.inicis.com https://*.kcp.co.kr https://*.nicepay.co.kr; upgrade-insecure-requests"
         },
         {
           "key": "Strict-Transport-Security",

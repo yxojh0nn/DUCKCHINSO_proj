@@ -25,7 +25,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql', '20261111000030_inquiry_delete_and_hardening.sql', '20261111000031_nickname_validate.sql', '20261111000032_revoke_sessions.sql', '20261112000033_notices.sql', '20261112000034_notice_period.sql', '20261112000035_notice_schedule.sql', '20261112000036_admin_badge.sql', '20261112000037_chat_media_gifs.sql', '20261113000038_klipy_gifs.sql', '20261113000039_fk_indexes.sql', '20261113000040_ticket_link_clicks.sql', '20261115000041_cancel_friend_request.sql', '20261117000042_my_inquiries.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql', '20261111000030_inquiry_delete_and_hardening.sql', '20261111000031_nickname_validate.sql', '20261111000032_revoke_sessions.sql', '20261112000033_notices.sql', '20261112000034_notice_period.sql', '20261112000035_notice_schedule.sql', '20261112000036_admin_badge.sql', '20261112000037_chat_media_gifs.sql', '20261113000038_klipy_gifs.sql', '20261113000039_fk_indexes.sql', '20261113000040_ticket_link_clicks.sql', '20261115000041_cancel_friend_request.sql', '20261117000042_my_inquiries.sql', '20261117000043_memberships.sql', '20261118000044_pg_subscriptions.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -555,4 +555,207 @@ assert.deepEqual(dInq.map((r) => [r.body, r.status, r.answer]).sort(), [['문의
 assert.ok(!(await as('c', `select * from public.my_inquiries()`)).rows.some((r) => r.id === myInq.rows[0].id)) // 남의 문의는 안 보인다
 await db.exec('set role anon')
 try { await assert.rejects(db.query(`select * from public.my_inquiries()`), /permission denied/) } finally { await db.exec('reset role') }
+
+// ── 마이그 43: 멤버십 — 한도(무료 5 / 구독 20), 담은 순서 유지, 구독 끝나도 지우지 않음 ──
+const many = (await db.query(`insert into public.artists (name) select 'M' || g from generate_series(1, 22) g order by g returning id`)).rows.map((r) => r.id)
+const myArtists = async () => (await as('d', `select artist_id from public.user_artists where user_id = $1 order by created_at`, [ids.d])).rows.map((r) => r.artist_id)
+const myTier = async () => (await as('d', `select * from public.my_membership()`)).rows[0]
+await as('d', `select public.set_my_artists($1)`, [[]])
+await assert.rejects(as('d', `select public.set_my_artists($1)`, [many.slice(0, 6)]), /limit_reached/)
+await as('d', `select public.set_my_artists($1)`, [many.slice(0, 5)])
+assert.deepEqual(await myArtists(), many.slice(0, 5)) // 고른 순서대로
+await as('d', `select public.set_my_artists($1)`, [[many[5], ...many.slice(1, 5)]]) // 첫 번째를 빼고 새로 하나 → 새 것이 맨 뒤
+assert.deepEqual(await myArtists(), [...many.slice(1, 5), many[5]])
+assert.deepEqual([(await myTier()).tier, (await myTier()).max_artists, (await myTier()).months], ['free', 5, null])
+await assert.rejects(as('d', `select public.admin_set_membership($1, 'subscribe', 1)`, [ids.d]), /forbidden/)
+await assert.rejects(as('b', `select public.admin_set_membership($1, 'subscribe', 1)`, [ids.c]), /not_found/) // 비회원에게는 못 준다
+await assert.rejects(as('b', `select public.admin_set_membership($1, 'supporter')`, [ids.d]), /bad_request/) // 단건 후원은 없앴다
+assert.equal((await as('c', `select public.member_badge($1) as m`, [ids.d])).rows[0].m, null)
+// 월 구독: 아티스트·장르 20, 첫 달(0개월) 뱃지부터 남에게도 보인다
+await as('b', `select public.admin_set_membership($1, 'subscribe', 1)`, [ids.d])
+await as('d', `select public.set_my_artists($1)`, [many.slice(0, 20)])
+await as('d', `select public.set_my_genres($1)`, [[1, 2, 3, 4, 5, 6]])
+assert.deepEqual([(await myTier()).tier, (await myTier()).max_genres, (await myTier()).months], ['subscriber', 20, 0]) // 첫 달은 0개월
+assert.equal((await as('c', `select public.member_badge($1) as m`, [ids.d])).rows[0].m, 0)
+await db.query(`update public.memberships set sub_started_at = now() - interval '3 months' + interval '1 hour' where user_id = $1`, [ids.d])
+assert.equal((await myTier()).months, 2) // 석 달을 한 시간 남기면 아직 2개월
+await db.query(`update public.memberships set sub_started_at = now() - interval '3 months' where user_id = $1`, [ids.d])
+assert.equal((await myTier()).months, 3) // 석 달 채우면 3개월
+await as('b', `select public.admin_set_membership($1, 'subscribe', 1)`, [ids.d]) // 구독 중 연장은 시작일을 유지
+assert.equal((await myTier()).months, 3)
+// 해지 예약: 자동 갱신만 끄고 만료일까지는 그대로 구독 중. 다시 켜면 해지 취소. 구독 중이 아니면 거절
+assert.equal((await myTier()).auto_renew, true)
+await as('d', `select public.set_my_auto_renew(false)`)
+assert.deepEqual([(await myTier()).tier, (await myTier()).auto_renew, (await myTier()).months], ['subscriber', false, 3])
+await as('d', `select public.set_my_auto_renew(true)`)
+assert.equal((await myTier()).auto_renew, true)
+await assert.rejects(as('c', `select public.set_my_auto_renew(false)`), /not_subscribed/)
+await db.exec('set role anon')
+await assert.rejects(db.query(`select public.set_my_auto_renew(false)`), /permission denied/)
+await db.exec('reset role')
+await as('d', `select public.set_my_auto_renew(false)`) // 해지 예약한 채로 끝나고 다시 구독하면 자동 갱신부터
+// 구독이 끝나면: 담아 둔 20개는 그대로, 더 담기는 막히고, 빼기는 된다. 다시 구독하면 0개월부터 새로 센다
+await as('b', `select public.admin_set_membership($1, 'end_sub')`, [ids.d])
+assert.equal((await myArtists()).length, 20)
+assert.deepEqual([(await myTier()).tier, (await myTier()).max_artists], ['free', 5])
+await assert.rejects(as('d', `select public.set_my_artists($1)`, [[...many.slice(0, 20), many[20]]]), /limit_reached/)
+await as('d', `select public.set_my_artists($1)`, [many.slice(1, 20)])
+assert.equal((await myArtists()).length, 19)
+assert.equal((await as('c', `select public.member_badge($1) as m`, [ids.d])).rows[0].m, null)
+await as('b', `select public.admin_set_membership($1, 'subscribe', 1)`, [ids.d])
+assert.deepEqual([(await myTier()).months, (await myTier()).auto_renew], [0, true])
+await assert.rejects(as('d', `select * from public.memberships`), /permission denied/)
+await assert.rejects(as('d', `select * from public.admin_membership($1)`, [ids.d]), /forbidden/)
+assert.equal((await as('b', `select * from public.admin_membership($1)`, [ids.d])).rows[0].months, 0)
+await db.exec('set role anon')
+try { await assert.rejects(db.query(`select * from public.my_membership()`), /permission denied/) } finally { await db.exec('reset role') }
+await as('b', `select public.admin_set_membership($1, 'clear')`, [ids.d])
+assert.equal((await myTier()).tier, 'free')
+
+// ── 마이그 44: 웹 PG 정기결제 — 앱은 결제 표·함수에 손대지 못하고, 금액·기간은 서버가 정한다 ──
+await db.exec('grant usage on schema public to service_role')
+const svc = async (sql, params = []) => {
+  await db.exec('reset role; set role service_role;')
+  try { return await db.query(sql, params) } finally { await db.exec('reset role') }
+}
+const sub = async (id) => (await db.query(`select * from public.subscriptions where id = $1`, [id])).rows[0]
+const PAY_TABLES = ['membership_products', 'billing_customers', 'subscriptions', 'pg_billing', 'pg_charges', 'payment_events', 'checkout_intents']
+for (const t of PAY_TABLES) {
+  await assert.rejects(as('d', `select * from public.${t}`), /permission denied/, t)
+  await assert.rejects(as('d', `insert into public.${t} default values`), /permission denied/, t)
+}
+for (const f of [`pg_checkout($1)`, `pg_begin($1, gen_random_uuid())`, `refresh_membership($1)`, `membership_started($1, now())`]) {
+  await assert.rejects(as('d', `select * from public.${f}`, [ids.d]), /permission denied/, f)
+}
+await assert.rejects(as('d', `select * from public.pg_charge_result('x', true, 1, now(), null)`), /permission denied/)
+await assert.rejects(as('d', `select * from public.pg_due(10)`), /permission denied/)
+await db.exec('set role anon')
+try { await assert.rejects(db.query(`select * from public.membership_offer()`), /permission denied/) } finally { await db.exec('reset role') }
+// 판매 전(active=false)에는 결제 준비가 막힌다. 비회원(게스트)도 막힌다
+await assert.rejects(svc(`select * from public.pg_checkout($1)`, [ids.d]), /not_ready/)
+await db.query(`update public.membership_products set active = true, first_price_krw = 990 where id = 'monthly'`)
+await assert.rejects(svc(`select * from public.pg_checkout($1)`, [ids.c]), /members_only/)
+assert.deepEqual((await as('d', `select * from public.membership_offer()`)).rows[0], { price_krw: 4900, first_price_krw: 990, available: true })
+const checkout = async (k) => (await svc(`select * from public.pg_checkout($1)`, [ids[k]])).rows[0]
+const begin = async (k, issue) => (await svc(`select * from public.pg_begin($1, $2)`, [ids[k], issue])).rows[0]
+const result = async (pid, ok, krw, at = 'now()', reason = null) =>
+  (await svc(`select public.pg_charge_result($1, $2, $3, ${at}, $4) as r`, [pid, ok, krw, reason])).rows[0].r
+// 금액이 다르면 반영하지 않는다 (구독은 시작되지 않음)
+let co = await checkout('d')
+assert.deepEqual([co.amount_krw, co.promo], [990, true]) // 처음이면 첫 달 할인가
+await assert.rejects(svc(`select * from public.pg_begin($1, $2)`, [ids.b, co.issue_id]), /checkout_expired/) // 남의 결제 준비 번호
+let b1 = await begin('d', co.issue_id)
+await assert.rejects(svc(`select * from public.pg_begin($1, $2)`, [ids.d, co.issue_id]), /checkout_expired/) // 1회용
+await assert.rejects(checkout('d'), /already_subscribed/) // 진행 중인 결제가 있으면 또 못 시작
+assert.equal(b1.payment_id, `mbr_${b1.subscription_id}_0_0`)
+assert.equal(await result(b1.payment_id, true, 100), 'amount_mismatch')
+assert.equal((await sub(b1.subscription_id)).state, 'ended')
+assert.equal((await myTier()).tier, 'free')
+// 정상 결제: 첫 달 할인 그대로(아직 한 번도 시작 안 됨), 같은 결과가 두 번 와도 한 번만
+co = await checkout('d')
+assert.equal(co.amount_krw, 990)
+const b2 = await begin('d', co.issue_id)
+await svc(`select public.pg_save_billing($1, 'v1:x:y', '카카오페이', 'production')`, [b2.subscription_id])
+assert.equal(await result(b2.payment_id, true, 990), 'applied')
+assert.equal(await result(b2.payment_id, false, null), 'ignored')
+let t = await myTier()
+assert.deepEqual([t.tier, t.months, t.platform, t.method_label, t.next_amount_krw, t.past_due], ['subscriber', 0, 'pg', '카카오페이', 4900, false])
+const s2 = await sub(b2.subscription_id)
+assert.equal(new Date(t.next_charge_at).getTime(), new Date(s2.period_end).getTime())
+assert.equal((await as('d', `select * from public.membership_offer()`)).rows[0].first_price_krw, null) // 할인은 처음 한 번
+await assert.rejects(checkout('d'), /already_subscribed/)
+await assert.rejects(db.query(`insert into public.subscriptions (user_id, product_id, state) values ($1, 'monthly', 'active')`, [ids.d]), /subscriptions_one_live/) // 한 사람에 살아 있는 구독 하나
+await assert.rejects(as('b', `select public.admin_set_membership($1, 'end_sub')`, [ids.d]), /has_paid_subscription/) // 실제 결제는 운영자도 못 고친다
+// 갱신: 결제일이 되면 청구 행을 한 번만 만든다 (겹쳐 돌아도 같은 번호)
+await db.query(`update public.subscriptions set period_end = now() - interval '1 minute' where id = $1`, [s2.id])
+let due = (await svc(`select * from public.pg_due(10)`)).rows
+assert.deepEqual(due.map((r) => [r.payment_id, r.amount_krw, r.billing_key_enc]), [[`mbr_${s2.id}_1_0`, 4900, 'v1:x:y']])
+assert.equal((await svc(`select * from public.pg_due(10)`)).rows.length, 0)
+// 실패 → 유예(혜택 유지) + 다음 날 재시도
+assert.equal(await result(due[0].payment_id, false, null, 'now()', 'card_declined'), 'retry')
+let s = await sub(s2.id)
+assert.deepEqual([s.state, s.retries], ['past_due', 1])
+assert.equal(new Date(s.retry_at).getTime() - new Date(s.period_end).getTime(), 86400000)
+t = await myTier()
+assert.deepEqual([t.tier, t.past_due], ['subscriber', true])
+await assert.rejects(as('d', `select public.set_my_auto_renew(true)`), /payment_retry/)
+assert.equal((await svc(`select * from public.pg_due(10)`)).rows.length, 0) // 재시도 시각 전
+await db.query(`update public.subscriptions set retry_at = now() - interval '1 minute' where id = $1`, [s2.id])
+due = (await svc(`select * from public.pg_due(10)`)).rows
+assert.equal(due[0].payment_id, `mbr_${s2.id}_1_1`)
+assert.equal(await result(due[0].payment_id, true, 4900), 'applied') // 유예 안에 결제 → 결제일 그대로
+s = await sub(s2.id)
+assert.deepEqual([s.state, s.period_n, s.retries], ['active', 1, 0])
+assert.equal(new Date(s.period_end).getTime(), new Date((await db.query(`select anchor_at + interval '2 months' as x from public.subscriptions where id = $1`, [s2.id])).rows[0].x).getTime())
+// 유예가 지나 혜택이 끊긴 뒤 늦게 결제(14일 안) → 결제한 날이 새 결제일, 연속 구독(시작일)은 유지
+const started = (await myTier()).sub_started_at
+await db.query(`update public.subscriptions set state = 'past_due', period_end = now() - interval '5 days', retry_at = now() - interval '1 minute' where id = $1`, [s2.id])
+await db.query(`select public.refresh_membership($1)`, [ids.d])
+assert.equal((await myTier()).tier, 'free')
+due = (await svc(`select * from public.pg_due(10)`)).rows
+assert.equal(await result(due[0].payment_id, true, 4900), 'applied')
+s = await sub(s2.id)
+assert.ok(Math.abs(new Date(s.anchor_at).getTime() - Date.now()) < 60000)
+t = await myTier()
+assert.deepEqual([t.tier, new Date(t.sub_started_at).getTime()], ['subscriber', new Date(started).getTime()])
+// 해지 예약: 결제일까지 이용, 다음 결제 없음. 결제일이 지나면 정리 cron 이 끝낸다
+await as('d', `select public.set_my_auto_renew(false)`)
+t = await myTier()
+assert.deepEqual([t.auto_renew, t.next_charge_at, new Date(t.sub_until).getTime()], [false, null, new Date(s.period_end).getTime()])
+await db.query(`update public.subscriptions set period_end = now() - interval '1 minute' where id = $1`, [s2.id])
+assert.equal((await svc(`select * from public.pg_due(10)`)).rows.length, 0) // 해지 예약이면 청구 안 함
+await svc(`select * from public.pg_sweep()`)
+assert.equal((await sub(s2.id)).state, 'ended')
+assert.equal((await myTier()).tier, 'free')
+assert.equal((await db.query(`select count(*)::int as n from public.pg_billing where subscription_id = $1`, [s2.id])).rows[0].n, 0) // 끝나면 빌링키 삭제
+// 14일 넘게 쉬고 다시 시작 → 정가, 개월 수는 0부터
+await db.query(`update public.memberships set sub_until = now() - interval '20 days' where user_id = $1`, [ids.d])
+co = await checkout('d')
+assert.deepEqual([co.amount_krw, co.promo], [4900, false])
+const b3 = await begin('d', co.issue_id)
+await svc(`select public.pg_save_billing($1, 'v1:a:b', '신한카드 ****1234', 'production')`, [b3.subscription_id])
+assert.equal(await result(b3.payment_id, true, 4900), 'applied')
+t = await myTier()
+assert.ok(Math.abs(new Date(t.sub_started_at).getTime() - Date.now()) < 60000)
+assert.equal(t.months, 0)
+// 운영자 화면: 결제 구독·환불 가능 금액. 후원 판정 함수는 앱이 직접 못 부른다
+const am = (await as('b', `select * from public.admin_membership($1)`, [ids.d])).rows[0]
+assert.deepEqual([Number(am.subscription_id), am.sub_state, am.refundable_krw, am.method_label, am.within_7days], [Number(b3.subscription_id), 'active', 4900, '신한카드 ****1234', true])
+await assert.rejects(as('d', `select public.is_subscriber($1)`, [ids.d]), /permission denied/)
+// 환불(지금 기간 결제 취소) → 바로 끝
+const q = (await svc(`select * from public.pg_refund_quote($1)`, [b3.subscription_id])).rows[0]
+assert.deepEqual([q.payment_id, q.refundable_krw, q.within_7days], [b3.payment_id, 4900, true])
+assert.equal((await svc(`select public.pg_charge_canceled($1, 4900) as r`, [b3.payment_id])).rows[0].r, 'applied')
+assert.equal((await sub(b3.subscription_id)).state, 'revoked')
+assert.equal((await myTier()).tier, 'free')
+// 결제 실패가 14일을 넘기면 끝
+co = await checkout('d')
+const b4 = await begin('d', co.issue_id)
+await svc(`select public.pg_save_billing($1, 'v1:c:d', '토스페이', 'production')`, [b4.subscription_id])
+await result(b4.payment_id, true, 4900)
+await db.query(`update public.subscriptions set state = 'past_due', period_end = now() - interval '15 days', retry_at = null where id = $1`, [b4.subscription_id])
+await svc(`select * from public.pg_sweep()`)
+assert.equal((await sub(b4.subscription_id)).state, 'ended')
+// 첫 결제 실패면 구독은 시작되지 않는다
+co = await checkout('d')
+const b5 = await begin('d', co.issue_id)
+assert.equal(await result(b5.payment_id, false, null, 'now()', 'user_canceled'), 'first_failed')
+assert.equal((await sub(b5.subscription_id)).state, 'ended')
+// 감사 기록: 고치기·지우기 불가, 같은 알림 두 번이면 두 번째는 false
+assert.equal((await svc(`select public.pg_log('pg_webhook', 'wh_1', null, 'Transaction.Paid', 'applied', 'h') as r`)).rows[0].r, true)
+assert.equal((await svc(`select public.pg_log('pg_webhook', 'wh_1', null, 'Transaction.Paid', 'applied', 'h') as r`)).rows[0].r, false)
+await assert.rejects(db.query(`update public.payment_events set result = 'x'`), /append_only/)
+await assert.rejects(db.query(`delete from public.payment_events`), /append_only/)
+// 탈퇴: 결제 기록은 남고(user_id 만 끊김) 구독은 끝, 빌링키는 삭제
+ids.e = (await db.query(`insert into auth.users (email) values ('e@x.com') returning id`)).rows[0].id
+await db.query(`update public.profiles set is_guest = false where id = $1`, [ids.e])
+co = await checkout('e')
+const b6 = await begin('e', co.issue_id)
+await svc(`select public.pg_save_billing($1, 'v1:e:f', '네이버페이', 'production')`, [b6.subscription_id])
+await result(b6.payment_id, true, 990)
+await db.query(`delete from auth.users where id = $1`, [ids.e])
+s = await sub(b6.subscription_id)
+assert.deepEqual([s.user_id, s.state], [null, 'ended'])
+assert.equal((await db.query(`select count(*)::int as n from public.pg_billing where subscription_id = $1`, [b6.subscription_id])).rows[0].n, 0)
+assert.equal((await db.query(`select status from public.pg_charges where payment_id = $1`, [b6.payment_id])).rows[0].status, 'paid')
 console.log('ALL OK')

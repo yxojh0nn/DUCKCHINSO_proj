@@ -5,6 +5,8 @@ import { useEffect, useRef } from 'react'
 const HOLES = [69.2, 100.4, 131.6, 162.8].map((y) => `M166 ${y} a6 6 0 1 0 12 0 a6 6 0 1 0 -12 0 Z`).join(' ')
 const OUTLINE = 'M48 44 H208 A24 24 0 0 1 232 68 V100 A22 22 0 0 0 232 144 V164 A24 24 0 0 1 208 188 H104 L60 224 V188 H48 A24 24 0 0 1 24 164 V68 A24 24 0 0 1 48 44 Z'
 const BODY = `${OUTLINE} ${HOLES}`
+// 정지 로고 한 덩어리 (본체 + 세 막대 구멍, evenodd). 캔버스에 로고를 그릴 때 (리캡 카드)
+export const LOGO_PATH = `${BODY} M70 92h14v48h-14z M96 78h14v76h-14z M122 98h14v36h-14z`
 // 진입 애니메이션 조각: 절취선 왼쪽 본체 / 절취선(점 포함)부터 오른쪽 꼬투리. 절취선은 꼬투리와 함께 뜯겨 나간다
 const LEFT = 'M48 44 H166 V188 H104 L60 224 V188 H48 A24 24 0 0 1 24 164 V68 A24 24 0 0 1 48 44 Z'
 // 꼬투리 모양을 점마다 옮겨(f) 변형한다. 명령 구성이 f 와 무관하게 같아야 SVG animate 가 모양을 보간한다.

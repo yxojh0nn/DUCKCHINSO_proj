@@ -55,6 +55,15 @@ export const IconMy = (p: P) => (
   </Svg>
 )
 
+// 멤버십: 확정 뱃지를 줄인 모양. 팔각 메달 안에 8분음표
+export const IconMembership = (p: P) => (
+  <Svg {...p}>
+    <path d="M15.1 3.7l4.2 4.2v6.2l-4.2 4.2H8.9l-4.2-4.2V7.9l4.2-4.2z" transform="translate(0 1)" fill={p.filled ? 'currentColor' : 'none'} fillOpacity={0.12} />
+    <ellipse cx="10.8" cy="15" rx="1.7" ry="1.3" transform="rotate(-20 10.8 15)" fill="currentColor" stroke="none" />
+    <path d="M12.4 14.8V9c0 1.3 1.8 1.7 1.8 3.2" />
+  </Svg>
+)
+
 /* 동작 */
 export const IconSearch = (p: P) => (
   <Svg {...p}><circle cx="10.5" cy="10.5" r="5.5" /><path d="M15 15l4.5 4.5" /></Svg>
@@ -77,7 +86,17 @@ export const IconBack = (p: P) => <Svg {...p}><path d="M15 4.5L7.5 12l7.5 7.5" /
 export const IconMenu = (p: P) => <Svg {...p}><path d="M4 7h16M4 12h16M4 17h16" /></Svg>
 export const IconEye = (p: P) => <Svg {...p}><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><circle cx="12" cy="12" r="3" /></Svg>
 export const IconEyeOff = (p: P) => <Svg {...p}><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><circle cx="12" cy="12" r="3" /><path d="M4 4l16 16" /></Svg>
-export const IconClose = (p: P) => <Svg {...p}><path d="M6 6l12 12M18 6L6 18" /></Svg>
+// 색 고르기: 물감 팔레트 (엄지 구멍 + 물감 점 셋)
+export const IconPalette = (p: P) => (
+  <Svg {...p}>
+    <path d="M12 3.5a8.5 8.5 0 1 0 0 17c1.3 0 1.9-.8 1.9-1.7 0-.5-.2-.9-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1 .8-1.7 1.8-1.7h2.1a3.7 3.7 0 0 0 3.7-3.7c0-4-3.8-7.3-8.5-7.3z" />
+    <circle cx="7.6" cy="11.2" r="1" fill="currentColor" stroke="none" />
+    <circle cx="10.4" cy="7.6" r="1" fill="currentColor" stroke="none" />
+    <circle cx="14.8" cy="8" r="1" fill="currentColor" stroke="none" />
+  </Svg>
+)
+export const IconLock =(p: P) => <Svg {...p}><rect x="5" y="10.5" width="14" height="10" rx="2" /><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" /></Svg>
+export const IconClose =(p: P) => <Svg {...p}><path d="M6 6l12 12M18 6L6 18" /></Svg>
 export const IconChevron = (p: P) => <Svg {...p}><path d="M9.5 5.5L16 12l-6.5 6.5" /></Svg>
 export const IconChevronDown = (p: P) => <Svg {...p}><path d="M5.5 9.5L12 16l6.5-6.5" /></Svg>
 export const IconCheck = (p: P) => <Svg {...p}><path d="M5 12.5l4.5 4.5L19 7.5" /></Svg>

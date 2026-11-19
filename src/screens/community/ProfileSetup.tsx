@@ -9,8 +9,8 @@ import { IconPhoto } from '@/components/icons'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { TextArea, TextField } from '@/components/ui/Field'
-import { APP_SETTINGS, nicknameError } from '@/lib/settings'
-import { keys, useArtists, useGenres, useMe } from '@/lib/queries'
+import { nicknameError } from '@/lib/settings'
+import { keys, useArtists, useGenres, useMe, useMembership } from '@/lib/queries'
 import { useRun } from '@/lib/actions'
 
 // 프로필 설정: 닉네임·사진·소개글 → 관심 아티스트 → 관심 장르
@@ -19,6 +19,7 @@ export default function ProfileSetup() {
   const nav = useNavigate()
   const qc = useQueryClient()
   const me = useMe().data
+  const { m } = useMembership()
   const artists = useArtists().data ?? []
   const genres = useGenres().data ?? []
   const [step, setStep] = useState(0)
@@ -56,7 +57,7 @@ export default function ProfileSetup() {
 
   const steps = [
     { title: '프로필을 만들어 주세요', desc: me?.isGuest ? '소개글은 다른 사람에게 보여요. 나중에 MY에서 바꿀 수 있어요.' : '닉네임과 사진, 소개글은 다른 사람에게 보여요. 나중에 MY에서 바꿀 수 있어요.' },
-    { title: '좋아하는 아티스트', desc: '최대 5명까지 고를 수 있어요. 비슷한 취향의 덕친을 추천해 드려요.' },
+    { title: '좋아하는 아티스트', desc: `최대 ${m.maxArtists}명까지 고를 수 있어요.` + ' 비슷한 취향의 덕친을 추천해 드려요.' },
     { title: '좋아하는 장르', desc: 'J-pop 안에서 즐겨 듣는 장르를 골라 주세요.' },
   ]
   // 첫 단계에서 뒤로 가면 공연 캘린더로 (프로필 없이도 공연은 볼 수 있다)
@@ -86,11 +87,11 @@ export default function ProfileSetup() {
           </div>
         )}
         {step === 1 && (
-          <PickList label="선택" searchable max={APP_SETTINGS.maxArtists} value={artistIds} onChange={setArtistIds}
+          <PickList label="선택" searchable max={m.maxArtists} value={artistIds} onChange={setArtistIds}
             items={artists.map((a) => ({ id: a.id, label: a.name, sub: [a.nameJa, a.nameEn].filter(Boolean).join(' · ') }))} />
         )}
         {step === 2 && (
-          <PickList label="선택" max={APP_SETTINGS.maxGenres} value={genreIds} onChange={setGenreIds}
+          <PickList label="선택" max={m.maxGenres} value={genreIds} onChange={setGenreIds}
             items={genres.map((g) => ({ id: g.id, label: g.name }))} />
         )}
       </div>

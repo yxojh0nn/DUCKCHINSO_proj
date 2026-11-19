@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { QueryClient, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api } from '@/api'
+import { api, type Membership } from '@/api'
+import { APP_SETTINGS } from '@/lib/settings'
 
 export const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false } },
@@ -24,6 +25,12 @@ export const keys = {
   comments: (id: string) => ['comments', id] as const,
   notices: ['notices'] as const,
   inquiries: ['inquiries'] as const,
+  membership: ['membership'] as const,
+  attendance: ['attendance'] as const,
+  dailyPhotos: ['dailyPhotos'] as const,
+  recaps: (id: string) => ['recaps', id] as const,
+  recapPublic: ['recapPublic'] as const,
+  badge: (id: string) => ['badge', id] as const,
   notice: (id: string) => ['notice', id] as const,
 }
 
@@ -32,6 +39,36 @@ export const useMe = () => {
   const s = useSession()
   return useQuery({ queryKey: keys.me, queryFn: () => api.getMe(), enabled: !!s.data })
 }
+// 내 멤버십. 비회원·불러오기 전에는 무료 한도로 본다 (실제 한도는 DB 트리거가 건다)
+//   member = 후원(구독) 중. 앱의 후원/미후원 구분은 이것만 본다 (판정은 서버 is_subscriber, 결제 실패 유예 기간 포함)
+const FREE: Membership = { tier: 'free', subStartedAt: null, subUntil: null, maxArtists: APP_SETTINGS.maxArtists, maxGenres: APP_SETTINGS.maxGenres, months: null, autoRenew: true,
+  platform: null, methodLabel: null, nextChargeAt: null, nextAmountKrw: null, pastDue: false }
+export const useMembership = () => {
+  const me = useMe().data
+  const q = useQuery({ queryKey: keys.membership, queryFn: () => api.myMembership(), enabled: !!me && !me.isGuest })
+  const m = q.data ?? FREE
+  return { ...q, m, member: m.tier === 'subscriber' }
+}
+// 내가 다녀온 공연 (회원만, 비회원은 빈 목록)
+export const useAttendance = () => {
+  const me = useMe().data
+  return useQuery({ queryKey: keys.attendance, queryFn: () => api.myAttendance(), enabled: !!me && !me.isGuest })
+}
+export const useDailyPhotos = () => {
+  const me = useMe().data
+  return useQuery({ queryKey: keys.dailyPhotos, queryFn: () => api.myDailyPhotos(), enabled: !!me && !me.isGuest })
+}
+// 리캡 재료: 본인은 내 기록 그대로(늘 보임), 남은 서버가 공개 여부를 판단
+export const useRecapSource = (userId: string | undefined) => {
+  const me = useMe().data
+  const self = !!me && me.id === userId
+  const mine = useAttendance()
+  const other = useQuery({ queryKey: keys.recaps(userId ?? ''), queryFn: () => api.userRecaps(userId!), enabled: !!userId && !self })
+  return self ? { data: mine.data ? { visible: true, records: mine.data } : undefined, isLoading: mine.isLoading } : other
+}
+export const useRecapPublic = (enabled = true) => useQuery({ queryKey: keys.recapPublic, queryFn: () => api.myRecapPublic(), enabled })
+export const useMemberBadge = (userId: string | undefined) =>
+  useQuery({ queryKey: keys.badge(userId ?? ''), queryFn: () => api.memberBadge(userId!), enabled: !!userId, staleTime: 600_000 })
 export const useGenres = () => useQuery({ queryKey: keys.genres, queryFn: () => api.listGenres(), staleTime: Infinity })
 // id 목록 → 이름 목록 (목록에 없는 id·빈 이름은 뺀다). 아티스트·장르 공용
 export const namesOf = <K,>(list: { id: K; name: string }[] | undefined, ids: K[]) =>

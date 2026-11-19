@@ -79,6 +79,7 @@
 @keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @keyframes drawer-in { from { transform: translateX(-100%); } to { transform: translateX(0); } }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes recap-bubble-in { from { opacity: 0; transform: translateY(10px) scale(0.96); } to { opacity: 1; transform: none; } }
 @keyframes pop-in { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
 
 /* 로고 진입: 티켓 말풍선이 톡 → 이퀄라이저 막대가 솟음 → 절취선이 뜯기며 꼬투리가 날아가고 → 뜯긴 자리에서 글자가 미끄러져 나온다 */

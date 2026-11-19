@@ -7,6 +7,7 @@ import { api, errorText } from '@/api'
 import { AppHeader, HeaderButton } from '@/components/AppHeader'
 import { REPORT_REASONS, ReportSheet } from '@/components/ReportSheet'
 import { IconAdmin, IconComment, IconMore, IconSend, IconUp } from '@/components/icons'
+import { UserBadge } from '@/components/MemberBadge'
 import { Avatar } from '@/components/ui/Avatar'
 import { Confirm } from '@/components/ui/Confirm'
 import { Empty } from '@/components/ui/Empty'
@@ -71,6 +72,7 @@ export default function PostDetail() {
           <Link to={`/profile/${p.author.id}`} className="mb-3 flex w-fit max-w-full items-center gap-2">
             <Avatar url={p.author.avatarUrl} name={p.author.nickname} size={32} />
             <span className="truncate t-sub font-semibold">{p.author.nickname}</span>
+            <UserBadge userId={p.author.id} size={18} />
             {adminIds.includes(p.author.id) && <span className="shrink-0 t-cap font-semibold text-success">관리자</span>}
           </Link>
           <h1 className="t-title">{p.title}</h1>
@@ -94,7 +96,7 @@ export default function PostDetail() {
           <li key={c.id} className={`flex gap-3 py-3 pr-5 ${c.parentId ? 'pl-14' : 'pl-5'}`}>
             <Link to={`/profile/${c.author.id}`}><Avatar url={c.author.avatarUrl} name={c.author.nickname} size={c.parentId ? 26 : 32} /></Link>
             <div className="min-w-0 flex-1">
-              <p className="t-sub"><span className="font-semibold">{c.author.nickname}</span>{adminIds.includes(c.author.id) && <span className="ml-1 t-cap font-semibold text-success">관리자</span>} <span className="text-graphite">{fmtRelative(c.createdAt)}{c.edited && ' · 수정됨'}</span></p>
+              <p className="t-sub"><span className="font-semibold">{c.author.nickname}</span><UserBadge userId={c.author.id} size={16} className="ml-1 align-[-3px]" />{adminIds.includes(c.author.id) && <span className="ml-1 t-cap font-semibold text-success">관리자</span>} <span className="text-graphite">{fmtRelative(c.createdAt)}{c.edited && ' · 수정됨'}</span></p>
               <p className="mt-0.5 whitespace-pre-wrap t-body">
                 {c.replyTo && <span className="mr-1 font-semibold text-graphite">@{c.replyTo.nickname}</span>}{c.body}
               </p>

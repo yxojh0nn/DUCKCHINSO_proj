@@ -5,6 +5,7 @@ import { AppHeader } from '@/components/AppHeader'
 import { IconChevron, IconExternal, IconPin, IconTicket } from '@/components/icons'
 import { Poster, PosterViewer } from '@/components/Poster'
 import { TicketTipSheet } from '@/components/TicketTipSheet'
+import { AttendCard } from './Attend'
 import { Empty } from '@/components/ui/Empty'
 import { fmtDateTime, fmtTime, fmtDay, kstDayKey, won } from '@/lib/date'
 import { openGoogleMap, openKakaoMap, openTicket } from '@/lib/external'
@@ -113,6 +114,7 @@ export default function ConcertDetail() {
         <Info label="예매처">{c.links.map((l) => l.vendor).join(', ') || <span className="text-graphite">미정</span>}</Info>
       </dl>
 
+      <AttendCard concert={c} />
       {past ? (
         <section className="mt-6">
           <div className="px-5">

@@ -8,6 +8,7 @@ const PAGE = 50
 type Item<T> = { id: T; label: string; sub?: string | null }
 
 // 여러 개 고르기(관심 아티스트·장르). 최대 개수를 넘으면 더 고를 수 없다
+// 멤버십이 끝나 이미 한도보다 많이 담겨 있으면(value 는 담은 순서) 앞에서부터 max 개만 유효하고 나머지는 옅게 보인다
 export function PickList<T extends string | number>({ items, value, onChange, max, searchable, label }: {
   items: Item<T>[]; value: T[]; onChange: (v: T[]) => void; max: number; searchable?: boolean; label: string
 }) {
@@ -20,6 +21,11 @@ export function PickList<T extends string | number>({ items, value, onChange, ma
   return (
     <div>
       <p className="px-5 t-sub text-graphite num" aria-live="polite">{label} {value.length}/{max}</p>
+      {value.length > max && (
+        <p role="note" className="mx-5 mt-2 rounded-[12px] bg-mist px-4 py-3 t-sub">
+          지금 멤버십 한도는 {max}개예요. 먼저 담은 {max}개만 반영되고, 옅게 보이는 {value.length - max}개는 캘린더 '내 아티스트'에 나오지 않아요. 지우지는 않았으니 멤버십을 다시 시작하면 그대로 돌아와요.
+        </p>
+      )}
       {searchable && (
         <SearchField className="mx-5 mt-3" value={q} onValue={(v) => { setQ(v); setLimit(PAGE) }} placeholder="이름으로 찾기" label={`${label} 검색`} />
       )}
@@ -28,13 +34,14 @@ export function PickList<T extends string | number>({ items, value, onChange, ma
         {shown.map((i) => {
           const on = value.includes(i.id)
           const full = !on && value.length >= max
+          const over = on && value.indexOf(i.id) >= max // 한도 밖 (멤버십이 끝나 넘친 것)
           return (
             <li key={String(i.id)}>
               <button onClick={() => toggle(i.id)} disabled={full} aria-pressed={on}
-                className="flex min-h-12 w-full items-center gap-3 px-5 py-2 text-left active:bg-mist disabled:opacity-35">
+                className={`flex min-h-12 w-full items-center gap-3 px-5 py-2 text-left active:bg-mist disabled:opacity-35 ${over ? 'opacity-45' : ''}`}>
                 <span className="min-w-0 flex-1">
                   <span className={`block truncate t-body ${on ? 'font-semibold' : ''}`}>{i.label}</span>
-                  {i.sub && <span className="block truncate t-sub text-graphite">{i.sub}</span>}
+                  {(i.sub || over) && <span className="block truncate t-sub text-graphite">{over ? '한도 밖 · 반영 안 됨' : i.sub}</span>}
                 </span>
                 <span className={`flex h-6 w-6 items-center justify-center rounded-full ${on ? 'bg-ink text-paper' : 'border-[1.5px] border-control-line'}`}>
                   {on && <IconCheck size={14} strokeWidth={2.6} />}
