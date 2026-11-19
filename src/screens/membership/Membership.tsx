@@ -9,6 +9,8 @@ import { IconChevron, IconMembership } from '@/components/icons'
 import { Poster } from '@/components/Poster'
 import { Button } from '@/components/ui/Button'
 import { Checkbox } from '@/components/ui/Checkbox'
+import { TextField } from '@/components/ui/Field'
+import { buyerError, type Buyer } from '@/lib/buyer'
 import { Confirm } from '@/components/ui/Confirm'
 import { Empty } from '@/components/ui/Empty'
 import { fmtDay } from '@/lib/date'
@@ -216,6 +218,8 @@ function StartPanel({ m, again }: { m: M; again?: boolean }) {
   const methods = payMethods()
   const [method, setMethod] = useState<PayMethodId | null>(null)
   const [agree, setAgree] = useState(false)
+  const me = useMe().data
+  const [buyer, setBuyer] = useState<Buyer>({ name: '', phone: '', email: me?.email ?? '' })
   const { busy, run } = useRun()
   if (!webPayOn()) return <p className="mt-4 rounded-[12px] bg-mist px-4 py-3 text-center t-sub text-graphite">결제는 준비 중이에요. 열리면 공지로 알려 드릴게요.</p>
   const o = offer.data
@@ -223,9 +227,10 @@ function StartPanel({ m, again }: { m: M; again?: boolean }) {
   if (!o.available) return <p className="mt-4 rounded-[12px] bg-mist px-4 py-3 text-center t-sub text-graphite">결제는 준비 중이에요. 열리면 공지로 알려 드릴게요.</p>
   const first = !again && o.firstPriceKrw != null ? o.firstPriceKrw : o.priceKrw
   const pick = methods.find((x) => x.id === method)
+  const buyerErr = pick?.needsBuyer ? buyerError(buyer) : null
   const go = () => run(async () => {
     try {
-      const r = await startMembership(pick!)
+      const r = await startMembership(pick!, pick!.needsBuyer ? buyer : undefined)
       if (r === 'redirect') return
       await qc.invalidateQueries({ queryKey: keys.membership })
       toast(r === 'pending' ? '결제를 확인하고 있어요. 잠시 뒤 다시 열어 주세요.' : '멤버십을 시작했어요!')
@@ -246,12 +251,28 @@ function StartPanel({ m, again }: { m: M; again?: boolean }) {
           ))}
         </div>
       </fieldset>
+      {pick?.needsBuyer && <BuyerFields buyer={buyer} onChange={setBuyer} />}
+      {buyerErr && (buyer.name || buyer.phone) && <p role="alert" className="mt-2 t-sub text-danger">{buyerErr}</p>}
       <PayNotice first={first} price={o.priceKrw} lapsedAt={m.subUntil} />
       <div className="mt-2"><Checkbox checked={agree} onChange={setAgree}>위 내용을 확인했고, 매월 자동 결제에 동의해요 (필수)</Checkbox></div>
-      <Button block className="mt-2" disabled={busy || !pick || !agree} onClick={go}>
+      <Button block className="mt-2" disabled={busy || !pick || !agree || !!buyerErr} onClick={go}>
         {busy ? '결제 중…' : `${won(first)} 결제하고 ${again ? '다시 이어 가기' : m.subUntil ? '다시 시작하기' : '시작하기'}`}
       </Button>
     </section>
+  )
+}
+
+// 카드 결제(KG이니시스)에 필요한 구매자 정보. 결제창에만 넘기고 덕친소는 저장하지 않는다
+function BuyerFields({ buyer, onChange }: { buyer: Buyer; onChange: (b: Buyer) => void }) {
+  const set = (k: keyof Buyer) => (e: React.ChangeEvent<HTMLInputElement>) => onChange({ ...buyer, [k]: e.target.value })
+  return (
+    <fieldset className="mt-4 space-y-4">
+      <legend className="t-sub font-semibold text-graphite">구매자 정보</legend>
+      <TextField label="이름" autoComplete="name" maxLength={30} value={buyer.name} onChange={set('name')} />
+      <TextField label="휴대폰 번호" type="tel" inputMode="tel" autoComplete="tel" placeholder="010-0000-0000" maxLength={13} value={buyer.phone} onChange={set('phone')} />
+      <TextField label="이메일" type="email" autoComplete="email" value={buyer.email} onChange={set('email')}
+        hint="카드 결제사(KG이니시스)가 결제·영수증 발송에 요구하는 정보예요. 결제창에만 전달하고 덕친소에는 저장하지 않아요." />
+    </fieldset>
   )
 }
 
