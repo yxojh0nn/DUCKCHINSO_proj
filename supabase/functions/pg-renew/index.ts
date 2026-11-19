@@ -2,7 +2,7 @@
 // 한 구독이 실패해도 나머지는 계속한다. 청구 번호는 DB 가 만든 고정값이라 겹쳐 돌아도 두 번 청구되지 않는다
 import { admin, isServiceCall, json } from '../_shared/supabase.ts'
 import { decrypt } from '../_shared/crypto.ts'
-import { findPayment, payWithBillingKey, settle } from '../_shared/pg.ts'
+import { buyerOf, findPayment, getBillingKey, payWithBillingKey, settle } from '../_shared/pg.ts'
 
 Deno.serve(async (req) => {
   if (!(await isServiceCall(req))) return json({ error: 'forbidden' }, 403)
@@ -20,7 +20,8 @@ Deno.serve(async (req) => {
   for (const d of due.data ?? []) {
     try {
       const billingKey = await decrypt(`sub:${d.subscription_id}`, 'billing_key', d.billing_key_enc, 'BILLING_ENC_KEY')
-      await payWithBillingKey(d.payment_id, { billingKey, orderName: d.order_name, customerId: d.customer_token, amountKrw: d.amount_krw }).catch(() => {})
+      const info = await getBillingKey(billingKey).catch(() => null) // 구매자 정보 (조회 실패면 고객 번호만: 간편결제는 그걸로 된다)
+      await payWithBillingKey(d.payment_id, { billingKey, orderName: d.order_name, customer: buyerOf(info, d.customer_token), amountKrw: d.amount_krw }).catch(() => {})
       const r = await settle(db, d.payment_id, await findPayment(d.payment_id))
       if (r === 'applied') out.charged++
       else out.failed++

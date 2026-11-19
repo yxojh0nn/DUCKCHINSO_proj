@@ -1,7 +1,7 @@
 // 실행: node --experimental-strip-types supabase/functions/_shared/pg.test.ts (pnpm test 에 포함)
 import assert from 'node:assert/strict'
 import { createHmac, randomBytes } from 'node:crypto'
-import { checkBillingKey, isOurPaymentId, methodLabel, payState, verifyWebhook } from './pg.ts'
+import { buyerOf, checkBillingKey, isOurPaymentId, methodLabel, payState, verifyWebhook } from './pg.ts'
 
 // 웹훅 서명: 맞는 서명, 틀린 비밀값, 본문 변조, 오래된 알림, 머리글 빠짐
 const secret = randomBytes(24).toString('base64')
@@ -44,6 +44,10 @@ assert.equal(methodLabel({ methods: [{ type: 'BillingKeyPaymentMethodEasyPay', p
 assert.equal(methodLabel({ methods: [{ type: 'BillingKeyPaymentMethodCard', card: { name: '신한카드', number: '53275000****1234' } }] }), '신한카드 ****1234')
 assert.equal(methodLabel({ methods: [{ card: { name: '국민카드', number: '5327********12**' } }] }), '국민카드')
 assert.equal(methodLabel({}), '등록한 결제 수단')
+// 청구 구매자: 포트원 빌링키 정보의 이름·전화·이메일, id 는 언제나 우리 고객 번호
+assert.deepEqual(buyerOf({ customer: { id: 'x', name: '홍길동', phoneNumber: '01012345678', email: 'a@b.co' } }, 'tok'),
+  { id: 'tok', name: { full: '홍길동' }, phoneNumber: '01012345678', email: 'a@b.co' })
+assert.deepEqual(buyerOf(null, 'tok'), { id: 'tok' })
 assert.ok(isOurPaymentId('mbr_12_0_0'))
 assert.ok(!isOurPaymentId('mbr_12_0_0; drop'))
 assert.ok(!isOurPaymentId('order_1'))

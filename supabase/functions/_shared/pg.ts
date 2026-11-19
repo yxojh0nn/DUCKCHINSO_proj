@@ -40,14 +40,21 @@ type Json = any
 export const getBillingKey = (key: string): Promise<Json> => call(`/billing-keys/${id(key)}${q()}`)
 export const deleteBillingKey = (key: string) => call(`/billing-keys/${id(key)}${q()}`, { method: 'DELETE' })
 export const getPayment = (paymentId: string): Promise<Json> => call(`/payments/${id(paymentId)}${q()}`)
-export const payWithBillingKey = (paymentId: string, o: { billingKey: string; orderName: string; customerId: string; amountKrw: number }) =>
+export const payWithBillingKey = (paymentId: string, o: { billingKey: string; orderName: string; customer: Json; amountKrw: number }) =>
   call(`/payments/${id(paymentId)}/billing-key`, {
     method: 'POST',
-    body: JSON.stringify({ storeId: storeId(), billingKey: o.billingKey, orderName: o.orderName, customer: { id: o.customerId },
+    body: JSON.stringify({ storeId: storeId(), billingKey: o.billingKey, orderName: o.orderName, customer: o.customer,
       amount: { total: o.amountKrw, taxFree: 0 }, currency: 'KRW' }), // 전액 과세. 나이스 간편결제 빌링키는 면세금액을 꼭 받는다
   })
 export const cancelPayment = (paymentId: string, amountKrw: number, reason: string) =>
   call(`/payments/${id(paymentId)}/cancel`, { method: 'POST', body: JSON.stringify({ storeId: storeId(), amount: amountKrw, reason }) })
+
+// 청구 때 넘길 구매자: 빌링키 발급 때 결제창에 넣은 이름·휴대폰·이메일을 포트원에서 읽어 그대로 (KG이니시스는 청구마다 필수)
+// 덕친소 DB 에는 저장하지 않는다. id 는 늘 우리 고객 번호
+export function buyerOf(info: Json, customerToken: string): Json {
+  const c = info?.customer ?? {}
+  return { id: customerToken, ...(c.name ? { name: { full: c.name } } : {}), ...(c.phoneNumber ? { phoneNumber: c.phoneNumber } : {}), ...(c.email ? { email: c.email } : {}) }
+}
 
 // 빌링키가 우리 상점의, 이 사람(customer_token)의, 쓸 수 있는 키인지. 테스트 채널은 PORTONE_ALLOW_TEST 일 때만
 export function checkBillingKey(info: Json, customerToken: string, store = env('PORTONE_STORE_ID'), allowTest = env('PORTONE_ALLOW_TEST') === 'true') {

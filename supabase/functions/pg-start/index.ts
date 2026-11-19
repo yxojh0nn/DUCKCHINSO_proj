@@ -4,7 +4,7 @@
 //   3) 서버가 정한 결제 번호로 청구 → 포트원에 다시 조회한 결과만 반영 (금액이 다르면 반영 안 하고 바로 취소)
 import { admin, callerOf, cors, json } from '../_shared/supabase.ts'
 import { encrypt } from '../_shared/crypto.ts'
-import { checkBillingKey, deleteBillingKey, findPayment, getBillingKey, methodLabel, payWithBillingKey, settle } from '../_shared/pg.ts'
+import { checkBillingKey, deleteBillingKey, findPayment, getBillingKey, methodLabel, payWithBillingKey, settle, buyerOf } from '../_shared/pg.ts'
 
 const KNOWN = new Set(['checkout_expired', 'already_subscribed'])
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
   if (saved.error) { await fail('save_failed'); return json({ error: 'server_error' }, 500) }
 
   // 청구 → 결과는 포트원에 다시 물어서. 청구 응답이 오류여도 결제가 됐을 수 있으니 조회로 판단
-  await payWithBillingKey(b.payment_id, { billingKey, orderName: b.order_name, customerId: b.customer_token, amountKrw: b.amount_krw }).catch(() => {})
+  await payWithBillingKey(b.payment_id, { billingKey, orderName: b.order_name, customer: buyerOf(info, b.customer_token), amountKrw: b.amount_krw }).catch(() => {})
   let p
   try { p = await findPayment(b.payment_id) } catch { return json({ pending: true }, 202) } // 조회 실패: 대사 cron 이 마무리
   const r = await settle(db, b.payment_id, p)
