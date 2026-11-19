@@ -25,7 +25,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql', '20261111000030_inquiry_delete_and_hardening.sql', '20261111000031_nickname_validate.sql', '20261111000032_revoke_sessions.sql', '20261112000033_notices.sql', '20261112000034_notice_period.sql', '20261112000035_notice_schedule.sql', '20261112000036_admin_badge.sql', '20261112000037_chat_media_gifs.sql', '20261113000038_klipy_gifs.sql', '20261113000039_fk_indexes.sql', '20261113000040_ticket_link_clicks.sql', '20261115000041_cancel_friend_request.sql', '20261117000042_my_inquiries.sql', '20261117000043_memberships.sql', '20261118000044_pg_subscriptions.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql', '20261111000030_inquiry_delete_and_hardening.sql', '20261111000031_nickname_validate.sql', '20261111000032_revoke_sessions.sql', '20261112000033_notices.sql', '20261112000034_notice_period.sql', '20261112000035_notice_schedule.sql', '20261112000036_admin_badge.sql', '20261112000037_chat_media_gifs.sql', '20261113000038_klipy_gifs.sql', '20261113000039_fk_indexes.sql', '20261113000040_ticket_link_clicks.sql', '20261115000041_cancel_friend_request.sql', '20261117000042_my_inquiries.sql', '20261117000043_memberships.sql', '20261118000044_pg_subscriptions.sql', '20261119000045_user_region.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -758,4 +758,17 @@ s = await sub(b6.subscription_id)
 assert.deepEqual([s.user_id, s.state], [null, 'ended'])
 assert.equal((await db.query(`select count(*)::int as n from public.pg_billing where subscription_id = $1`, [b6.subscription_id])).rows[0].n, 0)
 assert.equal((await db.query(`select status from public.pg_charges where payment_id = $1`, [b6.payment_id])).rows[0].status, 'paid')
+// 지역: 취향이 같으면 내 지역에 가까운 사람이 먼저. 없는 지역 이름은 못 넣는다
+for (const k of ['h', 'i', 'j']) {
+  ids[k] = (await db.query(`insert into auth.users (email) values ($1) returning id`, [`${k}@x.com`])).rows[0].id
+  await db.query(`update public.profiles set is_guest = false where id = $1`, [ids[k]])
+  await as(k, `insert into public.user_artists (user_id, artist_id) values ($1, $2)`, [ids[k], art.rows[1].id])
+  await as(k, `update public.profiles set profile_setup_done = true, region = $2 where id = $1`, [ids[k], { h: '서울', i: '부산', j: '경기' }[k]])
+  await as(k, `select public.agree_community('v1')`)
+}
+await assert.rejects(as('h', `update public.profiles set region = '화성' where id = $1`, [ids.h]))
+const near = (await as('h', `select id, region from public.recommend_friends(10)`)).rows
+assert.deepEqual(near.slice(0, 2).map((r) => r.id), [ids.j, ids.i])
+assert.equal(near[0].region, '경기')
+assert.equal((await as('h', `select region from public.profile_card($1)`, [ids.j])).rows[0].region, '경기')
 console.log('ALL OK')

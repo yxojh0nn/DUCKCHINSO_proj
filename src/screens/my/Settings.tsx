@@ -97,6 +97,7 @@ export default function Settings() {
       </MenuGroup>
 
       <MenuGroup title="앱 정보">
+        <MenuRow label="앱 접근 권한" to="/my/settings/permissions" />
         <MenuRow label="오픈 API" to="/my/settings/api" />
       </MenuGroup>
     </>

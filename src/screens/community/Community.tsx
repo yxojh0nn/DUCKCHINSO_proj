@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { api } from '@/api'
+import { api, type Recommended } from '@/api'
 import { AppHeader, HeaderButton } from '@/components/AppHeader'
 import { PostRow } from '@/components/PostRow'
 import { UserRow } from '@/components/UserRow'
@@ -109,7 +109,7 @@ export default function Community() {
             <ul className="pb-6">
               {people.data.map((u) => (
                 <UserRow key={u.id} user={u}
-                  sub={'commonArtists' in u && (u as { commonArtists: number }).commonArtists ? `같은 아티스트 ${(u as { commonArtists: number }).commonArtists}명 · ${u.bio || '소개글 없음'}` : undefined}
+                  sub={'commonArtists' in u ? recSub(u as Recommended) : undefined}
                   right={<>
                     <Button size="sm" variant="secondary" onClick={() => nav(`/profile/${u.id}`)}>프로필</Button>
                     <Button size="sm" onClick={() => actions.ask(u)}>친구 요청</Button>
@@ -146,3 +146,7 @@ export default function Community() {
     </>
   )
 }
+
+// 추천 줄 아래 설명: 지역 · 같은 아티스트 수 · 소개글
+const recSub = (u: Recommended) =>
+  [u.region, u.commonArtists ? `같은 아티스트 ${u.commonArtists}명` : '', u.bio || '소개글 없음'].filter(Boolean).join(' · ')

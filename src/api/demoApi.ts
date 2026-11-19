@@ -1,5 +1,6 @@
 // Supabase 미연결 시 쓰는 데모 백엔드. 같은 Api 계약을 브라우저 localStorage 로 흉내 낸다.
 // 다른 사용자는 DEMO_USERS(가상)이고, 친구 수락·채팅 답장은 잠시 뒤 자동으로 온다.
+import { regionNear } from '@/data/regions'
 import { CONSENT_VERSION, REQUIRED_KEYS } from '@/data/consent'
 import { LOGIN_ID } from './types'
 import { ARTISTS, AUTO_REPLIES, DEMO_POSTS, DEMO_USERS, GENRES, buildConcerts } from './demoData'
@@ -134,7 +135,7 @@ export function createDemoApi(): Api {
     const guest = fields.isGuest ?? true
     db.accounts[aid] = {
       id: aid, nickname: `${guest ? '익명의 팬' : '덕친'}${Math.floor(1000 + Math.random() * 9000)}`, bio: '', avatarUrl: null, bannerUrl: null,
-      isGuest: guest, profileSetupDone: false, communityAgreedAt: null, notifyEnabled: true,
+      isGuest: guest, profileSetupDone: false, communityAgreedAt: null, notifyEnabled: true, region: null,
       artistIds: [], genreIds: [], favoriteIds: [], consents: [], email: null, password: null, method: 'email', loginId: null, ...fields,
     }
     // 처음 들어온 계정에 받은 친구 요청 2건을 넣어 둔다
@@ -402,7 +403,7 @@ export function createDemoApi(): Api {
       const p = pending(my, uid)
       return {
         ...card(uid), bannerUrl: a?.bannerUrl ?? null, isGuest: a?.isGuest ?? false, profileSetupDone: true,
-        communityAgreedAt: null, notifyEnabled: false, ...prefsOf(uid), upcomingCount: 0, // 데모는 관심 공연을 가리지 않는다
+        communityAgreedAt: null, notifyEnabled: false, region: a?.region ?? demoUser(uid)?.region ?? null, ...prefsOf(uid), upcomingCount: 0, // 데모는 관심 공연을 가리지 않는다
         relation: uid === my ? 'self' : f ? 'friend' : p ? (p.from === my ? 'sent' : 'received') : 'none',
         roomId: f?.roomId ?? null,
       }
@@ -416,7 +417,8 @@ export function createDemoApi(): Api {
       return DEMO_USERS
         .filter((u) => !blockedBetween(a.id, u.id) && !friendOf(a.id, u.id) && !pending(a.id, u.id))
         .map((u) => ({
-          ...card(u.id), score: 0.7 * jac(a.artistIds, u.artistIds) + 0.3 * jac(a.genreIds, u.genreIds),
+          ...card(u.id), region: u.region ?? null,
+          score: 0.55 * jac(a.artistIds, u.artistIds) + 0.2 * jac(a.genreIds, u.genreIds) + 0.25 * regionNear(a.region, u.region ?? null),
           commonArtists: u.artistIds.filter((x) => a.artistIds.includes(x)).length,
         }))
         .sort((x, y) => y.score - x.score)
