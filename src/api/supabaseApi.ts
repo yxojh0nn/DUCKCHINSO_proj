@@ -3,7 +3,9 @@ import { Capacitor } from '@capacitor/core'
 import { Browser } from '@capacitor/browser'
 import { authRedirect, socialLoginUrl } from '@/lib/supabase'
 import { isKlipyUrl } from '@/lib/klipy'
+import { cachedPhotoUrl, clearPhotoCache, dropCachedPhoto } from '@/lib/photoCache'
 import { CONSENT_ITEMS, CONSENT_VERSION, REQUIRED_KEYS } from '@/data/consent'
+import { DAILY_PHOTO_MAX } from './types'
 import type { AdminArtist, AdminConcert, Api, LoginMethod, BannedWord, Concert, Message, Notice, Post, UserCard } from './types'
 
 type Row = Record<string, any>
@@ -143,11 +145,13 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     },
     async signOut() {
       await sb.auth.signOut()
+      await clearPhotoCache()
     },
     async deleteAccount() {
       const { error } = await sb.functions.invoke('delete-account', { method: 'POST' })
       if (error) throw error
       await sb.auth.signOut({ scope: 'local' })
+      await clearPhotoCache()
     },
 
     async getMe() {
@@ -171,7 +175,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       sb.from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', id).then(() => {})
       return {
         ...card(prof), bannerUrl: prof.banner_url, isGuest: prof.is_guest, profileSetupDone: prof.profile_setup_done,
-        communityAgreedAt: prof.community_agreed_at, notifyEnabled: prof.notify_enabled, region: prof.region ?? null,
+        communityAgreedAt: prof.community_agreed_at, notifyEnabled: prof.notify_enabled, region: prof.region ?? null, regionPublic: prof.region_public ?? true,
         artistIds: (ok(a) as Row[]).map((r) => r.artist_id),
         genreIds: (ok(g) as Row[]).map((r) => r.genre_id),
         favoriteIds: (ok(f) as Row[]).map((r) => r.concert_id),
@@ -195,6 +199,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       if (patch.profileSetupDone !== undefined) row.profile_setup_done = patch.profileSetupDone
       if (patch.notifyEnabled !== undefined) row.notify_enabled = patch.notifyEnabled
       if (patch.region !== undefined) row.region = patch.region
+      if (patch.regionPublic !== undefined) row.region_public = patch.regionPublic
       for (const [k, v] of Object.entries(patch.notify ?? {})) row[`notify_${k}`] = v
       // 동의 시각은 서버가 동의 기록과 함께 찍는다 (직접 수정 권한 없음)
       if (patch.communityAgreed) ok(await sb.rpc('agree_community', { ver: CONSENT_VERSION }))
@@ -230,8 +235,30 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     async myAttendance() { return [] },
     async setAttendance() { throw new Error('not_ready') },
     async removeAttendance() { throw new Error('not_ready') },
-    async myDailyPhotos() { return [] },
-    async setDailyPhoto() { throw new Error('not_ready') },
+    // 덕질 사진: 비공개 버킷이라 내려받아 기기 캐시에 둔다 (photoCache)
+    // shortcut: 목록을 열면 모든 날 사진을 한꺼번에 받는다(처음 한 번만 느림), 사진이 수백 장을 넘으면 달마다 나눠 받는다
+    async myDailyPhotos() {
+      const rows = ok(await sb.from('daily_photos').select('id, day, path').order('day').order('created_at')) as Row[]
+      const dl = (path: string) => async () => ok(await sb.storage.from('diary-media').download(path)) as Blob
+      return Promise.all(rows.map(async (r) => ({ id: r.id, day: r.day, photoUrl: await cachedPhotoUrl(r.path, dl(r.path)) })))
+    },
+    async addDailyPhotos(day, photos) {
+      const id = await uid()
+      const { count } = await sb.from('daily_photos').select('id', { count: 'exact', head: true }).eq('day', day)
+      if ((count ?? 0) + photos.length > DAILY_PHOTO_MAX) throw new Error('too_many_photos')
+      for (const b of photos) {
+        const path = `${id}/${crypto.randomUUID()}.${ext(b)}`
+        const up = await sb.storage.from('diary-media').upload(path, b, { contentType: b.type })
+        if (up.error) throw new Error(/row-level security/i.test(up.error.message) ? 'membership_only' : up.error.message)
+        const ins = await sb.from('daily_photos').insert({ day, path })
+        if (ins.error) { await sb.storage.from('diary-media').remove([path]); throw new Error(ins.error.code === '42501' ? 'membership_only' : ins.error.message) }
+      }
+    },
+    async removeDailyPhoto(pid) {
+      const row = ok(await sb.from('daily_photos').delete().eq('id', pid).select('path').single()) as Row
+      await sb.storage.from('diary-media').remove([row.path])
+      await dropCachedPhoto(row.path)
+    },
     async userRecaps() { return { visible: false, records: [] } },
     async myRecapPublic() { return true },
     async setRecapPublic() { throw new Error('not_ready') },

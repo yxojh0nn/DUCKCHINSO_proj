@@ -2,7 +2,7 @@
 // 다른 사용자는 DEMO_USERS(가상)이고, 친구 수락·채팅 답장은 잠시 뒤 자동으로 온다.
 import { regionNear } from '@/data/regions'
 import { CONSENT_VERSION, REQUIRED_KEYS } from '@/data/consent'
-import { LOGIN_ID } from './types'
+import { DAILY_PHOTO_MAX, LOGIN_ID } from './types'
 import { ARTISTS, AUTO_REPLIES, DEMO_POSTS, DEMO_USERS, GENRES, buildConcerts } from './demoData'
 import { fullMonths } from '@/lib/months'
 import type { Api, Artist, Attendance, Concert, DailyPhoto, LoginMethod, NotifyPrefs, Membership, Message, MyInquiry, Post, Profile, RealtimeEvent, UserCard } from './types'
@@ -42,6 +42,7 @@ type Acc = Profile & {
   membership?: { subStartedAt: string | null; subUntil: string | null; autoRenew?: boolean; methodLabel?: string | null; everPaid?: boolean }
   attendance?: Attendance[]
   dailyPhotos?: DailyPhoto[]
+  regionPublic?: boolean // 없으면 공개
   recapPublic?: boolean // 없으면 공개
 }
 type Req = { id: string; from: string; to: string; status: 'pending' | 'accepted' | 'declined' | 'cancelled'; createdAt: number; expiresAt: number }
@@ -234,6 +235,7 @@ export function createDemoApi(): Api {
         ...rest,
         consents: Object.fromEntries([...latest].map(([k, v]) => [k, v.agreed])),
         consentsOk: REQUIRED_KEYS.every((k) => latest.get(k)?.agreed && latest.get(k)?.version === CONSENT_VERSION),
+        regionPublic: a.regionPublic ?? true,
         loginMethod: a.isGuest ? 'guest' : method,
         needsLoginId: !a.isGuest && method === 'email' && !loginId,
         notify: { friend: true, like: true, comment: true, concert: true, ...a.notify },
@@ -284,12 +286,19 @@ export function createDemoApi(): Api {
       a.attendance = [...list.filter((x) => x !== old), { concertId, day, photoUrl, postId, createdAt: old?.createdAt ?? iso(Date.now()) }]
       save()
     },
-    async myDailyPhotos() { await wait(); return [...(me().dailyPhotos ?? [])].sort((x, y) => x.day.localeCompare(y.day)) },
-    async setDailyPhoto(day, photo) {
+    async myDailyPhotos() { await wait(); return [...(me().dailyPhotos ?? [])].map((p) => ({ ...p, id: p.id ?? p.photoUrl })).sort((x, y) => x.day.localeCompare(y.day)) },
+    async addDailyPhotos(day, photos) {
       const a = me()
-      if (photo && membershipOf(a).tier !== 'subscriber') throw new Error('membership_only')
-      const rest = (a.dailyPhotos ?? []).filter((x) => x.day !== day)
-      a.dailyPhotos = photo ? [...rest, { day, photoUrl: await api.uploadImage('posts', photo) }] : rest
+      if (membershipOf(a).tier !== 'subscriber') throw new Error('membership_only')
+      const list = a.dailyPhotos ?? []
+      if (list.filter((x) => x.day === day).length + photos.length > DAILY_PHOTO_MAX) throw new Error('too_many_photos')
+      const urls = await Promise.all(photos.map((p) => api.uploadImage('posts', p)))
+      a.dailyPhotos = [...list, ...urls.map((photoUrl) => ({ id: id(), day, photoUrl }))]
+      save()
+    },
+    async removeDailyPhoto(pid) {
+      const a = me()
+      a.dailyPhotos = (a.dailyPhotos ?? []).filter((x) => (x.id ?? x.photoUrl) !== pid)
       save()
     },
     async userRecaps(uid) {
@@ -418,10 +427,12 @@ export function createDemoApi(): Api {
         .filter((u) => !blockedBetween(a.id, u.id) && !friendOf(a.id, u.id) && !pending(a.id, u.id))
         .map((u) => ({
           ...card(u.id), region: u.region ?? null,
-          score: 0.55 * jac(a.artistIds, u.artistIds) + 0.2 * jac(a.genreIds, u.genreIds) + 0.25 * regionNear(a.region, u.region ?? null),
+          near: a.regionPublic === false ? 0 : regionNear(a.region, u.region ?? null),
+          score: 0.55 * jac(a.artistIds, u.artistIds) + 0.2 * jac(a.genreIds, u.genreIds) + 0.25 * (a.regionPublic === false ? 0 : regionNear(a.region, u.region ?? null)),
           commonArtists: u.artistIds.filter((x) => a.artistIds.includes(x)).length,
         }))
-        .sort((x, y) => y.score - x.score)
+        .sort((x, y) => Number(y.near >= 0.5) - Number(x.near >= 0.5) || y.score - x.score) // 서버와 같게: 150km 안쪽 먼저
+        .map(({ near: _n, ...r }) => r)
     },
     async searchUsers(q, filter) {
       const a = me()

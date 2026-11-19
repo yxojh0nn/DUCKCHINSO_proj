@@ -5,6 +5,7 @@ import { api } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { ImageButton } from '@/components/ImageButton'
 import { PickList } from '@/components/PickList'
+import { RegionField } from '@/components/RegionField'
 import { IconPhoto } from '@/components/icons'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
@@ -27,6 +28,8 @@ export default function ProfileSetup() {
   const [artistIds, setArtistIds] = useState<string[]>(me?.artistIds ?? [])
   const [genreIds, setGenreIds] = useState<number[]>(me?.genreIds ?? [])
   const [bio, setBio] = useState(me?.bio ?? '')
+  const [region, setRegion] = useState(me?.region ?? '')
+  const [regionPublic, setRegionPublic] = useState(me?.regionPublic ?? true)
   const [avatar, setAvatar] = useState<Blob | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const { busy, run } = useRun()
@@ -49,7 +52,7 @@ export default function ProfileSetup() {
       await api.setMyArtists(artistIds)
       await api.setMyGenres(genreIds)
       const avatarUrl = avatar ? await api.uploadImage('avatar', avatar) : undefined
-      await api.updateMe({ bio: bio.trim(), profileSetupDone: true, ...(avatarUrl ? { avatarUrl } : {}) })
+      await api.updateMe({ bio: bio.trim(), profileSetupDone: true, ...(me?.isGuest ? {} : { region: region || null, regionPublic }), ...(avatarUrl ? { avatarUrl } : {}) })
       await qc.invalidateQueries({ queryKey: keys.me })
       nav(from ?? '/community', { replace: true })
     })
@@ -84,6 +87,8 @@ export default function ProfileSetup() {
               error={nickErr} hint={me.isGuest ? '비회원 닉네임은 자동으로 정해져요. 닉네임·사진은 회원으로 로그인하면 바꿀 수 있어요.' : '다른 사람에게 보이는 이름이에요.'} />
             <TextArea className="mt-6" label="소개글" placeholder="당신의 덕력을 뽐내보세요!" rows={3} maxLength={150} value={bio} onChange={(e) => setBio(e.target.value)}
               hint={`${bio.length}/150`} />
+            {/* 처음 한 번 지역을 물어본다 (선택). 비회원은 덕친 추천 대상이 아니라 묻지 않는다 */}
+            {!me.isGuest && <div className="mt-6"><RegionField region={region} onRegion={setRegion} isPublic={regionPublic} onPublic={setRegionPublic} /></div>}
           </div>
         )}
         {step === 1 && (

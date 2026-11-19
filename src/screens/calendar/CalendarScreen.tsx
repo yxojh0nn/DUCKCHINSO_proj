@@ -9,6 +9,7 @@ import { Segmented } from '@/components/ui/Segmented'
 import { TextTabs } from '@/components/ui/TextTabs'
 import { kstDayKey } from '@/lib/date'
 import { useArtists, useAttendance, useConcerts, useDailyPhotos, useMe, useMembership } from '@/lib/queries'
+import type { DailyPhoto } from '@/api'
 import { DailyPhotoBlock, ReviewList, ReviewMonth } from './ReviewCalendar'
 import { useUI } from '@/store/ui'
 
@@ -24,10 +25,14 @@ export default function CalendarScreen() {
   const [ym, setYm] = useState(() => ({ y: Number(today.slice(0, 4)), m: Number(today.slice(5, 7)) }))
   const [day, setDay] = useState<string | null>(null)
   const [scope, setScope] = useState<'all' | 'mine'>('all')
-  const [view, setView] = useState<'concerts' | 'reviews'>('concerts') // 공연 캘린더 / 덕질 캘린더 (다녀온 공연 + 하루 한 장 사진)
+  const [view, setView] = useState<'concerts' | 'reviews'>('concerts') // 공연 캘린더 / 덕질 캘린더 (다녀온 공연 + 날마다 사진)
   const attendance = useAttendance().data
   const daily = useDailyPhotos().data
-  const photos = useMemo(() => new Map((daily ?? []).map((p) => [p.day, p.photoUrl])), [daily])
+  const photos = useMemo(() => {
+    const m = new Map<string, DailyPhoto[]>()
+    ;(daily ?? []).forEach((p) => m.set(p.day, [...(m.get(p.day) ?? []), p]))
+    return m
+  }, [daily])
 
   const artistName = useMemo(() => {
     const map = new Map((artists ?? []).map((a) => [a.id, a.nameEn && /^[\x20-\x7e]+$/.test(a.nameEn) && a.nameEn.length <= 8 ? a.nameEn : a.name]))
@@ -97,9 +102,9 @@ export default function CalendarScreen() {
 
       {view === 'reviews' ? (
         <section aria-label="다녀온 공연" className="mt-5 flex-1 border-t border-hairline pb-6">
-          {me?.isGuest ? <Empty title="덕질 캘린더는 회원만 쓸 수 있어요" body="회원으로 로그인하면 다녀온 공연과 하루 한 장 사진을 기록할 수 있어요." />
+          {me?.isGuest ? <Empty title="덕질 캘린더는 회원만 쓸 수 있어요" body="회원으로 로그인하면 다녀온 공연과 날마다 사진을 기록할 수 있어요." />
             : <>
-                {day && day <= today && <DailyPhotoBlock day={day} url={photos.get(day) ?? null} />}
+                {day && day <= today && <DailyPhotoBlock day={day} photos={photos.get(day) ?? []} />}
                 <ReviewList records={recShown} title={day ? `${Number(day.slice(5, 7))}월 ${Number(day.slice(8))}일 다녀온 공연` : `${ym.m}월에 다녀온 공연 ${recShown.length}개`} />
               </>}
         </section>

@@ -23,11 +23,31 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>덕친소</title>
+    <!-- 첫 로딩 화면: 앱이 뜨기 전까지 로고 이퀄라이저(#boot). 아래 안내 글(#seo)은 자바스크립트 없이 읽는 곳에만 보인다
+         (CSP 가 인라인 스크립트를 막아서 noscript 로 가른다. 그림·움직임은 components/ui/Loading.tsx 와 같게) -->
+    <style>
+      html, body, #root { height: 100%; margin: 0; }
+      #boot { position: fixed; inset: 0; display: flex; flex-direction: column; gap: 12px; align-items: center; justify-content: center; background: #FFFFFF; color: #18181A; --boot-bg: #FFFFFF; }
+      @media (prefers-color-scheme: dark) { #boot { background: #121214; color: #F2F2F3; --boot-bg: #121214; } }
+      #boot p { margin: 0; font: 500 13px/1.4 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; color: #6B6B72; }
+      @media (prefers-color-scheme: dark) { #boot p { color: #9B9BA3; } }
+      /* 왼쪽 → 가운데 → 오른쪽 막대가 차례로 중심 기준으로 늘었다 줄고, 잠깐 쉰 뒤 반복 (한 바퀴 1.6초) */
+      #boot rect { fill: var(--boot-bg); transform-box: fill-box; transform-origin: center; animation: boot-eq 1.6s ease-in-out infinite; }
+      #boot rect:nth-of-type(2) { animation-delay: 0.2s; } #boot rect:nth-of-type(3) { animation-delay: 0.4s; }
+      @keyframes boot-eq { 0%, 32%, 100% { transform: none; } 12% { transform: scaleY(1.4); } 24% { transform: scaleY(0.7); } }
+      @media (prefers-reduced-motion: reduce) { #boot rect { animation: none; } }
+      #seo { display: none; }
+    </style>
+    <noscript><style>#boot { display: none; } #seo { display: block; }</style></noscript>
   </head>
   <body>
     <!-- 자바스크립트 없이 읽는 곳(PG 심사·검색엔진)용 안내. 앱이 뜨면 React 가 이 내용을 갈아 끼운다. 값은 src/data/business.ts 와 맞출 것 -->
     <div id="root">
-      <main style="max-width:720px;margin:0 auto;padding:24px;font:14px/1.6 sans-serif;color:#555">
+      <div id="boot" role="status">
+        <svg viewBox="0 0 256 256" width="56" height="56" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M48 44 H208 A24 24 0 0 1 232 68 V100 A22 22 0 0 0 232 144 V164 A24 24 0 0 1 208 188 H104 L60 224 V188 H48 A24 24 0 0 1 24 164 V68 A24 24 0 0 1 48 44 Z M166 69.2 a6 6 0 1 0 12 0 a6 6 0 1 0 -12 0 Z M166 100.4 a6 6 0 1 0 12 0 a6 6 0 1 0 -12 0 Z M166 131.6 a6 6 0 1 0 12 0 a6 6 0 1 0 -12 0 Z M166 162.8 a6 6 0 1 0 12 0 a6 6 0 1 0 -12 0 Z"/><rect x="70" y="92" width="14" height="48"/><rect x="96" y="78" width="14" height="76"/><rect x="122" y="98" width="14" height="36"/></svg>
+        <p>불러오는 중...</p>
+      </div>
+      <main id="seo" style="max-width:720px;margin:0 auto;padding:24px;font:14px/1.6 sans-serif;color:#555">
         <h1>덕친소 — J-POP 공연 캘린더 &amp; 커뮤니티</h1>
         <h2>덕친소 멤버십 (월간 정기결제)</h2>
         <p>월 4,900원 (처음 구독하면 첫 달 990원). 관심 아티스트·장르 20개, 덕질 캘린더(날짜별 덕질 근황 사진 보관), 멤버십 전용 뱃지, 월간 리캡, 전용 위젯. 결제 후 7일 안에 요청하면 전액 환불, 이후 중도 해지는 이용한 날만큼 일할 계산해 환불.</p>

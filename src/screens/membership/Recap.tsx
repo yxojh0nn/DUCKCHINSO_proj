@@ -286,7 +286,7 @@ export function RecapDetail() {
           <h2 className="t-head">덕질 사진 <span className="t-sub font-medium text-graphite num">{photos.length}장</span></h2>
           <ul className="mt-3 grid grid-cols-3 gap-1.5">
             {photos.map((p) => (
-              <li key={p.day} className="relative">
+              <li key={p.id} className="relative">
                 <img src={p.photoUrl} alt={`${dayLabel(p.day)} 덕질 사진`} className="aspect-square w-full rounded-[8px] object-cover" />
                 <span className="absolute bottom-1 left-1 rounded-full bg-black/45 px-1.5 text-[10px] font-semibold text-white num">{dayLabel(p.day)}</span>
               </li>

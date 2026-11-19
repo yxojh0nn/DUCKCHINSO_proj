@@ -4,6 +4,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { api } from '@/api'
 import { keys, useMe, useSession } from '@/lib/queries'
 import { useUI } from '@/store/ui'
+import { Loading } from '@/components/ui/Loading'
+import { ServerError } from '@/screens/ErrorScreen'
 
 // 프로필 설정 전에도 볼 수 있는 화면 (공연 보기는 프로필 없이 된다)
 const CALENDAR_PATHS = ['/calendar', '/concert/', '/search', '/legal/']
@@ -29,10 +31,12 @@ export function Gate({ children }: { children?: React.ReactNode }) {
       .finally(() => { saving.current = false })
   }, [me.data, pending, setPending, qc])
 
-  if (session.isLoading) return null
+  if (session.isLoading) return <Loading />
   if (!session.data) return <Navigate to="/login" replace />
-  if (me.isLoading || (me.data && !me.data.consentsOk && pending)) return null
-  if (me.isError) return <Navigate to="/login" replace />
+  if (me.isLoading || (me.data && !me.data.consentsOk && pending)) return <Loading />
+  // 로그인이 풀렸으면 로그인 화면, 그 밖(서버·네트워크 오류)은 오류 화면에서 다시 시도
+  if (me.isError) return me.error.message === 'not_authenticated' ? <Navigate to="/login" replace />
+    : <ServerError onRetry={() => me.refetch()} onLeave={() => api.signOut().finally(() => location.assign('/login'))} />
   if (me.data && !me.data.consentsOk && pathname !== '/consent') return <Navigate to="/consent" replace />
   // 이메일로 가입한 사람은 아이디를 만들어야 다음으로 (docs/로그인_계정_암호화_설계.md 5장)
   if (me.data?.consentsOk && me.data.needsLoginId && pathname !== '/login-id') return <Navigate to="/login-id" replace />

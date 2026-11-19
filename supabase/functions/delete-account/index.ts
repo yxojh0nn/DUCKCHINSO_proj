@@ -27,8 +27,12 @@ Deno.serve(async (req) => {
     const { data } = await db.storage.from('chat-media').list(`${r.room_id}/${uid}`, { limit: 1000 })
     data?.forEach((f) => chatFiles.push(`${r.room_id}/${uid}/${f.name}`))
   }
+  // diary-media/{uid}/** (덕질 캘린더 사진)
+  const { data: diary } = await db.storage.from('diary-media').list(uid, { limit: 1000 })
+  const diaryFiles = (diary ?? []).map((f) => `${uid}/${f.name}`)
   if (publicFiles.length) await db.storage.from('public-media').remove(publicFiles)
   if (chatFiles.length) await db.storage.from('chat-media').remove(chatFiles)
+  if (diaryFiles.length) await db.storage.from('diary-media').remove(diaryFiles)
 
   // 연결 끊기가 실패해도 탈퇴는 진행한다 (사용자의 삭제 요청을 막지 않는다). 실패는 기록만
   const unlinkFailed = await unlinkAll(db, uid).catch((e) => [(e as Error).message])

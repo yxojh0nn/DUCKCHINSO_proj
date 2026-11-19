@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Navigate, Route, Routes, useLocation, useNavigate, useNavigationType } from 'react-router-dom'
+import { Route, Routes, useLocation, useNavigate, useNavigationType } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
 import { App as CapApp } from '@capacitor/app'
 import { Browser } from '@capacitor/browser'
@@ -67,6 +67,7 @@ import TicketClicks from '@/screens/admin/TicketClicks'
 import AdminUsers from '@/screens/admin/AdminUsers'
 import AdminUserDetail from '@/screens/admin/AdminUserDetail'
 import { Gate } from '@/app/Gate'
+import { NotFound } from '@/screens/ErrorScreen'
 import { Tabs } from '@/app/Tabs'
 
 // 앱: 로그인 후 커스텀 스킴으로 돌아온다. 구글·애플·메일은 ?code=… → 세션으로 교환,
@@ -197,7 +198,7 @@ export default function App() {
                 <Route path="/admin/users/:id" element={<AdminUserDetail />} />
               </Route>
             </Route>
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
           )}
           </div>

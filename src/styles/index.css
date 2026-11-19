@@ -142,3 +142,8 @@ html.theme-fade, html.theme-fade *, html.theme-fade *::before, html.theme-fade *
 /* 실기기 키보드 값 확인용(주소 뒤 ?kbdebug). src/lib/keyboard.ts */
 #root[data-kb] { position: relative; }
 #root[data-kb]::after { content: attr(data-kb); position: absolute; bottom: 0; left: 0; z-index: 9999; padding: 2px 4px; background: #000c; color: #0f0; font: 11px monospace; pointer-events: none; }
+
+/* 불러오는 중 (components/ui/Loading.tsx · index.html #boot): 왼쪽 → 가운데 → 오른쪽 막대가 차례로 중심 기준으로 늘었다 줄고, 잠깐 쉰 뒤 반복 (한 바퀴 1.6초) */
+@keyframes eq-bounce { 0%, 32%, 100% { transform: none; } 12% { transform: scaleY(1.4); } 24% { transform: scaleY(0.7); } }
+.eq-bar { transform-box: fill-box; transform-origin: center; animation: eq-bounce 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .eq-bar { animation: none; } }
