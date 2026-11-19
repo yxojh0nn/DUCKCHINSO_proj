@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, errorText, isDemo, type Membership as M } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
+import { BusinessFooter } from '@/components/BusinessFooter'
 import { BADGE_TIERS, MemberBadge, nextBadgeIn, tierIndex } from '@/components/MemberBadge'
 import { MenuGroup, MenuRow } from '@/components/MenuRow'
 import { IconChevron, IconMembership } from '@/components/icons'
@@ -32,6 +33,7 @@ export default function Membership() {
       {isLoading ? <p className="px-5 py-8 t-sub text-graphite">불러오는 중…</p> : (
         member ? <MemberView m={m} /> : <Locked m={m} />
       )}
+      <div className="pb-8"><BusinessFooter className="mx-5 mt-8 border-t border-hairline pt-5" /></div>
     </>
   )
 }
