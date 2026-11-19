@@ -5,6 +5,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from '@/lib/queries'
 import { setupKeyboard } from '@/lib/keyboard'
 import App from './App'
+import { ErrorBoundary } from './screens/ErrorScreen'
 import './styles/index.css'
 
 setupKeyboard()
@@ -13,7 +14,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <App />
+        <ErrorBoundary><App /></ErrorBoundary>
       </BrowserRouter>
     </QueryClientProvider>
   </StrictMode>,

@@ -25,7 +25,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql', '20261111000030_inquiry_delete_and_hardening.sql', '20261111000031_nickname_validate.sql', '20261111000032_revoke_sessions.sql', '20261112000033_notices.sql', '20261112000034_notice_period.sql', '20261112000035_notice_schedule.sql', '20261112000036_admin_badge.sql', '20261112000037_chat_media_gifs.sql', '20261113000038_klipy_gifs.sql', '20261113000039_fk_indexes.sql', '20261113000040_ticket_link_clicks.sql', '20261115000041_cancel_friend_request.sql', '20261117000042_my_inquiries.sql', '20261117000043_memberships.sql', '20261118000044_pg_subscriptions.sql', '20261119000045_user_region.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql', '20261111000030_inquiry_delete_and_hardening.sql', '20261111000031_nickname_validate.sql', '20261111000032_revoke_sessions.sql', '20261112000033_notices.sql', '20261112000034_notice_period.sql', '20261112000035_notice_schedule.sql', '20261112000036_admin_badge.sql', '20261112000037_chat_media_gifs.sql', '20261113000038_klipy_gifs.sql', '20261113000039_fk_indexes.sql', '20261113000040_ticket_link_clicks.sql', '20261115000041_cancel_friend_request.sql', '20261117000042_my_inquiries.sql', '20261117000043_memberships.sql', '20261118000044_pg_subscriptions.sql', '20261119000045_user_region.sql', '20261119000046_region_public_daily_photos.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -771,4 +771,22 @@ const near = (await as('h', `select id, region from public.recommend_friends(10)
 assert.deepEqual(near.slice(0, 2).map((r) => r.id), [ids.j, ids.i])
 assert.equal(near[0].region, '경기')
 assert.equal((await as('h', `select region from public.profile_card($1)`, [ids.j])).rows[0].region, '경기')
+// 지역 비공개: 남에게 지역이 안 보이고 '가까운 사람 먼저'에서도 빠진다 (본인은 보인다)
+await as('j', `update public.profiles set region_public = false where id = $1`, [ids.j])
+assert.equal((await as('h', `select region from public.profile_card($1)`, [ids.j])).rows[0].region, null)
+assert.equal((await as('j', `select region from public.profile_card($1)`, [ids.j])).rows[0].region, '경기')
+const near2 = (await as('h', `select id, region, score from public.recommend_friends(10)`)).rows
+const j2 = near2.find((r) => r.id === ids.j)
+assert.equal(j2.region, null)
+assert.equal(j2.score, near2.find((r) => r.id === ids.i).score) // 취향이 같고 가까움 0 (부산은 300km 밖) → 같은 점수
+// 덕질 사진: 구독자만, 본인 폴더만, 미래 날짜 안 됨, 하루 10장, 남은 못 본다
+const ins = (k, day, path) => as(k, `insert into public.daily_photos (day, path) values ((now() at time zone 'Asia/Seoul')::date + $1::int, $2)`, [day, path])
+await assert.rejects(ins('h', 0, `${ids.h}/a.jpg`))
+await db.query(`insert into public.memberships (user_id, sub_until) values ($1, now() + interval '30 days') on conflict (user_id) do update set sub_until = excluded.sub_until`, [ids.h])
+await assert.rejects(ins('h', 0, `${ids.i}/a.jpg`))
+await assert.rejects(ins('h', 2, `${ids.h}/f.jpg`))
+for (let n = 0; n < 10; n++) await ins('h', 0, `${ids.h}/${n}.jpg`)
+await assert.rejects(ins('h', 0, `${ids.h}/x.jpg`))
+assert.equal((await as('h', `select count(*)::int as n from public.daily_photos`)).rows[0].n, 10)
+assert.equal((await as('i', `select count(*)::int as n from public.daily_photos`)).rows[0].n, 0)
 console.log('ALL OK')

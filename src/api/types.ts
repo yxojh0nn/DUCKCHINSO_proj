@@ -34,6 +34,7 @@ export type Profile = UserCard & {
 }
 
 export type Me = Profile & {
+  regionPublic: boolean // 끄면 남에게 지역이 안 보이고, 가까운 사람 먼저 추천도 빠진다
   artistIds: string[]
   genreIds: number[]
   favoriteIds: string[]
@@ -230,8 +231,9 @@ export type Attendance = {
   postId: string | null // 이 공연으로 쓴 내 후기 글
   createdAt: string
 }
-// 덕질 캘린더의 하루 한 장 사진 (멤버십 전용, 본인만 봄)
-export type DailyPhoto = { day: string; photoUrl: string }
+// 덕질 캘린더 사진: 하루 여러 장(최대 DAILY_PHOTO_MAX) (멤버십 전용, 본인만 봄)
+export type DailyPhoto = { id: string; day: string; photoUrl: string }
+export const DAILY_PHOTO_MAX = 10 // DB daily_photos 정책과 같게
 // 리캡 재료. 남의 리캡은 그 사람이 공개로 둔 구독자일 때만 visible
 export type RecapSource = { visible: boolean; records: Pick<Attendance, 'concertId' | 'day'>[] }
 
@@ -266,6 +268,7 @@ export type Notice = { id: string; title: string; body: string; startsAt: string
 export type ProfilePatch = Partial<Pick<Profile, 'nickname' | 'bio' | 'avatarUrl' | 'bannerUrl' | 'profileSetupDone' | 'notifyEnabled' | 'region'>> & {
   notify?: Partial<NotifyPrefs>
   communityAgreed?: boolean
+  regionPublic?: boolean
 }
 
 export interface Api {
@@ -310,7 +313,8 @@ export interface Api {
   setAttendance(input: { concertId: string; day: string; photo?: Blob | null }): Promise<void>
   removeAttendance(concertId: string, day: string): Promise<void>
   myDailyPhotos(): Promise<DailyPhoto[]>
-  setDailyPhoto(day: string, photo: Blob | null): Promise<void> // null 이면 지운다. 멤버십 회원만 (membership_only)
+  addDailyPhotos(day: string, photos: Blob[]): Promise<void> // 멤버십 회원만 (membership_only), 하루 DAILY_PHOTO_MAX 장까지 (too_many_photos)
+  removeDailyPhoto(id: string): Promise<void>
   userRecaps(userId: string): Promise<RecapSource> // 본인은 늘 보이고, 남은 리캡 공개한 구독자만
   myRecapPublic(): Promise<boolean>
   setRecapPublic(on: boolean): Promise<void>
@@ -429,7 +433,8 @@ export const errorText = (e: unknown) => {
     has_paid_subscription: '결제로 이용 중인 구독은 바꿀 수 없어요.',
     refund_failed: '환불하지 못했어요. 포트원 콘솔에서 결제 상태를 확인해 주세요.',
     bad_amount: '환불할 수 있는 금액을 넘었어요.',
-    membership_only: '후기 사진은 멤버십 회원만 기록할 수 있어요.',
+    membership_only: '사진 기록은 멤버십 회원만 할 수 있어요.',
+    too_many_photos: '하루에 사진은 10장까지 담을 수 있어요.',
     not_ready: '아직 준비 중인 기능이에요.',
     account_restricted: '이용이 제한된 계정이에요. 문의하기로 연락해 주세요.',
     not_found: '이미 처리됐거나 사라진 항목이에요.',

@@ -11,9 +11,7 @@ import { keys, useMe } from '@/lib/queries'
 import { nicknameError } from '@/lib/settings'
 import { toast } from '@/store/ui'
 import { useRun } from '@/lib/actions'
-import { Button } from '@/components/ui/Button'
-import { REGIONS, nearestRegion } from '@/data/regions'
-import { SETTINGS_HINT, getPosition } from '@/lib/permissions'
+import { RegionField } from '@/components/RegionField'
 
 // 프로필 편집: 배너·프로필 사진, 닉네임, 소개글
 export default function ProfileEdit() {
@@ -23,7 +21,7 @@ export default function ProfileEdit() {
   const [nickname, setNickname] = useState(me?.nickname ?? '')
   const [bio, setBio] = useState(me?.bio ?? '')
   const [region, setRegion] = useState(me?.region ?? '')
-  const [locating, setLocating] = useState(false)
+  const [regionPublic, setRegionPublic] = useState(me?.regionPublic ?? true)
   const [avatar, setAvatar] = useState<Blob | null>(null)
   const [banner, setBanner] = useState<Blob | null>(null)
   const { busy, run } = useRun()
@@ -38,20 +36,11 @@ export default function ProfileEdit() {
         avatar ? api.uploadImage('avatar', avatar) : undefined,
         banner ? api.uploadImage('banner', banner) : undefined,
       ])
-      await api.updateMe({ nickname: nickname.trim(), bio: bio.trim(), region: region || null, ...(avatarUrl ? { avatarUrl } : {}), ...(bannerUrl ? { bannerUrl } : {}) })
+      await api.updateMe({ nickname: nickname.trim(), bio: bio.trim(), region: region || null, regionPublic, ...(avatarUrl ? { avatarUrl } : {}), ...(bannerUrl ? { bannerUrl } : {}) })
       await qc.invalidateQueries({ queryKey: keys.me })
       toast('프로필을 저장했어요')
       nav(-1)
     })
-  }
-  // 기기 위치 → 가장 가까운 시·도 (좌표는 이 함수 밖으로 나가지 않는다)
-  const locate = async () => {
-    setLocating(true)
-    try {
-      const p = await getPosition()
-      setRegion(nearestRegion(p.coords.latitude, p.coords.longitude))
-    } catch { toast(`위치를 가져오지 못했어요. 위치 권한이 꺼져 있다면 ${SETTINGS_HINT}`) }
-    finally { setLocating(false) }
   }
   const bannerSrc = banner ? URL.createObjectURL(banner) : me.bannerUrl
 
@@ -79,18 +68,7 @@ export default function ProfileEdit() {
       <div className="space-y-6 px-5 pb-10 pt-6">
         <TextField label="닉네임" value={nickname} maxLength={20} onChange={(e) => setNickname(e.target.value)} readOnly={me.isGuest}
           error={nickErr} hint={me.isGuest ? '비회원 닉네임은 자동으로 정해져요. 닉네임·사진은 회원으로 로그인하면 바꿀 수 있어요.' : undefined} />
-        <div>
-          <label htmlFor="region" className="block t-sub font-semibold text-graphite">활동 지역 (선택)</label>
-          <div className="mt-1 flex items-center gap-2">
-            <select id="region" value={region} onChange={(e) => setRegion(e.target.value)}
-              className="h-11 min-w-0 flex-1 border-b border-control-line bg-transparent t-body outline-none focus:border-ink">
-              <option value="">선택 안 함</option>
-              {REGIONS.map((r) => <option key={r.name} value={r.name}>{r.name}</option>)}
-            </select>
-            <Button size="sm" variant="secondary" disabled={locating} onClick={locate}>{locating ? '찾는 중…' : '현재 위치로'}</Button>
-          </div>
-          <span className="mt-1 block t-sub text-graphite">프로필에 보이고, 가까운 지역의 덕친을 먼저 추천해요. 현재 위치는 기기 안에서 시·도를 고르는 데만 쓰고 저장하지 않아요.</span>
-        </div>
+        {!me.isGuest && <RegionField region={region} onRegion={setRegion} isPublic={regionPublic} onPublic={setRegionPublic} />}
         <TextArea label="소개글" placeholder="당신의 덕력을 뽐내보세요!" rows={4} maxLength={150} value={bio} onChange={(e) => setBio(e.target.value)} hint={`${bio.length}/150`} />
       </div>
     </>

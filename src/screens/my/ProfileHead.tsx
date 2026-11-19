@@ -6,7 +6,7 @@ import { MemberBadge } from '@/components/MemberBadge'
 
 // 프로필 머리: 배너 사진 위에 프로필 사진, 닉네임, 소개글, 관심 아티스트(넘치면 … + 펼치기)
 export function ProfileHead({ profile, artistNames, genreNames, action, badge }: {
-  profile: Pick<Profile, 'nickname' | 'bio' | 'avatarUrl' | 'bannerUrl' | 'isGuest' | 'region'>
+  profile: Pick<Profile, 'nickname' | 'bio' | 'avatarUrl' | 'bannerUrl' | 'isGuest' | 'region'> & { regionPublic?: boolean }
   artistNames: string[]
   genreNames?: string[]
   action?: React.ReactNode
@@ -27,7 +27,7 @@ export function ProfileHead({ profile, artistNames, genreNames, action, badge }:
           <span>{profile.nickname}</span>
           {profile.isGuest && <span className="t-sub font-medium text-graphite">비회원</span>}
           {badge != null && <MemberBadge months={badge} />}
-          {profile.region && <span className="t-sub font-medium text-graphite">{profile.region}</span>}
+          {profile.region && <span className="t-sub font-medium text-graphite">{profile.region}{profile.regionPublic === false && ' · 나만 보여요'}</span>}
         </h1>
         <p className="mt-1 whitespace-pre-wrap t-body text-graphite">{profile.bio || '소개글이 아직 없어요.'}</p>
         {artistNames.length > 0 && (
