@@ -183,7 +183,8 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
         consentsOk: REQUIRED_KEYS.every((k) => latest.get(k)?.agreed && latest.get(k)?.version === CONSENT_VERSION),
         // 네이버·카카오는 social-login 이 만든 계정이라 auth 의 제공자가 email 로 보인다 → my_login 의 social 이 우선
         loginMethod: prof.is_guest ? 'guest' : login.data?.social ?? (s.session?.user.app_metadata.provider as LoginMethod | undefined) ?? 'email',
-        email: login.data?.social === 'kakao' ? null : s.session?.user.email ?? null,
+        // 카카오·(인증 이메일이 없는) 네이버 계정은 메일 없는 자리표시 주소다 → 보여 주지 않는다
+        email: login.data?.social === 'kakao' || /\.noemail\./.test(s.session?.user.email ?? '') ? null : s.session?.user.email ?? null,
         needsLoginId: login.data?.needs_login_id === true,
         notify: { friend: prof.notify_friend ?? true, like: prof.notify_like ?? true, comment: prof.notify_comment ?? true, concert: prof.notify_concert ?? true },
         isAdmin: adm.data === true,
@@ -329,7 +330,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       const [p, fr, rq] = await Promise.all([
         sb.rpc('profile_card', { target: userId }).single(),
         sb.from('friendships').select('room_id').eq('user_a', me < userId ? me : userId).eq('user_b', me < userId ? userId : me).maybeSingle(),
-        sb.from('friend_requests').select('from_user').eq('status', 'pending').gt('expires_at', new Date().toISOString())
+        sb.rpc('my_requests').select('from_user')
           .or(`and(from_user.eq.${me},to_user.eq.${userId}),and(from_user.eq.${userId},to_user.eq.${me})`),
       ])
       const prof = ok(p) as Row
@@ -360,9 +361,9 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     },
     async listRequests() {
       const me = await uid()
-      const rows = ok(await sb.from('friend_requests')
+      // my_requests: 만료 전 대기 요청 (보낸 쪽에는 거절된 요청도 대기 중으로 보인다 — 조용한 거절)
+      const rows = ok(await sb.rpc('my_requests')
         .select('id, from_user, to_user, created_at, expires_at, from:profiles!friend_requests_from_user_fkey(id, nickname, bio, avatar_url), to:profiles!friend_requests_to_user_fkey(id, nickname, bio, avatar_url)')
-        .eq('status', 'pending').gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false })) as Row[]
       return rows.map((r) => ({
         id: r.id, direction: r.to_user === me ? 'in' : 'out', user: card(r.to_user === me ? r.from : r.to),

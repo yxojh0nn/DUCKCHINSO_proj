@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { api, errorText } from '@/api'
 import { keys } from '@/lib/queries'
 import { toast } from '@/store/ui'
+import { takeLoginNonce } from '@/lib/loginNonce'
 
 // 같은 토큰을 두 번 쓰지 않게 (개발 모드에서 effect 가 두 번 돈다)
 const used = new Set<string>()
@@ -27,6 +28,12 @@ export default function AuthCallback() {
     }
     if (tokenHash && !used.has(tokenHash)) {
       used.add(tokenHash)
+      // 이 기기에서 시작한 로그인이 아니면(남이 보낸 링크 등) 토큰을 쓰지 않는다
+      if (!takeLoginNonce(hash.get('cn'))) {
+        toast(errorText(new Error('state_expired')))
+        nav('/login/member', { replace: true })
+        return
+      }
       api.completeSocialLogin(tokenHash).catch((e) => toast(errorText(e)))
     }
     let tries = 0

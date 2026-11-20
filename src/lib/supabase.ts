@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { Capacitor } from '@capacitor/core'
+import { issueLoginNonce } from './loginNonce'
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
@@ -17,6 +18,7 @@ export const APP_SCHEME = 'com.duckchinso.app'
 export const authRedirect = () =>
   Capacitor.isNativePlatform() ? `${APP_SCHEME}://auth/callback` : `${window.location.origin}/auth/callback`
 
-// 네이버·카카오 로그인 시작 주소 (서버 함수 social-login). 끝나면 authRedirect() 로 #token_hash 를 들고 돌아온다
+// 네이버·카카오 로그인 시작 주소 (서버 함수 social-login). 끝나면 authRedirect() 로 #token_hash 와 #cn 을 들고 돌아온다
+// 누를 때마다 부른다: cn 은 이 기기에만 저장되고 AuthCallback 이 맞춰 본다
 export const socialLoginUrl = (provider: 'naver' | 'kakao') =>
-  `${url}/functions/v1/social-login?provider=${provider}&to=${Capacitor.isNativePlatform() ? 'app' : encodeURIComponent(window.location.origin)}`
+  `${url}/functions/v1/social-login?provider=${provider}&to=${Capacitor.isNativePlatform() ? 'app' : encodeURIComponent(window.location.origin)}&cn=${issueLoginNonce()}`

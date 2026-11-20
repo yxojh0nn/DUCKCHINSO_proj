@@ -56,6 +56,10 @@ export function buyerOf(info: Json, customerToken: string): Json {
   return { id: customerToken, ...(c.name ? { name: { full: c.name } } : {}), ...(c.phoneNumber ? { phoneNumber: c.phoneNumber } : {}), ...(c.email ? { email: c.email } : {}) }
 }
 
+// 이 사람 키로 확인되기 전에 거절된 사유. 이런 키는 포트원에서 지우지 않는다 (남의 빌링키를 보내 그 사람의 정기결제를 끊지 못하게)
+// not_issued 는 상점·고객보다 먼저 보므로 주인을 모른다. no_channel·test_channel 은 주인 확인 뒤라 이 사람 키다
+export const KEY_NOT_OURS = new Set(['lookup_failed', 'not_issued', 'other_store', 'other_customer'])
+
 // 빌링키가 우리 상점의, 이 사람(customer_token)의, 쓸 수 있는 키인지. 테스트 채널은 PORTONE_ALLOW_TEST 일 때만
 export function checkBillingKey(info: Json, customerToken: string, store = env('PORTONE_STORE_ID'), allowTest = env('PORTONE_ALLOW_TEST') === 'true') {
   if (info?.status !== 'ISSUED') return { ok: false as const, reason: 'not_issued' }

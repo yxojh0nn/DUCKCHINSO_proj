@@ -1,7 +1,7 @@
 // 네이버·카카오 로그인 (docs/로그인_계정_암호화_설계.md 4장). 브라우저가 이 주소를 직접 열므로 --no-verify-jwt 로 배포한다
-// ① GET ?provider=naver|kakao&to=app|<웹 주소>  → 서명한 state + 쿠키 nonce 를 들고 제공자 로그인 화면으로
+// ① GET ?provider=naver|kakao&to=app|<웹 주소>&cn=<기기 nonce>  → 서명한 state + 쿠키 nonce 를 들고 제공자 로그인 화면으로
 // ② GET ?code=…&state=…  (제공자가 돌려보냄)   → 회원 식별값으로 계정 찾기/만들기 → 일회용 로그인 토큰
-//                                                → <돌아갈 곳>/auth/callback#token_hash=… (앱이 verifyOtp 로 세션을 받는다)
+//                                                → <돌아갈 곳>/auth/callback#token_hash=…&cn=… (앱이 cn 을 맞춰 본 뒤 verifyOtp 로 세션을 받는다)
 // 계정은 이메일이 아니라 제공자 회원 식별값(HMAC)으로 찾는다. 카카오는 이메일을 받지 않는다
 import { admin } from '../_shared/supabase.ts'
 import { blindIndex, encrypt, signState, verifyState } from '../_shared/crypto.ts'
@@ -10,6 +10,9 @@ import { NO_MAIL_DOMAIN, authorizeUrl, fetchIdentity, returnUrl, type Provider }
 // 로그인 CSRF 방지: 시작한 브라우저에만 nonce 쿠키를 심고, 돌아왔을 때 state 안의 nonce 와 맞춘다
 const COOKIE = 'sl_nonce'
 const cookie = (v: string, age: number) => `${COOKIE}=${v}; Path=/functions/v1/social-login; Max-Age=${age}; HttpOnly; Secure; SameSite=Lax`
+// cn: 앱이 이 기기에만 저장한 값. 돌려줄 때 그대로 붙이면 앱이 '내가 시작한 로그인'인지 확인한다
+// (남이 자기 계정 토큰을 링크로 보내 로그인시키는 것을 막는다. 예전 앱 번들은 안 보내므로 없어도 받는다)
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const redirect = (url: string, setCookie: string) =>
   new Response(null, { status: 302, headers: { Location: url, 'Set-Cookie': setCookie, 'Cache-Control': 'no-store' } })
 const page = (msg: string) =>
@@ -23,10 +26,11 @@ Deno.serve(async (req) => {
   if (!q.has('state')) {
     const provider = q.get('provider')
     const to = q.get('to') ?? ''
-    if ((provider !== 'naver' && provider !== 'kakao') || !returnUrl(to)) return page('잘못된 로그인 요청이에요.')
+    const cn = q.get('cn')
+    if ((provider !== 'naver' && provider !== 'kakao') || !returnUrl(to) || (cn !== null && !UUID.test(cn))) return page('잘못된 로그인 요청이에요.')
     const nonce = crypto.randomUUID()
     try {
-      return redirect(authorizeUrl(provider, await signState({ provider, to, nonce })), cookie(nonce, 600))
+      return redirect(authorizeUrl(provider, await signState({ provider, to, nonce, ...(cn ? { cn } : {}) })), cookie(nonce, 600))
     } catch (e) {
       console.error('social_login_start_failed', (e as Error).message) // 비밀값이 없으면 missing_secret:<이름>
       return page('로그인 설정이 아직 끝나지 않았어요. 잠시 후 다시 시도해 주세요.')
@@ -54,7 +58,11 @@ Deno.serve(async (req) => {
 
     if (!uid) {
       // 같은 이메일의 다른 계정과 자동으로 합치지 않는다 (설계 10장 3번) → 이미 있으면 원래 방법으로 로그인하라고 안내
-      const email = who.email ?? `k${crypto.randomUUID().replaceAll('-', '')}@${NO_MAIL_DOMAIN}`
+      if (who.email && (await db.rpc('email_registered', { p_email: who.email })).data) return fail('email_taken')
+      // 네이버 이메일은 네이버가 직접 관리하는 @naver.com 만 '인증된 이메일'로 쓴다. 다른 연락처 주소는 인증 여부를 알 수 없어,
+      // 남의 이메일로 먼저 가입해 두면 나중에 그 사람의 구글 로그인이 이 계정에 자동 연결될 수 있다(계정 선점) → 메일 없는 주소로 만든다
+      const trusted = who.email && /@naver\.com$/i.test(who.email) ? who.email : null
+      const email = trusted ?? `${provider === 'naver' ? 'n' : 'k'}${crypto.randomUUID().replaceAll('-', '')}@${NO_MAIL_DOMAIN}`
       const { data, error } = await db.auth.admin.createUser({ email, email_confirm: true })
       if (error) return fail(error.code === 'email_exists' || /already/i.test(error.message) ? 'email_taken' : 'social_failed')
       uid = data.user.id
@@ -72,7 +80,8 @@ Deno.serve(async (req) => {
     const { data: u } = await db.auth.admin.getUserById(uid)
     const { data: link, error } = await db.auth.admin.generateLink({ type: 'magiclink', email: u.user!.email! })
     if (error) throw error
-    return redirect(`${back}#token_hash=${encodeURIComponent(link.properties.hashed_token)}`, cookie('', 0))
+    const cn = typeof s.cn === 'string' ? `&cn=${s.cn}` : ''
+    return redirect(`${back}#token_hash=${encodeURIComponent(link.properties.hashed_token)}${cn}`, cookie('', 0))
   } catch (e) {
     console.error('social_login_failed', provider, (e as Error).message) // 토큰·식별값은 남기지 않는다
     return fail('social_failed')

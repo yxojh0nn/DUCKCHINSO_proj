@@ -25,7 +25,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql', '20261111000030_inquiry_delete_and_hardening.sql', '20261111000031_nickname_validate.sql', '20261111000032_revoke_sessions.sql', '20261112000033_notices.sql', '20261112000034_notice_period.sql', '20261112000035_notice_schedule.sql', '20261112000036_admin_badge.sql', '20261112000037_chat_media_gifs.sql', '20261113000038_klipy_gifs.sql', '20261113000039_fk_indexes.sql', '20261113000040_ticket_link_clicks.sql', '20261115000041_cancel_friend_request.sql', '20261117000042_my_inquiries.sql', '20261117000043_memberships.sql', '20261118000044_pg_subscriptions.sql', '20261119000045_user_region.sql', '20261119000046_region_public_daily_photos.sql', '20261119000047_pg_late_paid.sql', '20261119000048_nickname_key.sql', '20261120000049_insert_columns.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql', '20261111000030_inquiry_delete_and_hardening.sql', '20261111000031_nickname_validate.sql', '20261111000032_revoke_sessions.sql', '20261112000033_notices.sql', '20261112000034_notice_period.sql', '20261112000035_notice_schedule.sql', '20261112000036_admin_badge.sql', '20261112000037_chat_media_gifs.sql', '20261113000038_klipy_gifs.sql', '20261113000039_fk_indexes.sql', '20261113000040_ticket_link_clicks.sql', '20261115000041_cancel_friend_request.sql', '20261117000042_my_inquiries.sql', '20261117000043_memberships.sql', '20261118000044_pg_subscriptions.sql', '20261119000045_user_region.sql', '20261119000046_region_public_daily_photos.sql', '20261119000047_pg_late_paid.sql', '20261119000048_nickname_key.sql', '20261120000049_insert_columns.sql', '20261120000050_silent_decline.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -856,4 +856,25 @@ for (const [sql, params] of [
   [`insert into public.consents (user_id, item, version, agreed, created_at) values ($1, 'push', 'v1', true, '2020-01-01')`, [ids.p1]],
   [`insert into public.favorites (user_id, concert_id, created_at) values ($1, $2, '2099-01-01')`, [ids.p1, cUp]],
 ]) await assert.rejects(as('p1', sql, params), /permission denied/, sql)
+
+// ── 마이그 50: 조용한 거절. 보낸 사람(p1)은 거절을 알 수 없고, 받은 사람(p2) 목록에서는 빠진다 ──
+{
+  const mine = async (k) => (await as(k, `select from_user, to_user, status from public.my_requests()`)).rows
+  const rid = (await as('p1', `select public.send_friend_request($1) as id`, [ids.p2])).rows[0].id
+  assert.equal((await mine('p2')).length, 1)
+  await as('p2', `select public.respond_friend_request($1, false)`, [rid])
+  assert.equal((await as('p1', `select * from public.friend_requests where id = $1`, [rid])).rows.length, 0) // 직접 읽기·Realtime 으로 못 본다
+  assert.deepEqual(await mine('p1'), [{ from_user: ids.p1, to_user: ids.p2, status: 'pending' }]) // 만료 전까지 대기 중으로 보인다
+  assert.equal((await mine('p2')).length, 0)
+  assert.equal((await as('p2', `select status from public.friend_requests where id = $1`, [rid])).rows[0].status, 'declined')
+  await assert.rejects(as('p1', `select public.send_friend_request($1)`, [ids.p2]), /duplicate/) // 다시 보내기로도 알 수 없다
+  await db.query(`update public.friend_requests set expires_at = now() - interval '1 minute' where id = $1`, [rid])
+  assert.equal((await mine('p1')).length, 0) // 만료되면 사라진다
+  // 거절된 요청 취소도 대기 중 요청처럼 된다
+  await db.query(`update public.friend_requests set expires_at = now() + interval '1 day' where id = $1`, [rid])
+  await as('p1', `select public.cancel_friend_request($1)`, [ids.p2])
+  assert.equal((await mine('p1')).length, 0)
+  await db.exec('set role anon')
+  try { await assert.rejects(db.query(`select * from public.my_requests()`), /permission denied/) } finally { await db.exec('reset role') }
+}
 console.log('ALL OK')
