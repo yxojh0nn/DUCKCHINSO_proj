@@ -4,12 +4,16 @@ import { admin, callerOf, cors, json } from '../_shared/supabase.ts'
 import { unlinkAll } from '../_shared/providers.ts'
 import { decrypt } from '../_shared/crypto.ts'
 import { deleteBillingKey } from '../_shared/pg.ts'
+import { signedInWithin } from '../_shared/session.ts'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   const user = await callerOf(req)
   if (!user) return json({ error: 'not_authenticated' }, 401)
   // 비회원도 지운다: 비회원은 로그아웃(나가기) = 계정 삭제
+  // 회원은 최근 10분 안에 로그인했을 때만 (훔친 세션으로 계정을 영구 삭제하지 못하게). 비회원은 다시 로그인할 방법이 없어 제외
+  const jwt = req.headers.get('Authorization')!.replace('Bearer ', '')
+  if (!user.is_anonymous && !signedInWithin(jwt, 600)) return json({ error: 'reauth_required' }, 403)
 
   const db = admin()
   const uid = user.id

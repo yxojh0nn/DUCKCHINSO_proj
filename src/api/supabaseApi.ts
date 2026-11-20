@@ -138,9 +138,9 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     async resetPasswordWithCode(loginId, email, proof, password) {
       await fn('login-id', { action: 'reset_verify', loginId, email, ...proof, password })
     },
-    async updatePassword(password) {
-      const { error } = await sb.auth.updateUser({ password })
-      if (error) throw error
+    // 현재 비밀번호를 서버(login-id)가 확인한 뒤에만 바꾼다 (세션만 훔친 사람은 못 바꾸게)
+    async updatePassword(current, password) {
+      await fn('login-id', { action: 'change_password', current, password })
       await sb.auth.signOut({ scope: 'others' }) // 비밀번호를 바꾸면 다른 기기 로그인은 끊는다 (도용 대비)
     },
     async signOut() {
@@ -148,8 +148,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       await clearPhotoCache()
     },
     async deleteAccount() {
-      const { error } = await sb.functions.invoke('delete-account', { method: 'POST' })
-      if (error) throw error
+      await fn('delete-account', {}) // 오류 코드(reauth_required 등)를 그대로 받으려고 fn 으로
       await sb.auth.signOut({ scope: 'local' })
       await clearPhotoCache()
     },

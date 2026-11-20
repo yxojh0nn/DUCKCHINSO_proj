@@ -4,8 +4,8 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
-      "source": "/poster/:path*",
-      "destination": "https://kopis.or.kr/upload/:path*"
+      "source": "/poster/:dir(pfmPoster|pfmIntroImage)/:file([A-Za-z0-9_.-]+\\.(?:jpe?g|png|gif|webp|JPE?G|PNG|GIF|WEBP))",
+      "destination": "https://kopis.or.kr/upload/:dir/:file"
     },
     {
       "source": "/((?!assets/|_vercel/|poster/|\\.well-known/).*)",
@@ -13,19 +13,6 @@
     }
   ],
   "headers": [
-    {
-      "source": "/poster/(.*)",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=2592000"
-        }
-      ]
-    },
     {
       "source": "/(.*)",
       "headers": [
@@ -56,6 +43,23 @@
         {
           "key": "Cross-Origin-Opener-Policy",
           "value": "same-origin"
+        }
+      ]
+    },
+    {
+      "source": "/poster/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=2592000"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'none'; img-src 'self'; sandbox"
         }
       ]
     }

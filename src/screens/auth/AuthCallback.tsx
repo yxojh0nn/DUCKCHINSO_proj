@@ -11,7 +11,7 @@ const used = new Set<string>()
 
 // 소셜 로그인·메일 인증에서 돌아오는 주소. 세션이 잡히면 캘린더로 (동의·아이디가 없으면 Gate가 그 화면으로 보냄)
 // 네이버·카카오는 #token_hash=… (실패하면 #error=…), 구글·애플·메일 인증은 ?code=… (supabase-js 가 처리)
-// ?next=password: 비밀번호 재설정 메일에서 왔다 → 새 비밀번호 화면으로
+// ?next=password: (예전) 비밀번호 재설정 메일에서 왔다 → 비밀번호 화면으로. 지금 재설정은 login-id 의 메일 코드로 한다
 export default function AuthCallback() {
   const nav = useNavigate()
   const qc = useQueryClient()

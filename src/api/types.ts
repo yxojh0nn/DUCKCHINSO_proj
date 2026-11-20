@@ -297,7 +297,7 @@ export interface Api {
   // 비밀번호 찾기: 캡차 + 아이디 + 가입 이메일이 맞으면 그 이메일로 인증 코드 → 코드(또는 아이디 찾기의 ticket) + 새 비밀번호
   requestPasswordReset(loginId: string, email: string, captchaToken?: string): Promise<void>
   resetPasswordWithCode(loginId: string, email: string, proof: { code: string } | { ticket: string }, password: string): Promise<void>
-  updatePassword(password: string): Promise<void>
+  updatePassword(current: string, password: string): Promise<void>
   signOut(): Promise<void>
   deleteAccount(): Promise<void>
 
@@ -456,6 +456,8 @@ export const errorText = (e: unknown) => {
     tip_bad_url: 'https:// 로 시작하는 공지 링크를 넣어 주세요.',
     email_code_invalid: '인증 코드가 맞지 않아요.',
     password_rule: '비밀번호는 영문과 숫자를 섞어 8~72자로 정해 주세요.',
+    wrong_password: '현재 비밀번호가 맞지 않아요.',
+    reauth_required: '안전을 위해 다시 로그인한 뒤 탈퇴할 수 있어요.',
     email_code_expired: '인증 코드가 만료됐어요. 인증 메일을 다시 받아 주세요.',
     email_ticket_expired: '메일 인증 시간이 지났어요. 다시 인증해 주세요.',
     captcha_failed: '로봇이 아닌지 확인하지 못했어요. 확인을 다시 해 주세요.',
