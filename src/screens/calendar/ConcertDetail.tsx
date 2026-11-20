@@ -57,7 +57,7 @@ export default function ConcertDetail() {
   const byDay = new Map<string, string[]>()
   c.schedules.forEach((s) => byDay.set(kstDayKey(s), [...(byDay.get(kstDayKey(s)) ?? []), s]))
   const artistNames = namesOf(artists, c.artistIds).join(', ')
-  const genre = c.genreId ? namesOf(genres, [c.genreId])[0] : null
+  const genre = namesOf(genres, c.genreIds).join(', ') || null
   const member = !!me && !me.isGuest
   const opened = c.ticketOpenAt && new Date(c.ticketOpenAt).getTime() <= Date.now()
   const ticket = (url: string) => { api.logTicketClick(c.id, url).catch(() => {}); openTicket(url) }

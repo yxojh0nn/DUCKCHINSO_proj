@@ -35,7 +35,7 @@ const adminConcert = (r: Row): AdminConcert => ({
 })
 
 const contribution = (r: Row): MyContribution => ({
-  id: r.id, concertId: r.concert_id, concertTitle: r.concert_title, kind: r.kind, openAt: r.open_at, genreId: r.genre_id,
+  id: r.id, concertId: r.concert_id, concertTitle: r.concert_title, kind: r.kind, openAt: r.open_at, genreIds: r.genre_ids ?? [],
   category: r.category, title: r.title, body: r.body, status: r.status, rejectReason: r.reject_reason, points: r.points ?? 0,
   createdAt: r.created_at, resolvedAt: r.resolved_at,
 })
@@ -310,7 +310,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       return rows.map((r): Concert => ({
         id: r.id, title: r.title, posterUrl: r.poster_url, venue: r.venue_name, venueQuery: r.venue_query,
         region: r.region, priceText: r.price_text, priceMin: r.price_min, priceMax: r.price_max,
-        ticketOpenAt: r.ticket_open_at, genreId: r.genre_id, introUrls: r.intro_urls ?? [],
+        ticketOpenAt: r.ticket_open_at, genreIds: r.genre_ids ?? [], introUrls: r.intro_urls ?? [],
         artistIds: r.concert_artists.map((a: Row) => a.artist_id),
         schedules: r.concert_schedules.map((s: Row) => new Date(s.starts_at).toISOString()).sort(),
         links: r.ticket_links,
@@ -326,14 +326,17 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       if (on) ok(await sb.from('favorites').upsert({ user_id: id, concert_id: concertId }, { ignoreDuplicates: true }))
       else ok(await sb.from('favorites').delete().eq('user_id', id).eq('concert_id', concertId))
     },
-    async agreeContribution() {
-      ok(await sb.rpc('agree_contribution', { ver: CONSENT_VERSION }))
+    async agreeContribution(showNickname) {
+      ok(await sb.rpc('agree_contribution', { ver: CONSENT_VERSION, show_nick: showNickname }))
+    },
+    async setContribNickname(on) {
+      ok(await sb.rpc('set_contrib_nickname', { ver: CONSENT_VERSION, show_nick: on }))
     },
     async submitContribution(concertId, x) {
       ok(await sb.rpc('submit_contribution', {
         concert: concertId, kind: x.kind,
         open_at: x.kind === 'ticket_open' ? x.openAt : null,
-        genre: x.kind === 'genre' ? x.genreId : null,
+        genres: x.kind === 'genre' ? x.genreIds : null,
         category: x.kind === 'info' ? x.category : null,
         title: x.kind === 'info' ? x.title : null,
         body: x.kind === 'info' ? x.body : null,
@@ -596,7 +599,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     async adminContributions(tab) {
       return (ok(await sb.rpc('admin_contributions', { tab })) as Row[]).map((r) => ({
         ...contribution(r),
-        artists: r.artists ?? '', currentOpenAt: r.current_open_at, currentGenreId: r.current_genre_id, sourceUrl: r.source_url,
+        artists: r.artists ?? '', currentOpenAt: r.current_open_at, currentGenreIds: r.current_genre_ids ?? [], sourceUrl: r.source_url,
         penalized: r.penalized,
         user: r.user_id ? {
           id: r.user_id, nickname: r.nickname, approved: r.approved_count, rejected: r.rejected_count, penalties: r.penalty_count,

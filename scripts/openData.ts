@@ -33,7 +33,7 @@ export const toConcert = (d: KopisDetail, artistIds: string[]): Concert => {
     venue: d.venue, venueQuery: d.venue, region: shortRegion(d.area) || null,
     priceText: d.priceText || null, priceMin, priceMax,
     ticketOpenAt: null, // KOPIS 에 없음 (운영자 입력, docs/오픈API_조사.md 4장)
-    genreId: null, artistIds,
+    genreIds: [], artistIds,
     schedules: expandSchedule(d.from, d.to, d.schedule).map((s) => new Date(`${s}:00+09:00`).toISOString()).sort(),
     links: d.links,
   }

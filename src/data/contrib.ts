@@ -13,12 +13,14 @@ export const penaltyFor = (count: number) => PENALTY_STEPS[Math.min(count, PENAL
 // 제보 기능 첫 이용 때 받는 동의 (consents.item = 'contribution')
 export const CONTRIB_CONSENT = [
   '보내 주신 정보는 운영자가 확인한 뒤 공연 상세와 공연 정보 페이지에 공개돼요.',
-  '반영된 정보 옆에 내 닉네임이 함께 표시돼요.',
   '덕친소는 공개된 정보를 서비스 안에서 고치거나 내릴 수 있어요.',
   '반영되면 포인트를 드려요. 포인트는 현금이나 결제 수단으로 바꿀 수 없고, 탈퇴하면 사라져요.',
   '사실과 다른 정보를 일부러 반복해 보내면 제보 기능이 7일·14일·30일·영구 순으로 정지될 수 있어요.',
   '제보 내용과 처리 기록은 처리 후 1년 동안 보관해요.',
 ]
+
+export const NICKNAME_CONSENT = '반영된 정보 옆에 내 닉네임 표시 (선택)'
+export const MAX_GENRES = 3 // DB check_genre_ids 와 같은 값
 
 // 운영자 검수 화면: 개인정보로 보이는 글 (전화번호·이메일·계좌 형태) 표시용. 막지는 않는다
 export const looksPersonal = (t: string) =>

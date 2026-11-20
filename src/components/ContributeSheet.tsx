@@ -4,7 +4,8 @@ import { api, type ContributionKind, type InfoCategory } from '@/api'
 import { Button, Chip } from '@/components/ui/Button'
 import { TextArea, TextField } from '@/components/ui/Field'
 import { Sheet } from '@/components/ui/Sheet'
-import { CATEGORIES, CATEGORY_LABEL, CONTRIB_CONSENT } from '@/data/contrib'
+import { Checkbox } from '@/components/ui/Checkbox'
+import { CATEGORIES, CATEGORY_LABEL, CONTRIB_CONSENT, MAX_GENRES, NICKNAME_CONSENT } from '@/data/contrib'
 import { fmtDateTime } from '@/lib/date'
 import { keys, useGenres, useMe } from '@/lib/queries'
 import { toast } from '@/store/ui'
@@ -24,7 +25,8 @@ export function ContributeSheet({ open, onClose, concertId, kind, category = 'ti
   const { busy, run } = useRun()
   const [at, setAt] = useState('') // datetime-local 값 (이 기기 시간대 = 한국)
   const [url, setUrl] = useState('')
-  const [genreId, setGenreId] = useState<number | null>(null)
+  const [genreIds, setGenreIds] = useState<number[]>([])
+  const [showNick, setShowNick] = useState(false)
   const [cat, setCat] = useState<InfoCategory>(category)
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
@@ -33,11 +35,11 @@ export function ContributeSheet({ open, onClose, concertId, kind, category = 'ti
   const agreed = !!me.consents.contribution
   const urlOk = /^https?:\/\/\S+$/.test(url)
   const ok = kind === 'ticket_open' ? !!at && urlOk
-    : kind === 'genre' ? genreId !== null
+    : kind === 'genre' ? genreIds.length > 0
     : !!title.trim() && body.trim().length >= 10 && (!url || urlOk)
 
   const agree = () => run(async () => {
-    await api.agreeContribution()
+    await api.agreeContribution(showNick)
     await qc.invalidateQueries({ queryKey: keys.me })
   })
   const submit = (e: React.FormEvent) => {
@@ -46,11 +48,11 @@ export function ContributeSheet({ open, onClose, concertId, kind, category = 'ti
     return run(async () => {
       await api.submitContribution(concertId,
         kind === 'ticket_open' ? { kind, openAt: new Date(at).toISOString(), sourceUrl: url }
-          : kind === 'genre' ? { kind, genreId: genreId! }
+          : kind === 'genre' ? { kind, genreIds }
           : { kind, category: cat, title: title.trim(), body: body.trim(), sourceUrl: url || undefined })
       await qc.invalidateQueries({ queryKey: keys.myContribs })
       toast('제보를 보냈어요. 운영자가 확인한 뒤 반영되면 포인트를 드려요.')
-      setAt(''); setUrl(''); setGenreId(null); setTitle(''); setBody(''); onClose()
+      setAt(''); setUrl(''); setGenreIds([]); setTitle(''); setBody(''); onClose()
     })
   }
 
@@ -66,6 +68,8 @@ export function ContributeSheet({ open, onClose, concertId, kind, category = 'ti
       ) : !agreed ? (
         <div className="px-5 pb-5 pt-2">
           <ul className="list-disc space-y-1.5 pl-5 t-sub">{CONTRIB_CONSENT.map((t) => <li key={t}>{t}</li>)}</ul>
+          <div className="mt-4"><Checkbox checked={showNick} onChange={setShowNick}>{NICKNAME_CONSENT}</Checkbox></div>
+          <p className="t-cap text-graphite">MY &gt; 포인트에서 언제든 바꿀 수 있어요.</p>
           <Button block className="mt-6" disabled={busy} onClick={agree}>동의하고 계속하기</Button>
         </div>
       ) : (
@@ -79,9 +83,16 @@ export function ContributeSheet({ open, onClose, concertId, kind, category = 'ti
           )}
           {kind === 'genre' && (
             <fieldset>
-              <legend className="t-sub font-semibold text-graphite">장르</legend>
+              <legend className="t-sub font-semibold text-graphite">장르 (최대 {MAX_GENRES}개)</legend>
               <div className="mt-2 flex flex-wrap gap-2">
-                {genres.map((g) => <Chip key={g.id} on={genreId === g.id} onClick={() => setGenreId(g.id)}>{g.name}</Chip>)}
+                {genres.map((g) => {
+                  const on = genreIds.includes(g.id)
+                  const toggle = () => {
+                    if (!on && genreIds.length >= MAX_GENRES) return toast(`장르는 ${MAX_GENRES}개까지 고를 수 있어요`)
+                    setGenreIds((p) => p.includes(g.id) ? p.filter((x) => x !== g.id) : p.length < MAX_GENRES ? [...p, g.id] : p)
+                  }
+                  return <Chip key={g.id} on={on} onClick={toggle}>{g.name}</Chip>
+                })}
               </div>
             </fieldset>
           )}
