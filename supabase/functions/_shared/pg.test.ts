@@ -1,7 +1,7 @@
 // 실행: node --experimental-strip-types supabase/functions/_shared/pg.test.ts (pnpm test 에 포함)
 import assert from 'node:assert/strict'
 import { createHmac, randomBytes } from 'node:crypto'
-import { buyerOf, checkBillingKey, isOurPaymentId, methodLabel, payState, verifyWebhook } from './pg.ts'
+import { KEY_NOT_OURS, buyerOf, checkBillingKey, isOurPaymentId, methodLabel, payState, verifyWebhook } from './pg.ts'
 
 // 웹훅 서명: 맞는 서명, 틀린 비밀값, 본문 변조, 오래된 알림, 머리글 빠짐
 const secret = randomBytes(24).toString('base64')
@@ -31,6 +31,10 @@ assert.deepEqual(checkBillingKey({ ...key, channels: [{ type: 'TEST' }] }, 'tok-
 assert.deepEqual(checkBillingKey({ ...key, channels: [{ type: 'TEST' }] }, 'tok-1', 'store-1', true), { ok: true, env: 'sandbox' })
 assert.deepEqual(checkBillingKey({ ...key, channels: [] }, 'tok-1', 'store-1', false), { ok: false, reason: 'no_channel' }) // 채널을 모르면 거절
 assert.deepEqual(checkBillingKey({ ...key, channels: undefined }, 'tok-1', 'store-1', false), { ok: false, reason: 'no_channel' })
+// 거절된 키 중 주인이 확인되지 않은 것(남의 키 등)은 지우지 않는다, 이 사람 키(채널 문제)만 지운다
+const reasonOf = (k: Record<string, unknown>) => (checkBillingKey(k, 'tok-1', 'store-1', false) as { reason: string }).reason
+for (const k of [{ ...key, customer: { id: 'tok-2' } }, { ...key, storeId: 'store-2' }, { ...key, status: 'DELETED' }]) assert.equal(KEY_NOT_OURS.has(reasonOf(k)), true)
+for (const k of [{ ...key, channels: [] }, { ...key, channels: [{ type: 'TEST' }] }]) assert.equal(KEY_NOT_OURS.has(reasonOf(k)), false)
 
 // 결제 상태: 다른 상점·다른 통화면 실패, 금액은 포트원 값 그대로 (비교는 DB 가)
 const pay = { storeId: 'store-1', currency: 'KRW', status: 'PAID', amount: { total: 3900 }, paidAt: '2026-11-18T00:00:00Z' }
