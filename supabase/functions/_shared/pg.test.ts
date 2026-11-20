@@ -29,6 +29,8 @@ assert.equal(checkBillingKey({ ...key, status: 'DELETED' }, 'tok-1', 'store-1', 
 assert.equal(checkBillingKey(key, 'tok-1', undefined, false).ok, false)
 assert.deepEqual(checkBillingKey({ ...key, channels: [{ type: 'TEST' }] }, 'tok-1', 'store-1', false), { ok: false, reason: 'test_channel' })
 assert.deepEqual(checkBillingKey({ ...key, channels: [{ type: 'TEST' }] }, 'tok-1', 'store-1', true), { ok: true, env: 'sandbox' })
+assert.deepEqual(checkBillingKey({ ...key, channels: [] }, 'tok-1', 'store-1', false), { ok: false, reason: 'no_channel' }) // 채널을 모르면 거절
+assert.deepEqual(checkBillingKey({ ...key, channels: undefined }, 'tok-1', 'store-1', false), { ok: false, reason: 'no_channel' })
 
 // 결제 상태: 다른 상점·다른 통화면 실패, 금액은 포트원 값 그대로 (비교는 DB 가)
 const pay = { storeId: 'store-1', currency: 'KRW', status: 'PAID', amount: { total: 3900 }, paidAt: '2026-11-18T00:00:00Z' }

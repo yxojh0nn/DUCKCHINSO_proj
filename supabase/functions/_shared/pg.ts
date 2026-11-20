@@ -62,6 +62,7 @@ export function checkBillingKey(info: Json, customerToken: string, store = env('
   if (!store || info.storeId !== store) return { ok: false as const, reason: 'other_store' }
   if (info.customer?.id !== customerToken) return { ok: false as const, reason: 'other_customer' }
   const channels: Json[] = Array.isArray(info.channels) ? info.channels : []
+  if (!channels.length) return { ok: false as const, reason: 'no_channel' } // 채널을 모르면 운영 키로 보지 않는다
   const test = channels.some((c) => c?.type !== 'LIVE')
   if (test && !allowTest) return { ok: false as const, reason: 'test_channel' }
   return { ok: true as const, env: test ? 'sandbox' : 'production' }
@@ -109,7 +110,11 @@ export async function settle(db: any, paymentId: string, p: Json | null): Promis
   const r = s.kind === 'paid'
     ? await rpc('pg_charge_result', { pid: paymentId, ok: true, paid_krw: s.krw, paid: s.paidAt, reason: null })
     : await rpc('pg_charge_result', { pid: paymentId, ok: false, paid_krw: null, paid: null, reason: s.reason })
-  if (r === 'amount_mismatch' && s.kind === 'paid') await cancelPayment(paymentId, s.krw, '결제 금액 불일치 자동 취소').catch(() => {})
+  // 금액이 다르거나(amount_mismatch) 이미 닫은 청구·끝난 구독의 결제(late_paid)는 바로 돌려준다. 취소 실패는 운영자가 보게 기록
+  if ((r === 'amount_mismatch' || r === 'late_paid') && s.kind === 'paid') {
+    await cancelPayment(paymentId, s.krw, r === 'late_paid' ? '끝난 청구 결제 자동 취소' : '결제 금액 불일치 자동 취소')
+      .catch((e) => db.rpc('pg_log', { src: 'settle', ekey: null, sid: null, k: 'auto_cancel_failed', res: `${paymentId}:${(e as Error).message}`, phash: null }))
+  }
   return r
 }
 

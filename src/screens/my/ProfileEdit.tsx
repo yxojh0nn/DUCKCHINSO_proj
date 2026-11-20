@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { api } from '@/api'
+import { api, NICK_TAKEN } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { ImageButton } from '@/components/ImageButton'
 import { IconPhoto } from '@/components/icons'
 import { Avatar } from '@/components/ui/Avatar'
 import { TextArea, TextField } from '@/components/ui/Field'
-import { keys, useMe } from '@/lib/queries'
+import { keys, useMe, useNicknameTaken } from '@/lib/queries'
 import { nicknameError } from '@/lib/settings'
 import { toast } from '@/store/ui'
 import { useRun } from '@/lib/actions'
@@ -25,9 +25,10 @@ export default function ProfileEdit() {
   const [avatar, setAvatar] = useState<Blob | null>(null)
   const [banner, setBanner] = useState<Blob | null>(null)
   const { busy, run } = useRun()
+  const taken = useNicknameTaken(nickname, me?.nickname)
   if (!me) return null
 
-  const nickErr = nicknameError(nickname)
+  const nickErr = nicknameError(nickname) ?? (taken ? NICK_TAKEN : undefined)
   const nickOk = !nickErr
   const save = async () => {
     if (!nickOk || busy) return

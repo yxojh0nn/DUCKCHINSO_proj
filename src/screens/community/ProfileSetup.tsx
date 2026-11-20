@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { api } from '@/api'
+import { api, NICK_TAKEN } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { ImageButton } from '@/components/ImageButton'
 import { PickList } from '@/components/PickList'
@@ -11,7 +11,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { TextArea, TextField } from '@/components/ui/Field'
 import { nicknameError } from '@/lib/settings'
-import { keys, useArtists, useGenres, useMe, useMembership } from '@/lib/queries'
+import { keys, useArtists, useGenres, useMe, useMembership, useNicknameTaken } from '@/lib/queries'
 import { useRun } from '@/lib/actions'
 
 // 프로필 설정: 닉네임·사진·소개글 → 관심 아티스트 → 관심 장르
@@ -33,7 +33,8 @@ export default function ProfileSetup() {
   const [avatar, setAvatar] = useState<Blob | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const { busy, run } = useRun()
-  const nickErr = nicknameError(nickname)
+  const taken = useNicknameTaken(nickname, me?.nickname)
+  const nickErr = nicknameError(nickname) ?? (taken ? NICK_TAKEN : undefined)
   const nickOk = !nickErr
 
   // 닉네임은 첫 단계에서 바로 저장한다 (중복·금칙어면 다음으로 넘어가지 않게)
