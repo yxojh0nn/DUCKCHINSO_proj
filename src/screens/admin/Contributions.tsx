@@ -45,7 +45,7 @@ function Item({ x }: { x: AdminContribution }) {
   const [rejecting, setRejecting] = useState(false)
   const [why, setWhy] = useState('')
   const [confirm, setConfirm] = useState<'approve' | 'penalize' | null>(null)
-  const genre = (id: number | null) => (id ? namesOf(genres, [id])[0] : null) ?? '없음'
+  const genre = (ids: number[]) => namesOf(genres, ids).join(', ') || '없음'
   const pts = Number(points)
   const ptsOk = x.kind !== 'info' || (/^\d+$/.test(points) && pts <= 30)
   const personal = looksPersonal(`${x.title ?? ''} ${x.body ?? ''}`)
@@ -78,7 +78,7 @@ function Item({ x }: { x: AdminContribution }) {
         {x.kind === 'ticket_open' && x.openAt && (
           <p>제보 <b className="num">{fmtDateTime(x.openAt)}</b><span className="text-graphite"> · 지금 {x.currentOpenAt ? <span className="num">{fmtDateTime(x.currentOpenAt)}</span> : '미정'}</span></p>
         )}
-        {x.kind === 'genre' && <p>제보 <b>{genre(x.genreId)}</b><span className="text-graphite"> · 지금 {genre(x.currentGenreId)}</span></p>}
+        {x.kind === 'genre' && <p>제보 <b>{genre(x.genreIds)}</b><span className="text-graphite"> · 지금 {genre(x.currentGenreIds)}</span></p>}
         {x.kind === 'info' && (
           <>
             <p className="font-semibold">{x.title}</p>

@@ -134,7 +134,7 @@
    "priceMin": 88000,
    "priceMax": 88000,
    "ticketOpenAt": null,
-   "genreId": null,
+   "genreIds": [],
    "artistIds": [
     "mb:1262ab85-308b-46e7-b0b5-91fef8e46b62"
    ],
@@ -159,7 +159,7 @@
    "priceMin": 99000,
    "priceMax": 110000,
    "ticketOpenAt": null,
-   "genreId": null,
+   "genreIds": [],
    "artistIds": [
     "mb:7b9e3651-f9b1-4c62-8679-3fd7bdab307c"
    ],
@@ -188,7 +188,7 @@
    "priceMin": 143000,
    "priceMax": 172000,
    "ticketOpenAt": null,
-   "genreId": null,
+   "genreIds": [],
    "artistIds": [
     "a3"
    ],
@@ -215,7 +215,7 @@
    "priceMin": 121000,
    "priceMax": 121000,
    "ticketOpenAt": null,
-   "genreId": null,
+   "genreIds": [],
    "artistIds": [
     "mb:6d280ceb-11c1-48c9-80d8-293ad442a991"
    ],
@@ -240,7 +240,7 @@
    "priceMin": 77000,
    "priceMax": 88000,
    "ticketOpenAt": null,
-   "genreId": null,
+   "genreIds": [],
    "artistIds": [
     "mb:1a19b0cd-fa9d-4363-b130-b3eb394cf373"
    ],
@@ -265,7 +265,7 @@
    "priceMin": 99000,
    "priceMax": 99000,
    "ticketOpenAt": null,
-   "genreId": null,
+   "genreIds": [],
    "artistIds": [
     "mb:3d2cd44b-9e77-4249-9d37-d8028e756693"
    ],
@@ -294,7 +294,7 @@
    "priceMin": 88000,
    "priceMax": 88000,
    "ticketOpenAt": null,
-   "genreId": null,
+   "genreIds": [],
    "artistIds": [
     "mb:923158cf-9d21-4bce-8040-41e7a497c1c9"
    ],
@@ -320,7 +320,7 @@
    "priceMin": 138000,
    "priceMax": 138000,
    "ticketOpenAt": null,
-   "genreId": null,
+   "genreIds": [],
    "artistIds": [
     "mb:33ff8a92-2f3b-4cac-8ea0-5eebfa995626"
    ],
@@ -345,7 +345,7 @@
    "priceMin": 88000,
    "priceMax": 88000,
    "ticketOpenAt": null,
-   "genreId": null,
+   "genreIds": [],
    "artistIds": [
     "mb:90ba650a-a920-4d19-a35e-d7f1d998e140"
    ],

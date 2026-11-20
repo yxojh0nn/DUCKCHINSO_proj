@@ -406,9 +406,14 @@ export function createDemoApi(): Api {
       a.favoriteIds = on ? [...new Set([...a.favoriteIds, concertId])] : a.favoriteIds.filter((x) => x !== concertId)
       save()
     },
-    async agreeContribution() {
+    async agreeContribution(showNickname) {
       if (me().isGuest) throw new Error('members_only')
-      me().consents.push({ item: 'contribution', agreed: true, version: CONSENT_VERSION })
+      me().consents.push({ item: 'contribution', agreed: true, version: CONSENT_VERSION },
+        { item: 'contribution_nickname', agreed: showNickname, version: CONSENT_VERSION })
+      save()
+    },
+    async setContribNickname(on) {
+      me().consents.push({ item: 'contribution_nickname', agreed: on, version: CONSENT_VERSION })
       save()
     },
     // 데모: 제보는 이 탭에서만 '검수 대기'로 남는다 (검수는 운영자 = Supabase 에서만)
@@ -419,7 +424,7 @@ export function createDemoApi(): Api {
       if (demoContribs.some((c) => c.concertId === concertId && c.kind === x.kind && c.category === (x.kind === 'info' ? x.category : null))) throw new Error('tip_exists')
       demoContribs.unshift({
         id: crypto.randomUUID(), concertId, concertTitle: allConcerts().find((c) => c.id === concertId)?.title ?? '', kind: x.kind,
-        openAt: x.kind === 'ticket_open' ? x.openAt : null, genreId: x.kind === 'genre' ? x.genreId : null,
+        openAt: x.kind === 'ticket_open' ? x.openAt : null, genreIds: x.kind === 'genre' ? x.genreIds : [],
         category: x.kind === 'info' ? x.category : null, title: x.kind === 'info' ? x.title : null, body: x.kind === 'info' ? x.body : null,
         status: 'pending', rejectReason: null, points: 0, createdAt: iso(Date.now()), resolvedAt: null,
       })

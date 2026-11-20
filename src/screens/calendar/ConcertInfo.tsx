@@ -29,7 +29,7 @@ export default function ConcertInfo() {
 
   const by = (kind: 'ticket_open' | 'genre') => extra.data?.find((x) => x.kind === kind)?.nickname
   const infos = (extra.data ?? []).filter((x) => x.kind === 'info' && x.category === tab)
-  const genre = c.genreId ? namesOf(genres, [c.genreId])[0] : null
+  const genre = namesOf(genres, c.genreIds).join(', ') || null
   const hide = (infoId: string) => run(async () => {
     await api.adminHideConcertInfo(infoId)
     await qc.invalidateQueries({ queryKey: keys.concertExtra(id) })

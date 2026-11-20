@@ -16,7 +16,7 @@ export type Concert = {
   priceMax: number | null
   ticketOpenAt: string | null // ISO
   introUrls?: string[] // KOPIS 소개 이미지 (포스터보다 큰 상세 안내 이미지)
-  genreId: number | null
+  genreIds: number[] // 장르 (0~3개)
   artistIds: string[]
   schedules: string[] // ISO, 오름차순
   links: TicketLink[]
@@ -78,7 +78,7 @@ export type ContributionKind = 'ticket_open' | 'genre' | 'info'
 export type InfoCategory = 'artist' | 'rules' | 'tips'
 export type ContributionInput =
   | { kind: 'ticket_open'; openAt: string; sourceUrl: string }
-  | { kind: 'genre'; genreId: number }
+  | { kind: 'genre'; genreIds: number[] } // 1~3개
   | { kind: 'info'; category: InfoCategory; title: string; body: string; sourceUrl?: string }
 export type ContributionStatus = 'pending' | 'approved' | 'rejected' | 'duplicate'
 export type MyContribution = {
@@ -87,7 +87,7 @@ export type MyContribution = {
   concertTitle: string
   kind: ContributionKind
   openAt: string | null
-  genreId: number | null
+  genreIds: number[] // 장르 (0~3개)
   category: InfoCategory | null
   title: string | null
   body: string | null
@@ -113,7 +113,7 @@ export type AdminContributionTab = 'pending' | 'done' | 'penalized'
 export type AdminContribution = MyContribution & {
   artists: string
   currentOpenAt: string | null
-  currentGenreId: number | null
+  currentGenreIds: number[]
   sourceUrl: string | null
   penalized: boolean
   user: { id: string; nickname: string; approved: number; rejected: number; penalties: number; restrictedUntil: string | null } | null
@@ -367,7 +367,8 @@ export interface Api {
   openDataUpdatedAt(): Promise<string | null> // KOPIS 공연 정보를 마지막으로 받은 시각 (출처 표시의 최종집계일)
   setFavorite(concertId: string, on: boolean): Promise<void>
   // 정보 제보 (회원·가입 3일 뒤·제보 동의 후). 운영자 검수 뒤 반영되면 포인트
-  agreeContribution(): Promise<void>
+  agreeContribution(showNickname: boolean): Promise<void> // 닉네임 표시는 선택
+  setContribNickname(on: boolean): Promise<void> // 공개된 정보 옆 닉네임 표시 켜기·끄기 (이미 공개된 것에도 바로 적용)
   submitContribution(concertId: string, input: ContributionInput): Promise<void>
   myContributions(): Promise<MyContribution[]>
   myPoints(): Promise<PointEntry[]> // 최신순. 잔액은 합계
@@ -492,6 +493,7 @@ export const errorText = (e: unknown) => {
     notice_bad_period: '노출 기간은 공개 시각 이후로 정해 주세요.',
     notice_bad_schedule: '예약은 1년 안으로 정해 주세요.',
     members_only:'회원만 할 수 있어요. 회원 로그인 후 이용해 주세요.',
+    bad_genres: '장르는 1~3개까지 고를 수 있어요.',
     tip_exists: '이 공연에 보낸 같은 종류의 제보를 관리자가 확인하고 있어요.',
     contrib_too_new: '가입하고 3일이 지나면 정보를 제보할 수 있어요.',
     contrib_consent: '정보 제보 동의가 필요해요.',

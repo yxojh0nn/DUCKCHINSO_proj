@@ -41,7 +41,7 @@ export default function Search() {
   const results = concerts.filter((c) => {
     const s = q.trim().toLowerCase()
     if (s && !`${c.title} ${c.venue} ${c.region ?? ''} ${c.artistIds.map((a) => names.get(a)).join(' ')}`.toLowerCase().includes(s)) return false
-    if (genre && c.genreId !== genre) return false
+    if (genre && !c.genreIds.includes(genre)) return false
     if (favOnly && !favs.includes(c.id)) return false
     if (price) {
       const p = PRICES.find((x) => x.id === price)!

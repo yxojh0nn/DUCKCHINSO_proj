@@ -43,7 +43,7 @@ const MELON = 'https://ticket.melon.com'
 const YES24 = 'https://ticket.yes24.com'
 
 // [month offset, days[], hour] → 이번 달 기준 KST 일정
-type Seed = Omit<Concert, 'schedules' | 'ticketOpenAt' | 'id' | 'posterUrl' | 'genreId'> & { m: number; days: number[]; hour: number; genreId?: number }
+type Seed = Omit<Concert, 'schedules' | 'ticketOpenAt' | 'id' | 'posterUrl' | 'genreIds'> & { m: number; days: number[]; hour: number; genreId?: number }
 const SEEDS: Seed[] = [
   { m: 0, days: [14, 15], hour: 18, title: 'YOASOBI ASIA TOUR in SEOUL', artistIds: ['a1'], venue: 'KSPO DOME', venueQuery: 'KSPO DOME', region: '서울', priceText: 'R석 143,000원, S석 132,000원', priceMin: 132000, priceMax: 143000, links: [{ vendor: 'NOL 티켓', url: NOL }], genreId: 7 },
   { m: 0, days: [22], hour: 18, title: 'あいみょん LIVE in KOREA', artistIds: ['a2'], venue: '인스파이어 아레나', venueQuery: '인스파이어 아레나', region: '인천', priceText: '전석 121,000원', priceMin: 121000, priceMax: 121000, links: [{ vendor: '멜론티켓', url: MELON }, { vendor: 'NOL 티켓', url: NOL }], genreId: 2 },
@@ -74,7 +74,7 @@ export function buildConcerts(now: number): Concert[] {
     const open = new Date(new Date(schedules[0]).getTime() - 21 * 86_400_000)
     open.setUTCHours(11, 0, 0, 0) // 20:00 KST
     const { m: _m, days: _d, hour: _h, genreId, ...rest } = s
-    return { ...rest, id: `c${i + 1}`, posterUrl: null, genreId: genreId ?? null, schedules, ticketOpenAt: open.toISOString() }
+    return { ...rest, id: `c${i + 1}`, posterUrl: null, genreIds: genreId ? [genreId] : [], schedules, ticketOpenAt: open.toISOString() }
   })
 }
 
