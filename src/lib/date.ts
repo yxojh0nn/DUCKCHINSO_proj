@@ -16,9 +16,9 @@ export const DAY_MS = 86_400_000
 // 지난 공연: 마지막 회차 날짜(KST)가 오늘보다 전
 export const lastShow = (c: { schedules: string[] }) => c.schedules[c.schedules.length - 1] ?? ''
 export const isPastConcert = (c: { schedules: string[] }) => !!c.schedules.length && kstDayKey(lastShow(c)) < kstDayKey(Date.now())
-// 지금 시각 이전에 열린 마지막 회차 (없으면 ''). 진행 중인 공연도 이미 열린 회차가 있으면 잡힌다
-export const lastPlayed = (c: { schedules: string[] }, now = Date.now()) =>
-  c.schedules.filter((s) => Date.parse(s) < now).sort().pop() ?? ''
+// 지금 시각 이전에 열린 마지막 회차 (없으면 ''). 진행 중인 공연도 이미 열린 회차가 있으면 잡힌다. until(KST 날짜 키): 그날까지만
+export const lastPlayed = (c: { schedules: string[] }, now = Date.now(), until?: string) =>
+  c.schedules.filter((s) => Date.parse(s) < now && (!until || kstDayKey(s) <= until)).sort().pop() ?? ''
 // 캘린더에서 이 공연으로 갈 날짜(KST): 지난 공연은 마지막 회차, 아니면 오늘 이후 첫 회차(진행 중 공연 포함)
 export const focusDay = (c: { schedules: string[] }, today = kstDayKey(Date.now())) => {
   const days = c.schedules.map(kstDayKey).sort()

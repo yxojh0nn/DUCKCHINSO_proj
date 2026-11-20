@@ -15,4 +15,7 @@ assert.equal(focusDay({ schedules: ['2026-11-30T16:00:00.000Z'] }, today), '2026
 const now = Date.parse('2026-11-21T10:00:00.000Z')
 assert.equal(lastPlayed({ schedules: ['2026-11-20T09:00:00.000Z', '2026-11-21T09:00:00.000Z', '2026-11-22T09:00:00.000Z'] }, now), '2026-11-21T09:00:00.000Z')
 assert.equal(lastPlayed({ schedules: ['2026-11-21T11:00:00.000Z'] }, now), '')
+// until: 선택한 날짜(KST)까지 열린 회차만
+assert.equal(lastPlayed({ schedules: ['2026-11-10T09:00:00.000Z', '2026-11-20T09:00:00.000Z'] }, now, '2026-11-15'), '2026-11-10T09:00:00.000Z')
+assert.equal(lastPlayed({ schedules: ['2026-11-20T09:00:00.000Z'] }, now, '2026-11-15'), '')
 console.log('date ok')
