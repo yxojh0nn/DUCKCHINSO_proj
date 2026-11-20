@@ -288,7 +288,8 @@ export interface Api {
   signUpEmail(ticket: string, loginId: string, password: string): Promise<void>
   signInEmail(email: string, password: string, captchaToken?: string): Promise<void>
   signInLoginId(loginId: string, password: string): Promise<void>
-  completeSocialLogin(tokenHash: string): Promise<void> // 네이버·카카오: 서버 함수가 준 일회용 토큰으로 세션 받기
+  completeSocialLogin(tokenHash: string): Promise<void> // 서버 함수가 준 일회용 토큰으로 세션 받기
+  exchangeSocialCode(code: string, verifier: string): Promise<void> // 네이버·카카오: 돌아온 #sl_code 를 이 기기의 verifier 와 함께 토큰으로 바꿔 세션 받기
   setLoginId(loginId: string): Promise<void>
   myLoginId(): Promise<string | null>
   // 아이디 찾기: 캡차 + 이메일 → 인증 코드 메일 → 코드가 맞으면 아이디를 화면에만 (ticket: 바로 비밀번호를 바꿀 때 코드 대신)
@@ -453,6 +454,7 @@ export const errorText = (e: unknown) => {
     tip_exists: '이 공연에 보낸 제보를 관리자가 확인하고 있어요.',
     bad_body: '메시지 내용을 입력해 주세요.',
     tip_bad_date: '날짜를 다시 확인해 주세요. (최근 30일 ~ 1년 뒤)',
+    review_not_open: '공연이 시작한 뒤에 후기를 쓸 수 있어요.',
     tip_bad_url: 'https:// 로 시작하는 공지 링크를 넣어 주세요.',
     email_code_invalid: '인증 코드가 맞지 않아요.',
     password_rule: '비밀번호는 영문과 숫자를 섞어 8~72자로 정해 주세요.',

@@ -25,7 +25,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql', '20261111000030_inquiry_delete_and_hardening.sql', '20261111000031_nickname_validate.sql', '20261111000032_revoke_sessions.sql', '20261112000033_notices.sql', '20261112000034_notice_period.sql', '20261112000035_notice_schedule.sql', '20261112000036_admin_badge.sql', '20261112000037_chat_media_gifs.sql', '20261113000038_klipy_gifs.sql', '20261113000039_fk_indexes.sql', '20261113000040_ticket_link_clicks.sql', '20261115000041_cancel_friend_request.sql', '20261117000042_my_inquiries.sql', '20261117000043_memberships.sql', '20261118000044_pg_subscriptions.sql', '20261119000045_user_region.sql', '20261119000046_region_public_daily_photos.sql', '20261119000047_pg_late_paid.sql', '20261119000048_nickname_key.sql', '20261120000049_insert_columns.sql', '20261120000050_silent_decline.sql', '20261120000051_check_password.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql', '20261111000030_inquiry_delete_and_hardening.sql', '20261111000031_nickname_validate.sql', '20261111000032_revoke_sessions.sql', '20261112000033_notices.sql', '20261112000034_notice_period.sql', '20261112000035_notice_schedule.sql', '20261112000036_admin_badge.sql', '20261112000037_chat_media_gifs.sql', '20261113000038_klipy_gifs.sql', '20261113000039_fk_indexes.sql', '20261113000040_ticket_link_clicks.sql', '20261115000041_cancel_friend_request.sql', '20261117000042_my_inquiries.sql', '20261117000043_memberships.sql', '20261118000044_pg_subscriptions.sql', '20261119000045_user_region.sql', '20261119000046_region_public_daily_photos.sql', '20261119000047_pg_late_paid.sql', '20261119000048_nickname_key.sql', '20261120000049_insert_columns.sql', '20261120000050_silent_decline.sql', '20261120000051_check_password.sql', '20261121000052_social_handoff.sql', '20261121000053_atomic_attempts.sql', '20261121000054_review_after_start.sql', '20261121000055_chat_moderation_lock.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -530,6 +530,22 @@ await assert.rejects(img('https://evil.example.com/x.gif', null), /messages_imag
 await assert.rejects(img('https://static.klipy.com/x.webp', null), /messages_image_source/) // slug 없는 KLIPY 주소 X
 await assert.rejects(img(`${dsr}/${ids.d}/a.jpg`, 'cat'), /messages_image_source/) // slug 는 KLIPY 주소에만
 assert.equal((await db.query(`select to_regclass('public.gifs') as t`)).rows[0].t, null)
+// 마이그 55(PR #21): 사진·GIF 메시지에 글을 실어 금칙어 필터를 건너뛰지 못한다
+await assert.rejects(as('d', `insert into public.messages (room_id, sender_id, kind, image_path, body) values ($1, $2, 'image', 'x', '씨발')`, [dsr, ids.d]), /messages_image_no_body/)
+// 마이그 55(PR #21): 운영자가 신고 처리로 가린 메시지는 보낸 사람이 고치지 못한다 (사진 메시지도)
+for (const ins of [
+  [`insert into public.messages (room_id, sender_id, body) values ($1, $2, '신고될 글') returning id`, [dsr, ids.d]],
+  [`insert into public.messages (room_id, sender_id, kind, image_path) values ($1, $2, 'image', $3) returning id`, [dsr, ids.d, `${dsr}/${ids.d}/bad.jpg`]],
+]) {
+  const hm = (await as('d', ...ins)).rows[0].id
+  const hr = (await db.query(`insert into public.reports (reporter, target_user, message_id, reason) values ($1, $2, $3, 'scam') returning id`, [ids.b, ids.d, hm])).rows[0].id
+  await as('b', `select public.admin_resolve_report($1, 'resolved', true)`, [hr])
+  const hidden = (await db.query(`select m.kind, m.body, m.image_path, m.moderated_at, o.body as orig from public.messages m left join public.message_originals o on o.message_id = m.id where m.id = $1`, [hm])).rows[0]
+  assert.ok(hidden.moderated_at && hidden.kind === 'text' && hidden.image_path === null)
+  assert.ok(hidden.orig) // 가리기 전 원문(사진은 경로)이 남는다
+  await assert.rejects(as('d', `select public.edit_my_message($1, 'https://scam.example')`, [hm]), /not_found/)
+  assert.equal((await db.query(`select body from public.messages where id = $1`, [hm])).rows[0].body, '운영정책에 따라 가려진 메시지예요.')
+}
 // 마이그 39: 모든 FK 는 그 첫 컬럼으로 시작하는 (부분 인덱스 아닌) 인덱스가 있어야 한다 — 부모 삭제 때 자식 표 전체 스캔 방지
 const fkNoIdx = (await db.query(`select c.conrelid::regclass || '.' || a.attname as col from pg_constraint c
   join pg_attribute a on a.attrelid = c.conrelid and a.attnum = c.conkey[1]
@@ -885,5 +901,59 @@ for (const [sql, params] of [
   assert.equal(await chk(ids.p1, 'wrong999'), false)
   assert.equal(await chk(ids.p2, 'pw1234ab'), false) // 비밀번호 없는 계정
   await assert.rejects(as('p1', `select public.check_password($1, 'pw1234ab')`, [ids.p1]), /permission denied/)
+}
+// ── 마이그 52: 소셜 로그인 교환 코드 — 맞는 challenge 로 한 번만, 두 번째·틀린 값은 'reused'(세션 폐기 신호) ──
+{
+  const put = (code, exp = "now() + interval '2 minutes'") =>
+    db.query(`insert into public.social_handoff (code_hash, challenge, user_id, token_hash, expires_at) values ($1, 'cc', $2, 'tok', ${exp})`, [code, ids.p1])
+  const take = async (code, cc) => (await db.query(`select * from public.take_social_handoff($1, $2)`, [code, cc])).rows[0]
+  await put('h1')
+  assert.deepEqual(await take('h1', 'cc'), { result: 'ok', user_id: ids.p1, token_hash: 'tok' })
+  assert.deepEqual(await take('h1', 'cc'), { result: 'reused', user_id: ids.p1, token_hash: null }) // 두 번째 사용
+  await put('h2')
+  assert.equal((await take('h2', 'other')).result, 'reused') // 다른 기기의 verifier
+  assert.equal((await take('h2', 'cc')).result, 'reused')    // 그 뒤로는 맞는 값이어도 못 쓴다
+  await put('h3', "now() - interval '1 second'")
+  assert.equal((await take('h3', 'cc')).result, 'expired')
+  assert.equal((await take('nope', 'cc')).result, 'expired')
+  assert.equal((await db.query(`select count(*)::int as n from public.social_handoff where token_hash is not null and used_at is not null`)).rows[0].n, 0) // 꺼낸 토큰은 지운다
+  await assert.rejects(as('p1', `select * from public.take_social_handoff('h1', 'cc')`), /permission denied/)
+  await assert.rejects(as('p1', `select * from public.social_handoff`), /permission denied/)
+}
+// ── 마이그 53: 횟수 제한은 세기·기록이 한 번에. 넘으면 null(기록 안 함), 메일처럼 창이 둘인 규칙도 ──
+{
+  const take = async (rules) => (await db.query(`select public.take_attempts($1) as ids`, [JSON.stringify(rules)])).rows[0].ids
+  const r = [{ key: 'id:race', max: 2, sec: 600 }, { key: 'ip:race', max: 10, sec: 600 }]
+  const first = await take(r)
+  assert.equal(first.length, 2) // 키마다 한 줄
+  assert.ok(await take(r))
+  assert.equal(await take(r), null) // 세 번째는 막힘
+  assert.equal((await db.query(`select count(*)::int as n from public.login_attempts where key = 'id:race'`)).rows[0].n, 2) // 막힌 요청은 기록하지 않는다
+  await db.query(`delete from public.login_attempts where id = any($1)`, [first]) // 성공하면 자리를 돌려준다(실패만 센다)
+  assert.ok(await take(r))
+  const mail = [{ key: 'mail:x', max: 3, sec: 3600 }, { key: 'mail:x', max: 5, sec: 86400 }]
+  await db.query(`insert into public.login_attempts (key, at) values ('mail:x', now() - interval '2 hours'), ('mail:x', now() - interval '3 hours'), ('mail:x', now() - interval '4 hours'), ('mail:x', now() - interval '5 hours')`)
+  assert.equal((await take(mail)).length, 1) // 같은 키 두 규칙이어도 한 줄
+  assert.equal(await take(mail), null)        // 하루 5회
+  await assert.rejects(as('b', `select public.take_attempts('[]')`), /permission denied/)
+  // 코드 입력: 비교 전에 시도를 쓰고, 5번이 지나면 맞는 코드도 못 쓴다
+  await db.query(`insert into public.email_codes (email_hmac, code_hmac, expires_at) values ('ek', 'ch', now() + interval '5 minutes')`)
+  for (let i = 0; i < 5; i++) assert.equal((await db.query(`select public.use_code_try('ek', 5) as c`)).rows[0].c, 'ch')
+  assert.equal((await db.query(`select public.use_code_try('ek', 5) as c`)).rows[0].c, null)
+  await db.query(`insert into public.email_codes (email_hmac, code_hmac, expires_at) values ('ek2', 'ch', now() - interval '1 second')`)
+  assert.equal((await db.query(`select public.use_code_try('ek2', 5) as c`)).rows[0].c, null) // 만료
+  await assert.rejects(as('b', `select public.use_code_try('ek', 5)`), /permission denied/)
+}
+// ── 마이그 54: 후기는 공개된 공연이 시작한 뒤에만 연결 ──
+{
+  const review = (concert) => db.query(`insert into public.posts (author_id, title, body, concert_id) values ($1, '후기', '본문', $2) returning id`, [ids.b, concert])
+  await assert.rejects(review(cUp), /review_not_open/) // 시작 전
+  const ok = (await review(cPast)).rows[0].id
+  const hiddenStarted = (await db.query(`insert into public.concerts (title, venue_name, venue_query, status) values ('검수중', 'v', 'v', 'review') returning id`)).rows[0].id
+  await db.query(`insert into public.concert_schedules (concert_id, starts_at) values ($1, now() - interval '1 day')`, [hiddenStarted])
+  await assert.rejects(review(hiddenStarted), /review_not_open/) // 공개 안 된 공연
+  await assert.rejects(db.query(`update public.posts set concert_id = $2 where id = $1`, [ok, cUp]), /review_not_open/) // 바꿔 끼우기도
+  await db.query(`update public.posts set title = '고친 후기' where id = $1`, [ok]) // concert_id 안 바꾸는 수정은 그대로
+  await db.query(`insert into public.posts (author_id, title, body) values ($1, '일반 글', '본문')`, [ids.b]) // 공연 없는 글은 그대로
 }
 console.log('ALL OK')

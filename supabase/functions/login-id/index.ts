@@ -5,25 +5,39 @@ import { admin, callerOf, cors, json } from '../_shared/supabase.ts'
 import { blindIndex, decrypt, emailCode, encrypt, signState, verifyState } from '../_shared/crypto.ts'
 import { canMail, normEmail, sendMail } from '../_shared/mail.ts'
 import { verifyCaptcha } from '../_shared/captcha.ts'
+import { clientIp as ipOf } from '../_shared/ip.ts'
 
 const LOGIN_ID = /^[a-z][a-z0-9_]{3,19}$/ // 영문 소문자로 시작, 소문자·숫자·밑줄 4~20자 (앱 화면과 같은 규칙)
 const WINDOW_MS = 10 * 60_000
 const CODE_TTL_SEC = 300
-const LIMIT = { id: 5, ip: 20, find: 5, check: 30, codeEmail: 5, codeIp: 20, codeTries: 5 } // 10분 동안 허용 횟수 (codeTries: 코드 하나당 입력 횟수)
+// 10분 동안 허용 횟수 (codeTries: 코드 하나당 입력 횟수, checkAll: IP 와 상관없는 아이디 확인 전체 상한 — 아이디 전수 열거 방지)
+const LIMIT = { id: 5, ip: 20, find: 5, check: 30, checkAll: 300, codeEmail: 5, codeIp: 20, codeTries: 5 }
 
 type Db = ReturnType<typeof admin>
-// IP별 제한의 기준. x-forwarded-for 의 첫 값은 클라이언트가 넣은 그대로일 수 있어 위조된다 →
-// Cloudflare 가 붙이는 cf-connecting-ip(클라이언트가 덮어쓸 수 없음)를 먼저 쓴다
-// shortcut: 없으면 예전처럼 x-forwarded-for 첫 값 (마지막 값은 내부 프록시 IP 일 수 있어 모두가 한 IP 로 묶인다). 운영에서 헤더를 확인하면 정리
-const clientIp = (req: Request) =>
-  req.headers.get('cf-connecting-ip')?.trim() || req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown'
-const recent = async (db: Db, key: string, windowMs = WINDOW_MS) =>
-  (await db.from('login_attempts').select('key', { count: 'exact', head: true }).eq('key', key)
-    .gt('at', new Date(Date.now() - windowMs).toISOString())).count ?? 0
-// 이메일당 메일 발송 제한 (메일 폭탄 방지): 1시간 3회, 하루 5회. 넘으면 true
+const clientIp = (req: Request) => ipOf(req.headers)
+// 횟수 제한: [키, 허용 횟수, 창(ms)]. DB 함수가 키마다 잠그고 세기·기록을 한 번에 한다 → 동시 요청으로 못 넘는다
+// 넘으면 null, 통과하면 이번 기록의 id 들 (성공했을 때 실패 횟수에서 빼려면 release 로 지운다)
+type Rule = [key: string, max: number, windowMs?: number]
+const take = async (db: Db, rules: Rule[]) => {
+  const { data, error } = await db.rpc('take_attempts', { p_rules: rules.map(([key, max, w = WINDOW_MS]) => ({ key, max, sec: w / 1000 })) })
+  if (error) throw error
+  return data as number[] | null
+}
+const release = async (db: Db, ids: number[]) => { await db.from('login_attempts').delete().in('id', ids) }
+const tooMany = () => json({ error: 'too_many_attempts' }, 429)
+// 메일 인증 코드 확인: 비교 전에 시도 한 번을 먼저 쓰고(동시 요청도 codeTries 번까지), 맞으면 코드를 지운 요청만 통과(한 번만 쓰기)
+const useCode = async (db: Db, key: string | null, expectedHmac: () => Promise<string>) => {
+  if (!key) return 'email_code_expired'
+  const { data: saved, error } = await db.rpc('use_code_try', { p_key: key, p_max: LIMIT.codeTries })
+  if (error) throw error
+  if (!saved) return 'email_code_expired'
+  if (saved !== await expectedHmac()) return 'email_code_invalid'
+  const { count } = await db.from('email_codes').delete({ count: 'exact' }).eq('email_hmac', key)
+  return count ? null : 'email_code_expired'
+}
+// 이메일당 메일 발송 제한 (메일 폭탄 방지): 1시간 3회, 하루 5회
 const HOUR = 60 * 60_000
-const mailFlood = async (db: Db, emailKey: string) =>
-  (await recent(db, emailKey, HOUR)) >= 3 || (await recent(db, emailKey, 24 * HOUR)) >= 5
+const mailRules = (mailKey: string): Rule[] => [[mailKey, 3, HOUR], [mailKey, 5, 24 * HOUR]]
 // 비밀번호 찾기 대상: 아이디의 계정이 있고, 그 계정의 가입 이메일이 입력한 이메일과 같을 때만 사용자 id
 const resetTarget = async (db: Db, idHmac: string, email: string) => {
   const { data } = await db.from('login_ids').select('user_id').eq('id_hmac', idHmac).maybeSingle()
@@ -49,8 +63,7 @@ Deno.serve(async (req) => {
         const id = String(body.loginId ?? '').trim().toLowerCase()
         if (!LOGIN_ID.test(id)) return json({ error: 'login_id_format' }, 400)
         const key = `check:${await blindIndex('ip', clientIp(req))}`
-        if (await recent(db, key) >= LIMIT.check) return json({ error: 'too_many_attempts' }, 429)
-        await db.from('login_attempts').insert({ key })
+        if (!await take(db, [[key, LIMIT.check], ['check:all', LIMIT.checkAll]])) return tooMany()
         const { data } = await db.from('login_ids').select('user_id').eq('id_hmac', await blindIndex('login', id)).maybeSingle()
         return json({ available: !data })
       }
@@ -61,10 +74,9 @@ Deno.serve(async (req) => {
         if (!email) return json({ error: 'bad_request' }, 400)
         if (!canMail(email)) return json({ error: 'mail_not_ready' }, 503)
         const emailHmac = await blindIndex('email', email)
-        const keys = [`code:${emailHmac}`, `codeip:${await blindIndex('ip', clientIp(req))}`]
-        const [byEmail, byIp] = await Promise.all(keys.map((k) => recent(db, k)))
-        if (byEmail >= LIMIT.codeEmail || byIp >= LIMIT.codeIp) return json({ error: 'too_many_attempts' }, 429)
-        await db.from('login_attempts').insert(keys.map((key) => ({ key })))
+        // 메일 폭탄 방지: reset_code · find_code 와 같은 mail: 키라 세 경로가 한 주소의 시간당·하루 한도를 함께 쓴다
+        if (!await take(db, [[`code:${emailHmac}`, LIMIT.codeEmail], [`codeip:${await blindIndex('ip', clientIp(req))}`, LIMIT.codeIp],
+          ...mailRules(`mail:${emailHmac}`)])) return tooMany()
         await db.from('email_codes').delete().lt('expires_at', new Date().toISOString())
 
         const { data: registered, error } = await db.rpc('email_registered', { p_email: email })
@@ -90,14 +102,8 @@ Deno.serve(async (req) => {
         const email = normEmail(body.email)
         const code = String(body.code ?? '').trim().toUpperCase()
         if (!email) return json({ error: 'bad_request' }, 400)
-        const emailHmac = await blindIndex('email', email)
-        const { data: row } = await db.from('email_codes').select('code_hmac, expires_at, tries').eq('email_hmac', emailHmac).maybeSingle()
-        if (!row || new Date(row.expires_at) <= new Date() || row.tries >= LIMIT.codeTries) return json({ error: 'email_code_expired' }, 400)
-        if (row.code_hmac !== await blindIndex('email_code', `${email}:${code}`)) {
-          await db.from('email_codes').update({ tries: row.tries + 1 }).eq('email_hmac', emailHmac)
-          return json({ error: 'email_code_invalid' }, 400)
-        }
-        await db.from('email_codes').delete().eq('email_hmac', emailHmac)
+        const bad = await useCode(db, await blindIndex('email', email), () => blindIndex('email_code', `${email}:${code}`))
+        if (bad) return json({ error: bad }, 400)
         return json({ ticket: await signState({ purpose: 'signup', email }, 1800) })
       }
 
@@ -131,15 +137,13 @@ Deno.serve(async (req) => {
         const pw = String(body.password ?? '')
         if (!id || !pw || id.length > 40 || pw.length > 200) return json({ error: 'invalid_login' }, 400)
         const idHmac = await blindIndex('login', id)
-        const keys = [`id:${idHmac}`, `ip:${await blindIndex('ip', clientIp(req))}`]
-        const [byId, byIp] = await Promise.all(keys.map((k) => recent(db, k)))
-        if (byId >= LIMIT.id || byIp >= LIMIT.ip) return json({ error: 'too_many_attempts' }, 429)
+        // 비밀번호를 확인하기 전에 자리를 잡는다(동시 요청도 하나씩). 성공하면 지워서 실패만 센다
+        const held = await take(db, [[`id:${idHmac}`, LIMIT.id], [`ip:${await blindIndex('ip', clientIp(req))}`, LIMIT.ip]])
+        if (!held) return tooMany()
         const { data: uid, error } = await db.rpc('check_login', { p_id_hmac: idHmac, p_password: pw })
         if (error) throw error
-        if (!uid) {
-          await db.from('login_attempts').insert(keys.map((key) => ({ key })))
-          return json({ error: 'invalid_login' }, 400)
-        }
+        if (!uid) return json({ error: 'invalid_login' }, 400)
+        await release(db, held)
         return json({ tokenHash: await magicLink(db, uid) })
       }
 
@@ -154,13 +158,12 @@ Deno.serve(async (req) => {
         if (!current) return json({ error: 'bad_request' }, 400)
         if (pw.length < 8 || pw.length > 72 || !/[A-Za-z]/.test(pw) || !/\d/.test(pw)) return json({ error: 'password_rule' }, 400)
         const key = `pwchg:${await blindIndex('uid', user.id)}`
-        if (await recent(db, key) >= LIMIT.id) return json({ error: 'too_many_attempts' }, 429)
+        const held = await take(db, [[key, LIMIT.id]])
+        if (!held) return tooMany()
         const { data: okPw, error: chkErr } = await db.rpc('check_password', { p_uid: user.id, p_password: current })
         if (chkErr) throw chkErr
-        if (!okPw) {
-          await db.from('login_attempts').insert({ key })
-          return json({ error: 'wrong_password' }, 400)
-        }
+        if (!okPw) return json({ error: 'wrong_password' }, 400)
+        await release(db, held)
         const { error } = await db.auth.admin.updateUserById(user.id, { password: pw })
         if (error) throw error
         await sendMail(user.email, '[덕친소] 비밀번호가 바뀌었어요',
@@ -200,11 +203,8 @@ Deno.serve(async (req) => {
         if (!canMail(email)) return json({ error: 'mail_not_ready' }, 503)
         if (!(await verifyCaptcha(body.captchaToken, clientIp(req)))) return json({ error: 'captcha_failed' }, 400)
         const idHmac = await blindIndex('login', id)
-        const mailKey = `mail:${await blindIndex('email', email)}`
-        const keys = [`reset:${idHmac}`, `resetip:${await blindIndex('ip', clientIp(req))}`]
-        const [byId, byIp] = await Promise.all(keys.map((k) => recent(db, k)))
-        if (byId >= LIMIT.codeEmail || byIp >= LIMIT.codeIp || await mailFlood(db, mailKey)) return json({ error: 'too_many_attempts' }, 429)
-        await db.from('login_attempts').insert([...keys, mailKey].map((key) => ({ key })))
+        if (!await take(db, [[`reset:${idHmac}`, LIMIT.codeEmail], [`resetip:${await blindIndex('ip', clientIp(req))}`, LIMIT.codeIp],
+          ...mailRules(`mail:${await blindIndex('email', email)}`)])) return tooMany()
         const uid = await resetTarget(db, idHmac, email)
         if (uid) {
           const code = emailCode()
@@ -230,25 +230,14 @@ Deno.serve(async (req) => {
         if (!LOGIN_ID.test(id) || !email || (!code && !body.ticket)) return json({ error: 'bad_request' }, 400)
         if (pw.length < 8 || pw.length > 72 || !/[A-Za-z]/.test(pw) || !/\d/.test(pw)) return json({ error: 'password_rule' }, 400)
         const idHmac = await blindIndex('login', id)
-        const keys = [`resetv:${idHmac}`, `resetvip:${await blindIndex('ip', clientIp(req))}`]
-        const [byId, byIp] = await Promise.all(keys.map((k) => recent(db, k)))
-        if (byId >= LIMIT.id || byIp >= LIMIT.ip) return json({ error: 'too_many_attempts' }, 429)
-        await db.from('login_attempts').insert(keys.map((key) => ({ key })))
+        if (!await take(db, [[`resetv:${idHmac}`, LIMIT.id], [`resetvip:${await blindIndex('ip', clientIp(req))}`, LIMIT.ip]])) return tooMany()
         const uid = await resetTarget(db, idHmac, email)
         if (body.ticket) {
           // 표는 같은 계정(아이디·이메일 일치)일 때만 유효. 코드 확인을 대신한다
           if (!uid || ticket?.purpose !== 'reset' || ticket.uid !== uid) return json({ error: 'email_ticket_expired' }, 400)
         } else {
-          const codeKey = uid ? await blindIndex('reset', uid) : null
-          const { data: row } = codeKey
-            ? await db.from('email_codes').select('code_hmac, expires_at, tries').eq('email_hmac', codeKey).maybeSingle()
-            : { data: null }
-          if (!uid || !row || new Date(row.expires_at) <= new Date() || row.tries >= LIMIT.codeTries) return json({ error: 'email_code_expired' }, 400)
-          if (row.code_hmac !== await blindIndex('reset_code', `${uid}:${code}`)) {
-            await db.from('email_codes').update({ tries: row.tries + 1 }).eq('email_hmac', codeKey)
-            return json({ error: 'email_code_invalid' }, 400)
-          }
-          await db.from('email_codes').delete().eq('email_hmac', codeKey)
+          const bad = await useCode(db, uid ? await blindIndex('reset', uid) : null, () => blindIndex('reset_code', `${uid}:${code}`))
+          if (bad) return json({ error: bad }, 400)
         }
         const { error } = await db.auth.admin.updateUserById(uid, { password: pw })
         if (error) throw error
@@ -267,10 +256,7 @@ Deno.serve(async (req) => {
         if (!email) return json({ error: 'bad_request' }, 400)
         if (!canMail(email)) return json({ ok: true, mailReady: false })
         if (!(await verifyCaptcha(body.captchaToken, clientIp(req)))) return json({ error: 'captcha_failed' }, 400)
-        const key = `find:${await blindIndex('ip', clientIp(req))}`
-        const mailKey = `mail:${await blindIndex('email', email)}`
-        if (await recent(db, key) >= LIMIT.find || await mailFlood(db, mailKey)) return json({ error: 'too_many_attempts' }, 429)
-        await db.from('login_attempts').insert([{ key }, { key: mailKey }])
+        if (!await take(db, [[`find:${await blindIndex('ip', clientIp(req))}`, LIMIT.find], ...mailRules(`mail:${await blindIndex('email', email)}`)])) return tooMany()
         const { data } = await db.rpc('login_id_by_email', { p_email: email })
         const row = data?.[0]
         if (row) {
@@ -301,21 +287,11 @@ Deno.serve(async (req) => {
         const email = normEmail(body.email)
         const code = String(body.code ?? '').trim().toUpperCase()
         if (!email || !code) return json({ error: 'bad_request' }, 400)
-        const key = `findv:${await blindIndex('ip', clientIp(req))}`
-        if (await recent(db, key) >= LIMIT.ip) return json({ error: 'too_many_attempts' }, 429)
-        await db.from('login_attempts').insert({ key })
+        if (!await take(db, [[`findv:${await blindIndex('ip', clientIp(req))}`, LIMIT.ip]])) return tooMany()
         const { data } = await db.rpc('login_id_by_email', { p_email: email })
         const row = data?.[0]
-        const codeKey = row ? await blindIndex('find', row.user_id) : null
-        const { data: c } = codeKey
-          ? await db.from('email_codes').select('code_hmac, expires_at, tries').eq('email_hmac', codeKey).maybeSingle()
-          : { data: null }
-        if (!row || !c || new Date(c.expires_at) <= new Date() || c.tries >= LIMIT.codeTries) return json({ error: 'email_code_expired' }, 400)
-        if (c.code_hmac !== await blindIndex('find_code', `${row.user_id}:${code}`)) {
-          await db.from('email_codes').update({ tries: c.tries + 1 }).eq('email_hmac', codeKey)
-          return json({ error: 'email_code_invalid' }, 400)
-        }
-        await db.from('email_codes').delete().eq('email_hmac', codeKey)
+        const bad = await useCode(db, row ? await blindIndex('find', row.user_id) : null, () => blindIndex('find_code', `${row.user_id}:${code}`))
+        if (bad) return json({ error: bad }, 400)
         return json({
           loginId: await decrypt(row.user_id, 'login_id', row.id_enc),
           ticket: await signState({ purpose: 'reset', uid: row.user_id }, 1800),

@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -24,12 +24,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- 소셜 로그인·메일 인증 후 앱으로 돌아오는 주소: com.duckchinso.app://auth/callback -->
-            <intent-filter>
+            <!-- 소셜 로그인 후 앱으로 돌아오는 주소: https://duckchinso.com/auth/app-callback (App Links)
+                 커스텀 스킴은 아무 앱이나 같은 이름을 등록해 가로챌 수 있다(보안 감사 #1). App Links 는 OS 가
+                 https://duckchinso.com/.well-known/assetlinks.json 의 서명 지문으로 이 앱만 받게 검증한다 -->
+            <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="com.duckchinso.app" android:host="auth" />
+                <data android:scheme="https" android:host="duckchinso.com" android:pathPrefix="/auth/app-callback" />
             </intent-filter>
 
         </activity>
