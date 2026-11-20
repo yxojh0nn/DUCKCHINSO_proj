@@ -197,6 +197,7 @@ export function createDemoApi(): Api {
       setSession(a.id)
     },
     async completeSocialLogin() { await wait() },
+    async exchangeSocialCode() { await wait() },
     async setLoginId(loginId) {
       await wait()
       const id = loginId.trim().toLowerCase()

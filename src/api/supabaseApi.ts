@@ -80,9 +80,9 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     },
     async signInOAuth(provider) {
       const native = Capacitor.isNativePlatform()
-      // 네이버·카카오: Supabase 기본 제공자가 아니라 서버 함수 social-login 이 직접 처리한다 (돌아오면 completeSocialLogin)
+      // 네이버·카카오: Supabase 기본 제공자가 아니라 서버 함수 social-login 이 직접 처리한다 (돌아오면 exchangeSocialCode)
       if (provider === 'naver' || provider === 'kakao') {
-        const url = socialLoginUrl(provider)
+        const url = await socialLoginUrl(provider)
         if (native) await Browser.open({ url })
         else window.location.assign(url)
         return
@@ -113,6 +113,10 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     },
     async signInLoginId(loginId, password) {
       const { tokenHash } = await fn<{ tokenHash: string }>('login-id', { action: 'login', loginId, password })
+      await api.completeSocialLogin(tokenHash)
+    },
+    async exchangeSocialCode(code, verifier) {
+      const { tokenHash } = await fn<{ tokenHash: string }>('social-login', { action: 'exchange', code, verifier })
       await api.completeSocialLogin(tokenHash)
     },
     async completeSocialLogin(tokenHash) {

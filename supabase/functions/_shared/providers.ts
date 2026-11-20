@@ -13,11 +13,18 @@ const env = (n: string) => Deno.env.get(n) ?? ''
 const qs = (o: Record<string, string>) => new URLSearchParams(o).toString()
 export const callbackUrl = () => `${env('SUPABASE_URL')}/functions/v1/social-login`
 
-// 로그인·메일 인증 후 돌아갈 주소. 'app' 또는 비밀값 SITE_ORIGINS="https://<도메인>,http://localhost:5173" 에 있는 웹 주소만
+// 로그인 후 돌아갈 주소. 'android' · 'ios' 또는 비밀값 SITE_ORIGINS 에 있는 웹 주소만
+// (운영 SITE_ORIGINS 에는 https://duckchinso.com 만. http://localhost:5173 은 로컬 .env 에만 넣는다)
+// android: App Links — OS 가 assetlinks.json 으로 이 도메인의 주인 앱에만 넘긴다 (보안 감사 #1)
+// ios: 커스텀 스킴 유지. SFSafariViewController 는 서버 리다이렉트로 Universal Link 를 열지 않을 수 있다.
+//      가로채도 교환 코드뿐이라 verifier 없이는 못 쓴다. shortcut: ASWebAuthenticationSession 플러그인으로 바꾸면 이 예외를 없앤다
 export const returnUrl = (to: string) => {
-  if (to === 'app') return 'com.duckchinso.app://auth/callback'
+  if (to === 'android') return 'https://duckchinso.com/auth/app-callback'
+  if (to === 'ios') return 'com.duckchinso.app://auth/callback'
   const allowed = env('SITE_ORIGINS').split(',').map((s) => s.trim()).filter(Boolean)
-  return allowed.includes(to) ? `${to}/auth/callback` : null
+  // 운영(https Supabase)에서는 http 주소를 받지 않는다: 로컬용 localhost 가 운영 비밀값에 복사돼도 토큰이 localhost 로 새지 않게
+  const local = env('SUPABASE_URL').startsWith('http://')
+  return allowed.includes(to) && (local || to.startsWith('https://')) ? `${to}/auth/callback` : null
 }
 
 export function authorizeUrl(p: Provider, state: string) {

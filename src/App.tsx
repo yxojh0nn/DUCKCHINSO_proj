@@ -70,8 +70,8 @@ import { Gate } from '@/app/Gate'
 import { NotFound } from '@/screens/ErrorScreen'
 import { Tabs } from '@/app/Tabs'
 
-// 앱: 로그인 후 커스텀 스킴으로 돌아온다. 구글·애플·메일은 ?code=… → 세션으로 교환,
-// 네이버·카카오는 #token_hash=…(또는 #error=…) → AuthCallback 이 처리
+// 앱: 로그인 후 돌아온다(안드로이드 App Links https://duckchinso.com/auth/app-callback, iOS 커스텀 스킴).
+// 구글·애플·메일은 ?code=… → 세션으로 교환, 네이버·카카오는 #sl_code=…(또는 #error=…) → AuthCallback 이 처리
 function useNativeAuthReturn() {
   const nav = useNavigate()
   useEffect(() => {
@@ -79,7 +79,7 @@ function useNativeAuthReturn() {
     const sub = CapApp.addListener('appUrlOpen', async ({ url }) => {
       const u = new URL(url)
       const code = u.searchParams.get('code')
-      if (!code && !/token_hash=|error=/.test(u.hash)) return
+      if (!code && !/sl_code=|error=/.test(u.hash)) return
       await Browser.close().catch(() => {})
       if (code) await supabase!.auth.exchangeCodeForSession(code)
       const next = u.searchParams.get('next')
@@ -143,6 +143,8 @@ export default function App() {
             <Route path="/login/email" element={<EmailAuth />} />
             <Route path="/login/find" element={<FindAccount />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
+            {/* 안드로이드 App Links 주소. 앱이 안 열리고 브라우저로 떨어지면 이 기기에 verifier 가 없어 '다시 시도' 안내로 끝난다 */}
+            <Route path="/auth/app-callback" element={<AuthCallback />} />
             <Route path="/consent" element={<Consent />} />
             <Route path="/legal/:doc" element={<LegalPage />} />
             <Route element={<Gate />}>
