@@ -73,17 +73,50 @@ export type InboxItem = {
   endDate: string | null
   concert: { id: string; status: AdminConcert['status'] } | null // 이미 가져온 공연
 }
-export type AdminTicketTip = {
+// 유저 정보 제보 (docs/유저_정보제보_포인트_설계.md)
+export type ContributionKind = 'ticket_open' | 'genre' | 'info'
+export type InfoCategory = 'artist' | 'rules' | 'tips'
+export type ContributionInput =
+  | { kind: 'ticket_open'; openAt: string; sourceUrl: string }
+  | { kind: 'genre'; genreId: number }
+  | { kind: 'info'; category: InfoCategory; title: string; body: string; sourceUrl?: string }
+export type ContributionStatus = 'pending' | 'approved' | 'rejected' | 'duplicate'
+export type MyContribution = {
   id: string
   concertId: string
   concertTitle: string
-  currentOpenAt: string | null // 공연에 지금 들어 있는 예매 오픈일
-  openAt: string // 제보한 날짜
-  sourceUrl: string
-  status: 'pending' | 'approved' | 'rejected'
-  user: { id: string; nickname: string } | null
+  kind: ContributionKind
+  openAt: string | null
+  genreId: number | null
+  category: InfoCategory | null
+  title: string | null
+  body: string | null
+  status: ContributionStatus
+  rejectReason: string | null
+  points: number
   createdAt: string
   resolvedAt: string | null
+}
+export type PointEntry = { delta: number; label: string; createdAt: string }
+// 공연 추가 정보 페이지 한 줄: 공개된 공연 정보, 또는 지금 예매일·장르를 알려 준 사람
+export type ConcertExtra = {
+  id: string
+  kind: ContributionKind
+  category: InfoCategory | null
+  title: string | null
+  body: string | null
+  nickname: string | null // 제보에 동의한 사람만, 아니면 null
+  createdAt: string
+}
+export type ContribRestriction = { reason: string; endsAt: string | null } // endsAt null = 영구
+export type AdminContributionTab = 'pending' | 'done' | 'penalized'
+export type AdminContribution = MyContribution & {
+  artists: string
+  currentOpenAt: string | null
+  currentGenreId: number | null
+  sourceUrl: string | null
+  penalized: boolean
+  user: { id: string; nickname: string; approved: number; rejected: number; penalties: number; restrictedUntil: string | null } | null
 }
 export type AdminUser = {
   id: string
@@ -333,7 +366,13 @@ export interface Api {
   listConcerts(): Promise<Concert[]>
   openDataUpdatedAt(): Promise<string | null> // KOPIS 공연 정보를 마지막으로 받은 시각 (출처 표시의 최종집계일)
   setFavorite(concertId: string, on: boolean): Promise<void>
-  submitTicketTip(concertId: string, openAt: string, sourceUrl: string): Promise<void> // 예매 오픈일 제보 (회원만)
+  // 정보 제보 (회원·가입 3일 뒤·제보 동의 후). 운영자 검수 뒤 반영되면 포인트
+  agreeContribution(): Promise<void>
+  submitContribution(concertId: string, input: ContributionInput): Promise<void>
+  myContributions(): Promise<MyContribution[]>
+  myPoints(): Promise<PointEntry[]> // 최신순. 잔액은 합계
+  myContribRestriction(): Promise<ContribRestriction | null>
+  concertExtra(concertId: string): Promise<ConcertExtra[]>
   logTicketClick(concertId: string, url: string): Promise<void> // 예매 링크 클릭 기록 (운영자 통계용, 실패해도 무시)
 
   // 사람·친구
@@ -406,8 +445,10 @@ export interface Api {
   adminWords(): Promise<{ banned: BannedWord[]; allowed: string[] }>
   adminAddWord(input: { allowed: true; word: string } | ({ allowed?: false } & BannedWord)): Promise<void>
   adminDeleteWord(allowed: boolean, word: string): Promise<void>
-  adminTicketTips(): Promise<AdminTicketTip[]> // 확인 대기 전체 + 최근 처리분
-  adminResolveTicketTip(id: string, approve: boolean): Promise<void>
+  adminContributions(tab: AdminContributionTab): Promise<AdminContribution[]>
+  adminApproveContribution(id: string, points?: number): Promise<void> // 공연에 반영 + 포인트(공연 정보만 0~30 지정) + 제보자 알림
+  adminRejectContribution(id: string, reason: string, penalize: boolean): Promise<void> // 사유는 제보자에게 그대로 전달
+  adminHideConcertInfo(id: string): Promise<void>
   adminTicketClicks(days: number): Promise<AdminTicketClick[]> // 최근 N일 공연·예매처별 클릭 수 (많은 순)
   adminUsers(q: string, page: number, guests?: boolean): Promise<{ users: AdminUser[]; total: number }> // 50명씩. guests: 비회원 칸
   adminUserStats(): Promise<AdminUserStats>
@@ -451,7 +492,15 @@ export const errorText = (e: unknown) => {
     notice_bad_period: '노출 기간은 공개 시각 이후로 정해 주세요.',
     notice_bad_schedule: '예약은 1년 안으로 정해 주세요.',
     members_only:'회원만 할 수 있어요. 회원 로그인 후 이용해 주세요.',
-    tip_exists: '이 공연에 보낸 제보를 관리자가 확인하고 있어요.',
+    tip_exists: '이 공연에 보낸 같은 종류의 제보를 관리자가 확인하고 있어요.',
+    contrib_too_new: '가입하고 3일이 지나면 정보를 제보할 수 있어요.',
+    contrib_consent: '정보 제보 동의가 필요해요.',
+    contrib_restricted: '지금은 정보 제보 기능을 쓸 수 없어요.',
+    contrib_same: '이미 같은 정보가 등록돼 있어요.',
+    contrib_bad_text: '제목은 40자, 내용은 10~1000자로 써 주세요.',
+    bad_reason: '반려 사유를 200자 안으로 써 주세요.',
+    bad_points: '포인트는 0~30 사이 정수로 정해 주세요.',
+    self_review: '내가 보낸 제보는 다른 관리자가 검수해야 해요.',
     bad_body: '메시지 내용을 입력해 주세요.',
     tip_bad_date: '날짜를 다시 확인해 주세요. (최근 30일 ~ 1년 뒤)',
     review_not_open: '공연이 시작한 뒤에 후기를 쓸 수 있어요.',

@@ -32,6 +32,10 @@ export const keys = {
   recapPublic: ['recapPublic'] as const,
   badge: (id: string) => ['badge', id] as const,
   notice: (id: string) => ['notice', id] as const,
+  concertExtra: (id: string) => ['concertExtra', id] as const,
+  myContribs: ['myContribs'] as const,
+  points: ['points'] as const,
+  contribRestriction: ['contribRestriction'] as const,
 }
 
 export const useSession = () => useQuery({ queryKey: keys.session, queryFn: () => api.sessionUserId(), staleTime: Infinity })

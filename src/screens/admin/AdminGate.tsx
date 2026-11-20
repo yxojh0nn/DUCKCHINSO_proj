@@ -9,7 +9,7 @@ export const adminKeys = {
   reports: ['admin', 'reports'] as const,
   inquiries: ['admin', 'inquiries'] as const,
   words: ['admin', 'words'] as const,
-  tips: ['admin', 'tips'] as const,
+  contribs: (tab: string) => ['admin', 'contribs', tab] as const,
   clicks: (days: number) => ['admin', 'clicks', days] as const,
   users: (q: string, page: number, guests = false) => ['admin', 'users', q, page, guests] as const,
   userStats: ['admin', 'user-stats'] as const,

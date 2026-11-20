@@ -25,7 +25,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql', '20261111000030_inquiry_delete_and_hardening.sql', '20261111000031_nickname_validate.sql', '20261111000032_revoke_sessions.sql', '20261112000033_notices.sql', '20261112000034_notice_period.sql', '20261112000035_notice_schedule.sql', '20261112000036_admin_badge.sql', '20261112000037_chat_media_gifs.sql', '20261113000038_klipy_gifs.sql', '20261113000039_fk_indexes.sql', '20261113000040_ticket_link_clicks.sql', '20261115000041_cancel_friend_request.sql', '20261117000042_my_inquiries.sql', '20261117000043_memberships.sql', '20261118000044_pg_subscriptions.sql', '20261119000045_user_region.sql', '20261119000046_region_public_daily_photos.sql', '20261119000047_pg_late_paid.sql', '20261119000048_nickname_key.sql', '20261120000049_insert_columns.sql', '20261120000050_silent_decline.sql', '20261120000051_check_password.sql', '20261121000052_social_handoff.sql', '20261121000053_atomic_attempts.sql', '20261121000054_review_after_start.sql', '20261121000055_chat_moderation_lock.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql', '20261111000030_inquiry_delete_and_hardening.sql', '20261111000031_nickname_validate.sql', '20261111000032_revoke_sessions.sql', '20261112000033_notices.sql', '20261112000034_notice_period.sql', '20261112000035_notice_schedule.sql', '20261112000036_admin_badge.sql', '20261112000037_chat_media_gifs.sql', '20261113000038_klipy_gifs.sql', '20261113000039_fk_indexes.sql', '20261113000040_ticket_link_clicks.sql', '20261115000041_cancel_friend_request.sql', '20261117000042_my_inquiries.sql', '20261117000043_memberships.sql', '20261118000044_pg_subscriptions.sql', '20261119000045_user_region.sql', '20261119000046_region_public_daily_photos.sql', '20261119000047_pg_late_paid.sql', '20261119000048_nickname_key.sql', '20261120000049_insert_columns.sql', '20261120000050_silent_decline.sql', '20261120000051_check_password.sql', '20261121000052_social_handoff.sql', '20261121000053_atomic_attempts.sql', '20261121000054_review_after_start.sql', '20261121000055_chat_moderation_lock.sql', '20261121000056_contributions_points.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -297,25 +297,99 @@ assert.equal((await db.query(`select count(*)::int n from public.posts`)).rows[0
 assert.equal((await db.query(`select reporter from public.reports where id = $1`, [repByA])).rows[0].reporter, null)
 assert.equal((await db.query(`select count(*)::int n from public.user_artists where user_id = $1`, [ids.b])).rows[0].n, 1)
 assert.equal((await db.query(`select count(*)::int n from public.login_ids`)).rows[0].n, 0) // 탈퇴하면 아이디도 지워진다
-// 예매 오픈일 제보: 회원만, 하루 10건, 같은 공연 대기 1건 → 운영자 승인 시 공연에 반영·제보자에게 알림
+// ── 마이그 56: 정보 제보 + 포인트 ──
+// 회원·가입 3일 뒤·제보 동의 후, 하루 10건, 같은 공연·종류 대기 1건 → 운영자 적용 시 반영·포인트·알림
 ids.d = (await db.query(`insert into auth.users (email) values ('d@x.com') returning id`)).rows[0].id
 await db.query(`insert into auth.identities (user_id, provider) values ($1, 'email')`, [ids.d])
 await db.query(`update public.profiles set is_guest = false where id = $1`, [ids.d])
-const soon = new Date(Date.now() + 7 * 86400e3).toISOString()
-await as('d', `select public.submit_ticket_tip($1, $2, 'https://example.com/notice')`, [con, soon])
-await assert.rejects(as('d', `select public.submit_ticket_tip($1, $2, 'https://example.com/2')`, [con, soon]), /tip_exists/)
-await assert.rejects(as('d', `select public.submit_ticket_tip($1, $2, 'javascript:alert(1)')`, [con, soon]), /tip_bad_url|tip_exists/)
-await assert.rejects(as('d', `select public.submit_ticket_tip($1, now() + interval '3 years', 'https://e.com')`, [con]), /tip_bad_date/)
-await assert.rejects(as('c', `select public.submit_ticket_tip($1, $2, 'https://e.com')`, [con, soon]), /members_only/)
-await assert.rejects(as('d', `select * from public.ticket_open_tips`), /permission denied/)
-await assert.rejects(as('d', `select * from public.admin_ticket_tips()`), /forbidden/)
-const tips = (await as('b', `select * from public.admin_ticket_tips()`)).rows
-assert.equal(tips.length, 1); assert.equal(tips[0].status, 'pending'); assert.equal(tips[0].current_open_at, null)
-await as('b', `select public.admin_resolve_ticket_tip($1, true)`, [tips[0].id])
-assert.equal(new Date((await db.query(`select ticket_open_at from public.concerts where id = $1`, [con])).rows[0].ticket_open_at).toISOString(), soon)
-assert.equal((await db.query(`select status from public.ticket_open_tips where id = $1`, [tips[0].id])).rows[0].status, 'approved')
-assert.ok((await db.query(`select 1 from public.messages m join public.chat_members cm on cm.room_id = m.room_id where cm.user_id = $1 and m.body like '%예매 오픈일%'`, [ids.d])).rows.length)
-await assert.rejects(as('b', `select public.admin_resolve_ticket_tip($1, false)`, [tips[0].id]), /not_found/) // 이미 처리됨
+{
+  const soon = new Date(Date.now() + 7 * 86400e3).toISOString()
+  const tip = (k, at, url) => as(k, `select public.submit_contribution($1, 'ticket_open', open_at => $2, source_url => $3)`, [con, at, url])
+  const msgs = async (like) => (await db.query(`select 1 from public.messages m join public.chat_members cm on cm.room_id = m.room_id where cm.user_id = $1 and m.body like $2`, [ids.d, like])).rows.length
+  const sum = async () => (await as('d', `select coalesce(sum(delta), 0)::int s from public.my_points()`)).rows[0].s
+  const contrib = async (user, extra = {}) => (await db.query(
+    `insert into public.contributions (concert_id, user_id, kind, genre_id, created_at) values ($1, $2, 'genre', $3, $4) returning id`,
+    [con, user, extra.genre ?? 1, extra.at ?? new Date().toISOString()])).rows[0].id
+
+  await assert.rejects(tip('c', soon, 'https://e.com'), /members_only/)
+  await assert.rejects(tip('d', soon, 'https://example.com/notice'), /contrib_too_new/) // 가입 3일 전
+  await db.query(`update public.profiles set created_at = now() - interval '4 days' where id = $1`, [ids.d])
+  await assert.rejects(tip('d', soon, 'https://example.com/notice'), /contrib_consent/) // 동의 전
+  await assert.rejects(as('c', `select public.agree_contribution('v1')`), /members_only/)
+  await as('d', `select public.agree_contribution('v1')`)
+  await tip('d', soon, 'https://example.com/notice')
+  await assert.rejects(tip('d', soon, 'https://example.com/2'), /tip_exists/)
+  await assert.rejects(tip('d', soon, 'javascript:alert(1)'), /tip_bad_url|tip_exists/)
+  await assert.rejects(tip('d', new Date(Date.now() + 3 * 365 * 86400e3).toISOString(), 'https://e.com'), /tip_bad_date/)
+  // 표는 직접 못 읽고 못 쓴다 (포인트 셀프 지급 불가)
+  for (const t of ['contributions', 'point_ledger', 'concert_infos', 'contribution_sanctions'])
+    await assert.rejects(as('d', `select * from public.${t}`), /permission denied/, t)
+  await assert.rejects(as('d', `insert into public.point_ledger (user_id, delta, reason, label) values ($1, 999, 'contribution', 'x')`, [ids.d]), /permission denied/)
+  await assert.rejects(as('d', `select * from public.admin_contributions('pending')`), /forbidden/)
+  await assert.rejects(as('d', `select public.admin_approve_contribution(gen_random_uuid())`), /forbidden/)
+
+  const pending = (await as('b', `select * from public.admin_contributions('pending')`)).rows
+  assert.equal(pending.length, 1); assert.equal(pending[0].current_open_at, null); assert.equal(pending[0].nickname.length > 0, true)
+  await as('b', `select public.admin_approve_contribution($1)`, [pending[0].id])
+  assert.equal(new Date((await db.query(`select ticket_open_at from public.concerts where id = $1`, [con])).rows[0].ticket_open_at).toISOString(), soon)
+  assert.ok(await msgs('%예매 오픈일%30포인트%'))
+  await assert.rejects(as('b', `select public.admin_approve_contribution($1)`, [pending[0].id]), /not_found/) // 이미 처리됨 → 두 번 지급 없음
+  assert.equal(await sum(), 30)
+  assert.match((await as('d', `select label from public.my_points()`)).rows[0].label, /예매 오픈일/)
+
+  // 공연 정보: 금칙어 차단, 운영자가 0~30 포인트, 공개 페이지에 동의한 제보자 닉네임
+  const info = (body) => as('d', `select public.submit_contribution($1, 'info', category => 'tips', title => '입장 팁', body => $2)`, [con, body])
+  await assert.rejects(info('굿즈 줄 서다가 병.신 같은 일'), /blocked_word/)
+  await assert.rejects(info('짧음'), /contrib_bad_text/)
+  await info('굿즈 줄은 두 시간 전부터 서요. <b>꼭</b>')
+  const infoId = (await as('b', `select id from public.admin_contributions('pending')`)).rows[0].id
+  await assert.rejects(as('b', `select public.admin_approve_contribution($1, 31)`, [infoId]), /bad_points/)
+  await as('b', `select public.admin_approve_contribution($1, 25)`, [infoId])
+  assert.equal(await sum(), 55)
+  const extra = (await as('c', `select * from public.concert_extra($1)`, [con])).rows // 비회원도 읽기 가능
+  const dNick = (await db.query(`select nickname from public.profiles where id = $1`, [ids.d])).rows[0].nickname
+  assert.equal(extra.find((x) => x.kind === 'info').nickname, dNick)
+  assert.equal(extra.find((x) => x.kind === 'ticket_open').nickname, dNick)
+  // 운영자가 값을 직접 바꾸면 그 제보자 표시는 사라진다
+  await db.query(`update public.concerts set ticket_open_at = now() + interval '9 days' where id = $1`, [con])
+  assert.equal((await as('c', `select * from public.concert_extra($1)`, [con])).rows.some((x) => x.kind === 'ticket_open'), false)
+
+  // 예매일·장르: 먼저 적용된 한 건만 지급, 같은 공연·종류 대기 제보는 중복으로
+  const g1 = await contrib(ids.d, { genre: 2 })
+  const g2 = await contrib(ids.b, { genre: 3 })
+  await assert.rejects(as('b', `select public.admin_approve_contribution($1)`, [g2]), /self_review/) // 운영자 본인 제보 검수 불가
+  await as('b', `select public.admin_approve_contribution($1)`, [g1])
+  assert.equal((await db.query(`select status from public.contributions where id = $1`, [g2])).rows[0].status, 'duplicate')
+  assert.equal(await sum(), 65)
+
+  // 하루 10건 (이미 처리된 건도 센다)
+  for (let i = 0; i < 7; i++) await db.query(`insert into public.contributions (concert_id, user_id, kind, genre_id, status) values ($1, $2, 'genre', 1, 'rejected')`, [con, ids.d])
+  await assert.rejects(as('d', `select public.submit_contribution($1, 'genre', genre => 4::smallint)`, [con]), /daily_limit/)
+
+  // 거부: 사유 필수·사용자에게 전달, 그냥 거부는 제재에 세지 않는다
+  const plain = await contrib(ids.d)
+  await assert.rejects(as('b', `select public.admin_reject_contribution($1, ' ')`, [plain]), /bad_reason/)
+  await as('b', `select public.admin_reject_contribution($1, '공지에 없는 날짜예요')`, [plain])
+  assert.ok(await msgs('%반려%공지에 없는 날짜예요%'))
+  assert.equal((await db.query(`select count(*)::int n from public.contribution_sanctions where user_id = $1`, [ids.d])).rows[0].n, 0)
+  assert.equal((await as('b', `select * from public.admin_contributions('done')`)).rows.some((x) => x.id === plain), true)
+
+  // 거부 및 제재: 7일 → 14일 → 30일 → 영구
+  for (const days of [7, 14, 30, null]) {
+    const x = await contrib(ids.d)
+    await as('b', `select public.admin_reject_contribution($1, '고의로 틀린 정보', true)`, [x])
+    const s = (await db.query(`select ends_at from public.contribution_sanctions where contribution_id = $1`, [x])).rows[0]
+    if (days === null) assert.equal(s.ends_at, null)
+    else assert.equal(Math.round((new Date(s.ends_at) - Date.now()) / 86400e3), days)
+  }
+  assert.equal((await as('b', `select * from public.admin_contributions('penalized')`)).rows.length, 4)
+  assert.equal((await as('d', `select * from public.my_contrib_restriction()`)).rows[0].ends_at, null)
+  await db.query(`delete from public.contributions where user_id = $1 and created_at > now() - interval '1 day'`, [ids.d]) // 하루 한도 비우기
+  await assert.rejects(tip('d', soon, 'https://example.com/3'), /contrib_restricted/)
+  assert.ok(await msgs('%더 이상 쓸 수 없어요%'))
+  assert.equal(await sum(), 65) // 제재는 포인트를 건드리지 않는다
+  await assert.rejects(as('b', `select public.admin_reject_contribution($1, 'x', true)`, [await contrib(ids.b)]), /self_review/)
+}
 
 // 운영자 전체 사용자: 검색·전체 수·로그인 방식, 운영자만
 // 회원·비회원 칸 분리: 기본은 회원만, guests=true 면 비회원만
