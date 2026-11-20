@@ -4,7 +4,7 @@ import { api, errorText } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { IconChevron, IconExternal, IconPin, IconTicket } from '@/components/icons'
 import { Poster, PosterViewer } from '@/components/Poster'
-import { TicketTipSheet } from '@/components/TicketTipSheet'
+import { ContributeSheet } from '@/components/ContributeSheet'
 import { AttendCard } from './Attend'
 import { Empty } from '@/components/ui/Empty'
 import { fmtDateTime, fmtTime, fmtDay, kstDayKey, won } from '@/lib/date'
@@ -14,7 +14,7 @@ import { useQuery } from '@tanstack/react-query'
 import { PostRow } from '@/components/PostRow'
 import { isPastConcert } from '@/lib/date'
 import { priceLines } from '@/lib/price'
-import { keys, useArtists, useConcerts, useMe, namesOf } from '@/lib/queries'
+import { keys, useArtists, useConcerts, useGenres, useMe, namesOf } from '@/lib/queries'
 import { toast } from '@/store/ui'
 
 // 정보 한 줄: 왼쪽 이름표, 오른쪽 값 (상자 없이 정렬로만 구분)
@@ -34,7 +34,8 @@ export default function ConcertDetail() {
   const concerts = useConcerts()
   const artists = useArtists().data ?? []
   const me = useMe().data
-  const [tipOpen, setTipOpen] = useState(false)
+  const genres = useGenres().data
+  const [sheet, setSheet] = useState<'ticket_open' | 'genre' | null>(null)
   const [zoom, setZoom] = useState(false)
   const nav = useNavigate()
   const c = concerts.data?.find((x) => x.id === id)
@@ -56,6 +57,8 @@ export default function ConcertDetail() {
   const byDay = new Map<string, string[]>()
   c.schedules.forEach((s) => byDay.set(kstDayKey(s), [...(byDay.get(kstDayKey(s)) ?? []), s]))
   const artistNames = namesOf(artists, c.artistIds).join(', ')
+  const genre = c.genreId ? namesOf(genres, [c.genreId])[0] : null
+  const member = !!me && !me.isGuest
   const opened = c.ticketOpenAt && new Date(c.ticketOpenAt).getTime() <= Date.now()
   const ticket = (url: string) => { api.logTicketClick(c.id, url).catch(() => {}); openTicket(url) }
   // 커뮤니티 검색어: 첫 아티스트 이름 (없으면 공연명)
@@ -89,9 +92,17 @@ export default function ConcertDetail() {
         <Info label="예매 일자">
           {c.ticketOpenAt ? <span className="num">{fmtDateTime(c.ticketOpenAt)}{opened ? ' · 예매 중' : ' 오픈 예정'}</span> : <span className="text-graphite">예매 일정 미정</span>}
           {/* 회원만: 아직 열리지 않은 공연의 예매 오픈일 제보 (날짜가 없거나 바뀐 경우) */}
-          {!opened && !past && me && !me.isGuest && (
-            <button onClick={() => setTipOpen(true)} className="mt-1 flex h-9 items-center t-sub text-graphite underline underline-offset-4">
+          {!opened && !past && member && (
+            <button onClick={() => setSheet('ticket_open')} className="mt-1 flex h-9 items-center t-sub text-graphite underline underline-offset-4">
               {c.ticketOpenAt ? '다른 날짜를 봤어요' : '예매 오픈일 알려 주기'}
+            </button>
+          )}
+        </Info>
+        <Info label="장르">
+          {genre ?? <span className="text-graphite">미정</span>}
+          {member && (
+            <button onClick={() => setSheet('genre')} className="mt-1 flex h-9 items-center t-sub text-graphite underline underline-offset-4">
+              {genre ? '다른 장르예요' : '장르 알려 주기'}
             </button>
           )}
         </Info>
@@ -113,6 +124,10 @@ export default function ConcertDetail() {
         </Info>
         <Info label="예매처">{c.links.map((l) => l.vendor).join(', ') || <span className="text-graphite">미정</span>}</Info>
       </dl>
+      <Link to={`/concert/${c.id}/info`} className="mx-5 mt-2 flex min-h-[52px] items-center justify-between border-t border-hairline active:opacity-60">
+        <span><span className="t-body font-semibold">공연 정보</span><span className="ml-2 t-sub text-graphite">아티스트 정보 · 공연 수칙 · 꿀팁</span></span>
+        <IconChevron size={18} className="text-graphite" />
+      </Link>
 
       <AttendCard concert={c} />
       {past ? (
@@ -151,7 +166,7 @@ export default function ConcertDetail() {
         )}
       </>
       )}
-      <TicketTipSheet open={tipOpen} onClose={() => setTipOpen(false)} concertId={c.id} />
+      {sheet && <ContributeSheet open onClose={() => setSheet(null)} concertId={c.id} kind={sheet} />}
       {zoom && c.posterUrl && <PosterViewer url={c.posterUrl} title={c.title} onClose={() => setZoom(false)} />}
     </div>
   )

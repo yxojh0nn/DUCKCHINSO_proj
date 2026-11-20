@@ -6,7 +6,7 @@ import { isKlipyUrl } from '@/lib/klipy'
 import { cachedPhotoUrl, clearPhotoCache, dropCachedPhoto } from '@/lib/photoCache'
 import { CONSENT_ITEMS, CONSENT_VERSION, REQUIRED_KEYS } from '@/data/consent'
 import { DAILY_PHOTO_MAX, NICK_TAKEN } from './types'
-import type { AdminArtist, AdminConcert, Api, LoginMethod, BannedWord, Concert, Message, Notice, Post, UserCard } from './types'
+import type { AdminArtist, AdminConcert, Api, LoginMethod, BannedWord, Concert, Message, MyContribution, Notice, Post, UserCard } from './types'
 
 type Row = Record<string, any>
 
@@ -34,7 +34,13 @@ const adminConcert = (r: Row): AdminConcert => ({
   artistIds: (r.concert_artists ?? []).map((a: Row) => a.artist_id), ticketOpenAt: r.ticket_open_at,
 })
 
-const notice = (r: Row): Notice => ({ id: r.id, title: r.title, body: r.body, startsAt: r.starts_at, endsAt: r.ends_at })
+const contribution = (r: Row): MyContribution => ({
+  id: r.id, concertId: r.concert_id, concertTitle: r.concert_title, kind: r.kind, openAt: r.open_at, genreId: r.genre_id,
+  category: r.category, title: r.title, body: r.body, status: r.status, rejectReason: r.reject_reason, points: r.points ?? 0,
+  createdAt: r.created_at, resolvedAt: r.resolved_at,
+})
+
+const notice = (r: Row): Notice =>({ id: r.id, title: r.title, body: r.body, startsAt: r.starts_at, endsAt: r.ends_at })
 
 const adminArtist = (r: Row): AdminArtist => ({ id: r.id, name: r.name, nameJa: r.name_ja, nameEn: r.name_en, aliases: r.aliases ?? [], source: r.source })
 
@@ -320,8 +326,34 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       if (on) ok(await sb.from('favorites').upsert({ user_id: id, concert_id: concertId }, { ignoreDuplicates: true }))
       else ok(await sb.from('favorites').delete().eq('user_id', id).eq('concert_id', concertId))
     },
-    async submitTicketTip(concertId, openAt, sourceUrl) {
-      ok(await sb.rpc('submit_ticket_tip', { concert: concertId, open_at: openAt, source_url: sourceUrl }))
+    async agreeContribution() {
+      ok(await sb.rpc('agree_contribution', { ver: CONSENT_VERSION }))
+    },
+    async submitContribution(concertId, x) {
+      ok(await sb.rpc('submit_contribution', {
+        concert: concertId, kind: x.kind,
+        open_at: x.kind === 'ticket_open' ? x.openAt : null,
+        genre: x.kind === 'genre' ? x.genreId : null,
+        category: x.kind === 'info' ? x.category : null,
+        title: x.kind === 'info' ? x.title : null,
+        body: x.kind === 'info' ? x.body : null,
+        source_url: x.kind === 'genre' ? null : x.sourceUrl || null,
+      }))
+    },
+    async myContributions() {
+      return (ok(await sb.rpc('my_contributions')) as Row[]).map(contribution)
+    },
+    async myPoints() {
+      return (ok(await sb.rpc('my_points')) as Row[]).map((r) => ({ delta: r.delta, label: r.label, createdAt: r.created_at }))
+    },
+    async myContribRestriction() {
+      const r = (ok(await sb.rpc('my_contrib_restriction')) as Row[])[0]
+      return r ? { reason: r.reason, endsAt: r.ends_at } : null
+    },
+    async concertExtra(concertId) {
+      return (ok(await sb.rpc('concert_extra', { concert: concertId })) as Row[]).map((r) => ({
+        id: r.id, kind: r.kind, category: r.category, title: r.title, body: r.body, nickname: r.nickname, createdAt: r.created_at,
+      }))
     },
     async logTicketClick(concertId, url) {
       ok(await sb.rpc('log_ticket_click', { concert: concertId, link_url: url }))
@@ -561,16 +593,25 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     async adminGetArtist(id) {
       return adminArtist(ok(await sb.from('artists').select('id, name, name_ja, name_en, aliases, source').eq('id', id).single()) as Row)
     },
-    async adminTicketTips() {
-      const rows = ok(await sb.rpc('admin_ticket_tips')) as Row[]
-      return rows.map((r) => ({
-        id: r.id, concertId: r.concert_id, concertTitle: r.concert_title, currentOpenAt: r.current_open_at, openAt: r.open_at,
-        sourceUrl: r.source_url, status: r.status, user: r.user_id ? { id: r.user_id, nickname: r.nickname } : null,
-        createdAt: r.created_at, resolvedAt: r.resolved_at,
+    async adminContributions(tab) {
+      return (ok(await sb.rpc('admin_contributions', { tab })) as Row[]).map((r) => ({
+        ...contribution(r),
+        artists: r.artists ?? '', currentOpenAt: r.current_open_at, currentGenreId: r.current_genre_id, sourceUrl: r.source_url,
+        penalized: r.penalized,
+        user: r.user_id ? {
+          id: r.user_id, nickname: r.nickname, approved: r.approved_count, rejected: r.rejected_count, penalties: r.penalty_count,
+          restrictedUntil: r.restricted_until,
+        } : null,
       }))
     },
-    async adminResolveTicketTip(id, approve) {
-      ok(await sb.rpc('admin_resolve_ticket_tip', { tip: id, approve }))
+    async adminApproveContribution(id, points) {
+      ok(await sb.rpc('admin_approve_contribution', { cid: id, award: points ?? null }))
+    },
+    async adminRejectContribution(id, reason, penalize) {
+      ok(await sb.rpc('admin_reject_contribution', { cid: id, reason, penalize }))
+    },
+    async adminHideConcertInfo(id) {
+      ok(await sb.rpc('admin_hide_concert_info', { info: id }))
     },
     async adminTicketClicks(days) {
       const rows = ok(await sb.rpc('admin_ticket_clicks', { days })) as Row[]

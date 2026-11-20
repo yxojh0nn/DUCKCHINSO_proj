@@ -48,6 +48,8 @@ import ProfileEdit from '@/screens/my/ProfileEdit'
 import Prefs from '@/screens/my/Prefs'
 import Favorites from '@/screens/my/Favorites'
 import Reviews from '@/screens/my/Reviews'
+import Points from '@/screens/my/Points'
+import ConcertInfo from '@/screens/calendar/ConcertInfo'
 import Inquiry from '@/screens/my/Inquiry'
 import Withdraw from '@/screens/my/Withdraw'
 import AdminGate from '@/screens/admin/AdminGate'
@@ -62,7 +64,7 @@ import ReportDetail from '@/screens/admin/ReportDetail'
 import Inquiries from '@/screens/admin/Inquiries'
 import InquiryDetail from '@/screens/admin/InquiryDetail'
 import Words from '@/screens/admin/Words'
-import TicketTips from '@/screens/admin/TicketTips'
+import Contributions from '@/screens/admin/Contributions'
 import TicketClicks from '@/screens/admin/TicketClicks'
 import AdminUsers from '@/screens/admin/AdminUsers'
 import AdminUserDetail from '@/screens/admin/AdminUserDetail'
@@ -160,6 +162,7 @@ export default function App() {
               <Route path="/recap/:userId" element={<RecapShelfScreen />} />
               <Route path="/recap/:userId/:period" element={<RecapDetail />} />
               <Route path="/concert/:id" element={<ConcertDetail />} />
+              <Route path="/concert/:id/info" element={<ConcertInfo />} />
               <Route path="/community/rules" element={<CommunityRules />} />
               <Route path="/community/setup" element={<ProfileSetup />} />
               <Route path="/community/requests" element={<Requests />} />
@@ -178,6 +181,7 @@ export default function App() {
               <Route path="/my/info/prefs" element={<Prefs />} />
               <Route path="/my/info/favorites" element={<Favorites />} />
               <Route path="/my/info/reviews" element={<Reviews />} />
+              <Route path="/my/points" element={<Points />} />
               <Route path="/my/password" element={<PasswordChange />} />
               <Route path="/my/inquiry" element={<Inquiry />} />
               <Route path="/my/withdraw" element={<Withdraw />} />
@@ -193,7 +197,7 @@ export default function App() {
                 <Route path="/admin/inquiries" element={<Inquiries />} />
                 <Route path="/admin/inquiries/:id" element={<InquiryDetail />} />
                 <Route path="/admin/words" element={<Words />} />
-                <Route path="/admin/tips" element={<TicketTips />} />
+                <Route path="/admin/contributions" element={<Contributions />} />
                 <Route path="/admin/clicks" element={<TicketClicks />} />
                 <Route path="/admin/notice" element={<NoticeWrite />} />
                 <Route path="/admin/users" element={<AdminUsers />} />

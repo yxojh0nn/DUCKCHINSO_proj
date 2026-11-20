@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { api } from '@/api'
 import { BusinessFooter } from '@/components/BusinessFooter'
 import { MenuGroup, MenuRow } from '@/components/MenuRow'
-import { IconAdmin, IconFriends, IconGear, IconInfo, IconInquiry, IconLogout, IconMembership, IconWithdraw } from '@/components/icons'
+import { IconAdmin, IconFriends, IconGear, IconInfo, IconInquiry, IconLogout, IconMembership, IconTicket, IconWithdraw } from '@/components/icons'
 import { Button } from '@/components/ui/Button'
 import { Confirm } from '@/components/ui/Confirm'
 import { keys, useArtists, useMe, useMembership, namesOf } from '@/lib/queries'
@@ -30,6 +30,7 @@ export default function My() {
         <MenuRow icon={<IconFriends />} label="친구 관리" to="/my/friends" />
         <MenuRow icon={<IconInfo />} label="내 정보" to="/my/info" />
         {!me.isGuest && <MenuRow icon={<IconMembership />} label="내 리캡" to={`/recap/${me.id}`} />}
+        {!me.isGuest && <MenuRow icon={<IconTicket />} label="포인트" to="/my/points" />}
         <MenuRow icon={<IconInquiry />} label="문의" to="/my/inquiry" />
       </MenuGroup>
       {me.isAdmin && (

@@ -6,12 +6,12 @@ import { IconBlock, IconCalendar, IconFlag, IconFriends, IconInfo, IconInquiry, 
 import { Badge } from '@/components/ui/Badge'
 import { adminKeys } from './AdminGate'
 
-// MY > 관리자: 전체 사용자 · 신고 · 문의 · 검수 대기 공연 · 예매일 제보 · 공연 찾기 · 아티스트 · 비속어
+// MY > 관리자: 전체 사용자 · 신고 · 문의 · 검수 대기 공연 · 정보 제보 · 공연 찾기 · 아티스트 · 비속어
 export default function AdminHome() {
   const review = useQuery({ queryKey: adminKeys.review, queryFn: () => api.adminReviewConcerts() })
   const reports = useQuery({ queryKey: adminKeys.reports, queryFn: () => api.adminReports() })
   const inquiries = useQuery({ queryKey: adminKeys.inquiries, queryFn: () => api.adminInquiries() })
-  const tips = useQuery({ queryKey: adminKeys.tips, queryFn: () => api.adminTicketTips() })
+  const contribs = useQuery({ queryKey: adminKeys.contribs('pending'), queryFn: () => api.adminContributions('pending') })
   const openReports = reports.data?.filter((r) => r.status === 'open').length ?? 0
   const openInquiries = inquiries.data?.filter((i) => i.status === 'open').length ?? 0
   return (
@@ -28,8 +28,8 @@ export default function AdminHome() {
       <MenuGroup title="공연">
         <MenuRow icon={<IconCalendar />} label="검수 대기 공연" to="/admin/review"
           right={<Badge count={review.data?.length ?? 0} />} />
-        <MenuRow icon={<IconTicket />} label="예매일 제보" to="/admin/tips"
-          right={<Badge count={tips.data?.filter((t) => t.status === 'pending').length ?? 0} />} />
+        <MenuRow icon={<IconTicket />} label="정보 제보 검수" to="/admin/contributions"
+          right={<Badge count={contribs.data?.length ?? 0} />} />
         <MenuRow icon={<IconSearch />} label="공연 찾기" to="/admin/inbox" />
       </MenuGroup>
       <MenuGroup title="데이터">

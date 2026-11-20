@@ -5,7 +5,7 @@ import { CONSENT_VERSION, REQUIRED_KEYS } from '@/data/consent'
 import { DAILY_PHOTO_MAX, LOGIN_ID, NICK_TAKEN, nicknameKey } from './types'
 import { ARTISTS, AUTO_REPLIES, DEMO_POSTS, DEMO_USERS, GENRES, buildConcerts } from './demoData'
 import { fullMonths } from '@/lib/months'
-import type { Api, Artist, Attendance, Concert, DailyPhoto, LoginMethod, NotifyPrefs, Membership, Message, MyInquiry, Post, Profile, RealtimeEvent, UserCard } from './types'
+import type { Api, Artist, Attendance, Concert, DailyPhoto, LoginMethod, NotifyPrefs, Membership, Message, MyContribution, MyInquiry, Post, Profile, RealtimeEvent, UserCard } from './types'
 import { DAY_MS } from '@/lib/date'
 
 // pnpm fetch:opendata 로 받은 실제 공연·아티스트(KOPIS·MusicBrainz). 파일이 없거나 공연이 0건이면 샘플을 쓴다
@@ -15,6 +15,7 @@ const real = openData?.concerts.length ? openData : null
 const allArtists = () => real?.artists ?? ARTISTS
 const allConcerts = () => real?.concerts ?? buildConcerts(Date.now())
 const noAdmin = async (): Promise<never> => { throw new Error('demo_admin') }
+const demoContribs: MyContribution[] = []
 
 // 멤버십 (DB 의 my_membership·pref_limit 과 같은 규칙)
 const membershipOf = (a: Acc): Membership => {
@@ -405,10 +406,28 @@ export function createDemoApi(): Api {
       a.favoriteIds = on ? [...new Set([...a.favoriteIds, concertId])] : a.favoriteIds.filter((x) => x !== concertId)
       save()
     },
-    async submitTicketTip() {
+    async agreeContribution() {
+      if (me().isGuest) throw new Error('members_only')
+      me().consents.push({ item: 'contribution', agreed: true, version: CONSENT_VERSION })
+      save()
+    },
+    // 데모: 제보는 이 탭에서만 '검수 대기'로 남는다 (검수는 운영자 = Supabase 에서만)
+    async submitContribution(concertId, x) {
       await wait()
       if (me().isGuest) throw new Error('members_only')
+      if (!me().consents.some((c) => c.item === 'contribution' && c.agreed)) throw new Error('contrib_consent')
+      if (demoContribs.some((c) => c.concertId === concertId && c.kind === x.kind && c.category === (x.kind === 'info' ? x.category : null))) throw new Error('tip_exists')
+      demoContribs.unshift({
+        id: crypto.randomUUID(), concertId, concertTitle: allConcerts().find((c) => c.id === concertId)?.title ?? '', kind: x.kind,
+        openAt: x.kind === 'ticket_open' ? x.openAt : null, genreId: x.kind === 'genre' ? x.genreId : null,
+        category: x.kind === 'info' ? x.category : null, title: x.kind === 'info' ? x.title : null, body: x.kind === 'info' ? x.body : null,
+        status: 'pending', rejectReason: null, points: 0, createdAt: iso(Date.now()), resolvedAt: null,
+      })
     },
+    async myContributions() { return demoContribs },
+    async myPoints() { return [] },
+    async myContribRestriction() { return null },
+    async concertExtra() { return [] },
     async logTicketClick() {},
 
     async getProfile(uid) {
@@ -666,7 +685,7 @@ export function createDemoApi(): Api {
     // 데모에는 운영자가 없다 (메뉴도 보이지 않음)
     adminReviewConcerts: noAdmin, adminGetConcert: noAdmin, adminPublishConcert: noAdmin, adminHideConcert: noAdmin,
     adminSearchInbox: noAdmin, adminImportConcert: noAdmin, adminSearchArtists: noAdmin, adminGetArtist: noAdmin, adminSaveArtist: noAdmin,
-    adminReports: noAdmin, adminResolveReport: noAdmin, adminSanction: noAdmin, adminTicketTips: noAdmin, adminResolveTicketTip: noAdmin, adminTicketClicks: noAdmin,adminUsers: noAdmin, adminUserStats: noAdmin, adminUser: noAdmin, adminDeletePost: noAdmin, adminInquiries: noAdmin, adminAnswerInquiry: noAdmin, adminDeleteInquiry: noAdmin,
+    adminReports: noAdmin, adminResolveReport: noAdmin, adminSanction: noAdmin, adminContributions: noAdmin, adminApproveContribution: noAdmin, adminRejectContribution: noAdmin, adminHideConcertInfo: noAdmin, adminTicketClicks: noAdmin,adminUsers: noAdmin, adminUserStats: noAdmin, adminUser: noAdmin, adminDeletePost: noAdmin, adminInquiries: noAdmin, adminAnswerInquiry: noAdmin, adminDeleteInquiry: noAdmin,
     // 데모에는 운영자가 없어 공지도 없다
     adminIds: async () => [], listNotices: async () => [], getNotice: async () => { throw new Error('not_found') },
     adminPostNotice: noAdmin, adminDeleteNotice: noAdmin,

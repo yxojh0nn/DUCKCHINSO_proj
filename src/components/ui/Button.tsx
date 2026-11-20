@@ -36,7 +36,7 @@ export function Button({ variant = 'primary', size = 'lg', block, className = ''
 // 고르는 칩 (장르·범주·선택지). 고르면 검게 채우고, 다시 누르면 해제
 export function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button aria-pressed={on} onClick={onClick}
+    <button type="button" aria-pressed={on} onClick={onClick}
       className={`h-9 shrink-0 rounded-full px-3.5 t-sub transition-colors ${on ? 'bg-ink font-semibold text-paper' : 'bg-mist text-ink'}`}>
       {children}
     </button>
