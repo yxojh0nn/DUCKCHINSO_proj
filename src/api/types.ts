@@ -255,6 +255,9 @@ export type InquiryInput = {
 
 // 서버 함수 login-id 와 같은 규칙
 export const LOGIN_ID = /^[a-z][a-z0-9_]{3,19}$/
+// 닉네임 겹침 기준: DB nickname_key 와 같게 (대소문자·공백·_·.·- 차이는 같은 닉네임)
+export const nicknameKey = (n: string) => n.toLowerCase().replace(/[\s_.-]/g, '')
+export const NICK_TAKEN = '이미 쓰고 있거나 비슷한 닉네임이 있어요.'
 
 export type OAuthProvider = 'google' | 'apple' | 'kakao' | 'naver'
 export type LoginMethod = 'guest' | 'email' | OAuthProvider
@@ -301,6 +304,7 @@ export interface Api {
   // 내 정보
   getMe(): Promise<Me>
   updateMe(patch: ProfilePatch): Promise<void>
+  nicknameAvailable(name: string): Promise<boolean>
   setMyArtists(ids: string[]): Promise<void>
   setMyGenres(ids: number[]): Promise<void>
   myMembership(): Promise<Membership>

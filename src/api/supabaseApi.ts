@@ -5,7 +5,7 @@ import { authRedirect, socialLoginUrl } from '@/lib/supabase'
 import { isKlipyUrl } from '@/lib/klipy'
 import { cachedPhotoUrl, clearPhotoCache, dropCachedPhoto } from '@/lib/photoCache'
 import { CONSENT_ITEMS, CONSENT_VERSION, REQUIRED_KEYS } from '@/data/consent'
-import { DAILY_PHOTO_MAX } from './types'
+import { DAILY_PHOTO_MAX, NICK_TAKEN } from './types'
 import type { AdminArtist, AdminConcert, Api, LoginMethod, BannedWord, Concert, Message, Notice, Post, UserCard } from './types'
 
 type Row = Record<string, any>
@@ -205,8 +205,12 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       if (patch.communityAgreed) ok(await sb.rpc('agree_community', { ver: CONSENT_VERSION }))
       if (!Object.keys(row).length) return
       const { error } = await sb.from('profiles').update(row).eq('id', id)
-      if (error) throw new Error(error.code === '23505' ? '이미 쓰고 있는 닉네임이에요.'
-        : error.message.includes('profiles_nickname_chars') ? '닉네임에는 한글·일본어·영문·숫자와 공백 _ . - 만 쓸 수 있어요.' : error.message)
+      if (error) throw new Error(error.code === '23505' ? NICK_TAKEN
+        : error.message.includes('profiles_nickname_chars') ? '닉네임에는 한글·일본어·영문·숫자와 공백 _ . - 만 쓸 수 있어요.'
+        : error.message.includes('profiles_nickname_shape') ? '닉네임에 공백을 두 칸 넘게 쓰거나 기호만 쓸 수 없어요.' : error.message)
+    },
+    async nicknameAvailable(name) {
+      return ok(await sb.rpc('nickname_available', { n: name })) as boolean
     },
     // 바뀐 것만 지우고 넣는다 (이미 담은 것은 담은 시각이 그대로 → 순서 유지)
     async setMyArtists(ids) {

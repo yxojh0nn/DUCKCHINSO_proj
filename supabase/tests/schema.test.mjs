@@ -25,7 +25,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql', '20261111000030_inquiry_delete_and_hardening.sql', '20261111000031_nickname_validate.sql', '20261111000032_revoke_sessions.sql', '20261112000033_notices.sql', '20261112000034_notice_period.sql', '20261112000035_notice_schedule.sql', '20261112000036_admin_badge.sql', '20261112000037_chat_media_gifs.sql', '20261113000038_klipy_gifs.sql', '20261113000039_fk_indexes.sql', '20261113000040_ticket_link_clicks.sql', '20261115000041_cancel_friend_request.sql', '20261117000042_my_inquiries.sql', '20261117000043_memberships.sql', '20261118000044_pg_subscriptions.sql', '20261119000045_user_region.sql', '20261119000046_region_public_daily_photos.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql', '20261111000030_inquiry_delete_and_hardening.sql', '20261111000031_nickname_validate.sql', '20261111000032_revoke_sessions.sql', '20261112000033_notices.sql', '20261112000034_notice_period.sql', '20261112000035_notice_schedule.sql', '20261112000036_admin_badge.sql', '20261112000037_chat_media_gifs.sql', '20261113000038_klipy_gifs.sql', '20261113000039_fk_indexes.sql', '20261113000040_ticket_link_clicks.sql', '20261115000041_cancel_friend_request.sql', '20261117000042_my_inquiries.sql', '20261117000043_memberships.sql', '20261118000044_pg_subscriptions.sql', '20261119000045_user_region.sql', '20261119000046_region_public_daily_photos.sql', '20261119000047_pg_late_paid.sql', '20261119000048_nickname_key.sql', '20261120000049_insert_columns.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -789,4 +789,71 @@ for (let n = 0; n < 10; n++) await ins('h', 0, `${ids.h}/${n}.jpg`)
 await assert.rejects(ins('h', 0, `${ids.h}/x.jpg`))
 assert.equal((await as('h', `select count(*)::int as n from public.daily_photos`)).rows[0].n, 10)
 assert.equal((await as('i', `select count(*)::int as n from public.daily_photos`)).rows[0].n, 0)
+// ── 마이그 47: 이미 닫은 청구·끝난 구독에 결제가 들어오면 late_paid (서버 함수가 그 결제를 취소), 취소 반영이 쓰는 구독을 끊지 않는다 ──
+for (const k of ['p1', 'p2']) ids[k] = (await db.query(`insert into auth.users (email) values ($1) returning id`, [`${k}@x.com`])).rows[0].id
+const chargeOf = async (pid) => (await db.query(`select status, fail_reason from public.pg_charges where payment_id = $1`, [pid])).rows[0]
+const dueOf = async (sid) => (await svc(`select * from public.pg_due(50)`)).rows.find((r) => r.subscription_id === sid)
+// 첫 청구가 '결제 없음'으로 실패 처리된 뒤 PAID 로 확인됨
+let cp = await checkout('p1')
+const lp = await begin('p1', cp.issue_id)
+assert.equal(await result(lp.payment_id, false, null, 'now()', 'not_created'), 'first_failed')
+assert.equal(await result(lp.payment_id, true, cp.amount_krw), 'late_paid')
+assert.equal((await chargeOf(lp.payment_id)).status, 'failed')
+assert.equal((await db.query(`select count(*)::int n from public.payment_events where kind = $1`, [`late_paid:${lp.payment_id}`])).rows[0].n, 1)
+// 갱신 0번째 시도는 실패 처리, 1번째 시도로 결제됨 → 0번째가 뒤늦게 결제돼 취소돼도 구독은 그대로
+cp = await checkout('p2')
+const q2 = await begin('p2', cp.issue_id)
+await svc(`select public.pg_save_billing($1, 'v1:x:y', '카카오페이', 'production')`, [q2.subscription_id])
+assert.equal(await result(q2.payment_id, true, cp.amount_krw), 'applied')
+await db.query(`update public.subscriptions set period_end = now() - interval '1 hour' where id = $1`, [q2.subscription_id])
+const rr0 = await dueOf(q2.subscription_id)
+assert.equal(await result(rr0.payment_id, false, null, 'now()', 'not_created'), 'retry')
+await db.query(`update public.subscriptions set retry_at = now() - interval '1 minute' where id = $1`, [q2.subscription_id])
+const rr1 = await dueOf(q2.subscription_id)
+assert.equal(await result(rr1.payment_id, true, rr1.amount_krw), 'applied')
+assert.equal(await result(rr0.payment_id, true, rr0.amount_krw), 'late_paid')
+assert.equal((await svc(`select public.pg_charge_canceled($1, $2) as r`, [rr0.payment_id, rr0.amount_krw])).rows[0].r, 'applied')
+assert.equal((await sub(q2.subscription_id)).state, 'active')
+// 재시도 청구가 진행 중일 때 해지 → 그 결제가 성공해도 반영하지 않고 late_paid
+await db.query(`update public.subscriptions set period_end = now() - interval '1 hour' where id = $1`, [q2.subscription_id])
+const rr2 = await dueOf(q2.subscription_id)
+assert.equal(await result(rr2.payment_id, false, null, 'now()', 'card_declined'), 'retry')
+await db.query(`update public.subscriptions set retry_at = now() - interval '1 minute' where id = $1`, [q2.subscription_id])
+const rr3 = await dueOf(q2.subscription_id)
+await as('p2', `select public.set_my_auto_renew(false)`)
+assert.equal((await sub(q2.subscription_id)).state, 'ended')
+assert.equal(await result(rr3.payment_id, true, rr3.amount_krw), 'late_paid')
+assert.deepEqual(await chargeOf(rr3.payment_id), { status: 'failed', fail_reason: 'late_paid' })
+// 운영자 환불(원래 paid 청구)은 지금처럼 구독을 끝낸다는 기존 검사는 위(마이그 44)에 있다
+
+// ── 마이그 48: 닉네임은 대소문자·공백·_·.·- 차이를 같은 닉네임으로 본다 ──
+await as('p1', `update public.profiles set nickname = 'Duck Fan' where id = $1`, [ids.p1])
+for (const n of ['duck_fan', 'DUCK.FAN', 'duckfan', 'duck-fan']) {
+  await assert.rejects(as('p2', `update public.profiles set nickname = $2 where id = $1`, [ids.p2, n]), /profiles_nickname_key/, n)
+}
+await as('p1', `update public.profiles set nickname = 'duck_fan' where id = $1`, [ids.p1]) // 내 닉네임 표기만 바꾸기는 된다
+for (const n of [' 덕친', '덕친 ', '덕  친', '__.']) {
+  await assert.rejects(as('p2', `update public.profiles set nickname = $2 where id = $1`, [ids.p2, n]), /profiles_nickname_shape/, n)
+}
+const avail = async (k, n) => (await as(k, `select public.nickname_available($1) as ok`, [n])).rows[0].ok
+assert.equal(await avail('p2', 'Duck.Fan'), false)
+assert.equal(await avail('p1', 'DuckFan'), true) // 내 것과 같은 건 괜찮다
+assert.equal(await avail('p2', '덕친소새이름'), true)
+await db.exec('set role anon')
+try { await assert.rejects(db.query(`select public.nickname_available('x')`), /permission denied/) } finally { await db.exec('reset role') }
+
+// ── 마이그 49: insert 는 앱이 보내는 열만. 서버 값(시각·카운트·상태·답변)은 권한에서 막힌다 (RLS 보다 먼저) ──
+// 정상 경로(앱과 같은 열)는 위 테스트들이 이미 지난다. 동의 기록만 여기서 따로 확인
+await as('p1', `insert into public.consents (user_id, item, version, agreed) values ($1, 'push', 'v1', true)`, [ids.p1])
+for (const [sql, params] of [
+  [`insert into public.posts (author_id, title, body, like_count) values ($1, 't', 'b', 999999)`, [ids.p1]],
+  [`insert into public.posts (author_id, title, body, created_at) values ($1, 't', 'b', '2099-01-01')`, [ids.p1]],
+  [`insert into public.comments (post_id, author_id, body, created_at) values ($2, $1, 'c', '2099-01-01')`, [ids.p1, pid]],
+  [`insert into public.messages (room_id, sender_id, body, created_at) values ($2, $1, 'x', '2099-01-01')`, [ids.p1, sr]],
+  [`insert into public.messages (room_id, sender_id, body, deleted_at) values ($2, $1, 'x', now())`, [ids.p1, sr]],
+  [`insert into public.inquiries (user_id, category, body, status, answer) values ($1, 'etc', 'x', 'answered', '가짜 답변')`, [ids.p1]],
+  [`insert into public.reports (reporter, target_user, reason, status) values ($1, $1, 'spam', 'resolved')`, [ids.p1]],
+  [`insert into public.consents (user_id, item, version, agreed, created_at) values ($1, 'push', 'v1', true, '2020-01-01')`, [ids.p1]],
+  [`insert into public.favorites (user_id, concert_id, created_at) values ($1, $2, '2099-01-01')`, [ids.p1, cUp]],
+]) await assert.rejects(as('p1', sql, params), /permission denied/, sql)
 console.log('ALL OK')

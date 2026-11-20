@@ -1,7 +1,7 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { QueryClient, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type Membership } from '@/api'
-import { APP_SETTINGS } from '@/lib/settings'
+import { APP_SETTINGS, nicknameError } from '@/lib/settings'
 
 export const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false } },
@@ -69,6 +69,16 @@ export const useRecapSource = (userId: string | undefined) => {
 export const useRecapPublic = (enabled = true) => useQuery({ queryKey: keys.recapPublic, queryFn: () => api.myRecapPublic(), enabled })
 export const useMemberBadge = (userId: string | undefined) =>
   useQuery({ queryKey: keys.badge(userId ?? ''), queryFn: () => api.memberBadge(userId!), enabled: !!userId, staleTime: 600_000 })
+// 닉네임 미리 확인: 입력이 0.4초 멈추면, 형식이 맞고 지금 내 닉네임과 다를 때만 서버에 묻는다. 겹치면 true
+export const useNicknameTaken = (nickname: string, current: string | undefined) => {
+  const n = nickname.trim()
+  const [asked, setAsked] = useState(n)
+  useEffect(() => { const t = setTimeout(() => setAsked(n), 400); return () => clearTimeout(t) }, [n])
+  const q = useQuery({ queryKey: ['nicknameAvailable', asked], queryFn: () => api.nicknameAvailable(asked),
+    enabled: !!asked && asked !== current && !nicknameError(asked), staleTime: 10_000 })
+  return asked === n && q.data === false
+}
+
 export const useGenres = () => useQuery({ queryKey: keys.genres, queryFn: () => api.listGenres(), staleTime: Infinity })
 // id 목록 → 이름 목록 (목록에 없는 id·빈 이름은 뺀다). 아티스트·장르 공용
 export const namesOf = <K,>(list: { id: K; name: string }[] | undefined, ids: K[]) =>

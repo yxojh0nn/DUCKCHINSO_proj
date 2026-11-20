@@ -2,7 +2,7 @@
 // 다른 사용자는 DEMO_USERS(가상)이고, 친구 수락·채팅 답장은 잠시 뒤 자동으로 온다.
 import { regionNear } from '@/data/regions'
 import { CONSENT_VERSION, REQUIRED_KEYS } from '@/data/consent'
-import { DAILY_PHOTO_MAX, LOGIN_ID } from './types'
+import { DAILY_PHOTO_MAX, LOGIN_ID, NICK_TAKEN, nicknameKey } from './types'
 import { ARTISTS, AUTO_REPLIES, DEMO_POSTS, DEMO_USERS, GENRES, buildConcerts } from './demoData'
 import { fullMonths } from '@/lib/months'
 import type { Api, Artist, Attendance, Concert, DailyPhoto, LoginMethod, NotifyPrefs, Membership, Message, MyInquiry, Post, Profile, RealtimeEvent, UserCard } from './types'
@@ -94,6 +94,8 @@ export function createDemoApi(): Api {
     if (!db.session || !db.accounts[db.session]) throw new Error('not_authenticated')
     return db.accounts[db.session]
   }
+  const nickTaken = (name: string, selfId: string) =>
+    [...Object.values(db.accounts), ...DEMO_USERS].some((x) => x.id !== selfId && nicknameKey(x.nickname) === nicknameKey(name))
   const demoUser = (uid: string) => DEMO_USERS.find((u) => u.id === uid)
   const card = (uid: string | null): UserCard => {
     const a = uid ? db.accounts[uid] : undefined
@@ -246,13 +248,16 @@ export function createDemoApi(): Api {
       const a = me()
       const { communityAgreed, notify, ...rest } = patch
       if (notify) a.notify = { ...a.notify, ...notify }
-      if (rest.nickname && Object.values(db.accounts).some((x) => x.id !== a.id && x.nickname === rest.nickname)) throw new Error('이미 쓰고 있는 닉네임이에요.')
+      if (rest.nickname && nickTaken(rest.nickname, a.id)) throw new Error(NICK_TAKEN)
       Object.assign(a, rest)
       if (communityAgreed) {
         a.communityAgreedAt = iso(Date.now())
         a.consents.push({ item: 'community', agreed: true, version: CONSENT_VERSION })
       }
       save()
+    },
+    async nicknameAvailable(name) {
+      return !nickTaken(name, me().id)
     },
     // 한도를 넘는 새 항목만 막는다 (이미 담은 것은 한도를 넘어도 남긴다 — DB 트리거와 같음)
     async setMyArtists(ids) {
