@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { api } from '@/api'
+import { api, errorText } from '@/api'
 import { AppHeader } from '@/components/AppHeader'
 import { Button } from '@/components/ui/Button'
 import { CheckMark } from '@/components/ui/Checkbox'
@@ -27,7 +27,18 @@ export default function Withdraw() {
 
   const withdraw = async () => {
     return run(async () => {
-      await api.deleteAccount()
+      try {
+        await api.deleteAccount()
+      } catch (e) {
+        // 로그인한 지 오래된 세션: 다시 로그인한 뒤에만 탈퇴할 수 있다 (훔친 세션으로 계정을 지우지 못하게)
+        if ((e as Error).message !== 'reauth_required') throw e
+        toast(errorText(e))
+        await api.signOut()
+        qc.clear()
+        qc.setQueryData(keys.session, null)
+        nav('/login', { replace: true })
+        return
+      }
       qc.clear()
       qc.setQueryData(keys.session, null)
       nav('/login', { replace: true })

@@ -3,17 +3,20 @@
 // 비밀번호는 DB 함수 check_login 이 auth 의 bcrypt 해시와 비교만 한다. 이메일은 앱에 돌려주지 않는다
 import { admin, callerOf, cors, json } from '../_shared/supabase.ts'
 import { blindIndex, decrypt, emailCode, encrypt, signState, verifyState } from '../_shared/crypto.ts'
-import { canMail, sendMail } from '../_shared/mail.ts'
+import { canMail, normEmail, sendMail } from '../_shared/mail.ts'
 import { verifyCaptcha } from '../_shared/captcha.ts'
 
 const LOGIN_ID = /^[a-z][a-z0-9_]{3,19}$/ // 영문 소문자로 시작, 소문자·숫자·밑줄 4~20자 (앱 화면과 같은 규칙)
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const WINDOW_MS = 10 * 60_000
 const CODE_TTL_SEC = 300
 const LIMIT = { id: 5, ip: 20, find: 5, check: 30, codeEmail: 5, codeIp: 20, codeTries: 5 } // 10분 동안 허용 횟수 (codeTries: 코드 하나당 입력 횟수)
 
 type Db = ReturnType<typeof admin>
-const clientIp = (req: Request) => req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown'
+// IP별 제한의 기준. x-forwarded-for 의 첫 값은 클라이언트가 넣은 그대로일 수 있어 위조된다 →
+// Cloudflare 가 붙이는 cf-connecting-ip(클라이언트가 덮어쓸 수 없음)를 먼저 쓴다
+// shortcut: 없으면 예전처럼 x-forwarded-for 첫 값 (마지막 값은 내부 프록시 IP 일 수 있어 모두가 한 IP 로 묶인다). 운영에서 헤더를 확인하면 정리
+const clientIp = (req: Request) =>
+  req.headers.get('cf-connecting-ip')?.trim() || req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown'
 const recent = async (db: Db, key: string, windowMs = WINDOW_MS) =>
   (await db.from('login_attempts').select('key', { count: 'exact', head: true }).eq('key', key)
     .gt('at', new Date(Date.now() - windowMs).toISOString())).count ?? 0
@@ -54,8 +57,8 @@ Deno.serve(async (req) => {
 
       // 가입 2단계: 인증 코드 발송. 이미 가입된 이메일이면 코드 대신 안내 메일을 보내고 화면에는 같은 답을 준다 (가입 여부를 알려 주지 않는다)
       case 'email_code': {
-        const email = String(body.email ?? '').trim().toLowerCase()
-        if (!EMAIL.test(email) || email.length > 254) return json({ error: 'bad_request' }, 400)
+        const email = normEmail(body.email)
+        if (!email) return json({ error: 'bad_request' }, 400)
         if (!canMail(email)) return json({ error: 'mail_not_ready' }, 503)
         const emailHmac = await blindIndex('email', email)
         const keys = [`code:${emailHmac}`, `codeip:${await blindIndex('ip', clientIp(req))}`]
@@ -84,8 +87,9 @@ Deno.serve(async (req) => {
 
       // 가입 3단계: 코드 확인 → 인증 완료 표(30분). 코드는 한 번만 쓴다
       case 'email_verify': {
-        const email = String(body.email ?? '').trim().toLowerCase()
+        const email = normEmail(body.email)
         const code = String(body.code ?? '').trim().toUpperCase()
+        if (!email) return json({ error: 'bad_request' }, 400)
         const emailHmac = await blindIndex('email', email)
         const { data: row } = await db.from('email_codes').select('code_hmac, expires_at, tries').eq('email_hmac', emailHmac).maybeSingle()
         if (!row || new Date(row.expires_at) <= new Date() || row.tries >= LIMIT.codeTries) return json({ error: 'email_code_expired' }, 400)
@@ -140,6 +144,30 @@ Deno.serve(async (req) => {
       }
 
       // 아이디 만들기: 아이디 없이 가입한 예전 이메일 계정만, 한 번만
+      // 비밀번호 바꾸기 (MY > 내 정보): 로그인한 본인 + 현재 비밀번호. 세션만 훔친 사람은 바꿀 수 없다
+      // 틀린 현재 비밀번호는 계정당 10분 5회까지. 바뀌면 가입 이메일로 알린다 (다른 기기 로그아웃은 앱이 이어서 한다)
+      case 'change_password': {
+        const user = await callerOf(req)
+        if (!user || user.is_anonymous) return json({ error: 'not_authenticated' }, 401)
+        const current = String(body.current ?? '')
+        const pw = String(body.password ?? '')
+        if (!current) return json({ error: 'bad_request' }, 400)
+        if (pw.length < 8 || pw.length > 72 || !/[A-Za-z]/.test(pw) || !/\d/.test(pw)) return json({ error: 'password_rule' }, 400)
+        const key = `pwchg:${await blindIndex('uid', user.id)}`
+        if (await recent(db, key) >= LIMIT.id) return json({ error: 'too_many_attempts' }, 429)
+        const { data: okPw, error: chkErr } = await db.rpc('check_password', { p_uid: user.id, p_password: current })
+        if (chkErr) throw chkErr
+        if (!okPw) {
+          await db.from('login_attempts').insert({ key })
+          return json({ error: 'wrong_password' }, 400)
+        }
+        const { error } = await db.auth.admin.updateUserById(user.id, { password: pw })
+        if (error) throw error
+        await sendMail(user.email, '[덕친소] 비밀번호가 바뀌었어요',
+          '덕친소 계정의 비밀번호가 방금 바뀌었어요.\n\n본인이 바꾼 게 아니라면 바로 비밀번호 찾기로 다시 바꾸고 문의해 주세요.')
+        return json({ ok: true })
+      }
+
       case 'set': {
         const user = await callerOf(req)
         if (!user || user.is_anonymous) return json({ error: 'not_authenticated' }, 401)
@@ -167,8 +195,8 @@ Deno.serve(async (req) => {
       // 맞든 틀리든 화면에는 같은 답을 준다(계정·이메일 짝 맞추기 방지). 아이디별·IP별 10분 횟수 제한
       case 'reset_code': {
         const id = String(body.loginId ?? '').trim().toLowerCase()
-        const email = String(body.email ?? '').trim().toLowerCase()
-        if (!LOGIN_ID.test(id) || !EMAIL.test(email) || email.length > 254) return json({ error: 'bad_request' }, 400)
+        const email = normEmail(body.email)
+        if (!LOGIN_ID.test(id) || !email) return json({ error: 'bad_request' }, 400)
         if (!canMail(email)) return json({ error: 'mail_not_ready' }, 503)
         if (!(await verifyCaptcha(body.captchaToken, clientIp(req)))) return json({ error: 'captcha_failed' }, 400)
         const idHmac = await blindIndex('login', id)
@@ -195,11 +223,11 @@ Deno.serve(async (req) => {
       // 바꾸면 모든 기기의 로그인을 끊고, 가입 메일로 변경 알림을 보낸다
       case 'reset_verify': {
         const id = String(body.loginId ?? '').trim().toLowerCase()
-        const email = String(body.email ?? '').trim().toLowerCase()
+        const email = normEmail(body.email)
         const code = String(body.code ?? '').trim().toUpperCase()
         const ticket = body.ticket ? await verifyState(String(body.ticket)) : null // 아이디 찾기에서 이메일 코드를 이미 확인한 경우(30분)
         const pw = String(body.password ?? '')
-        if (!LOGIN_ID.test(id) || !EMAIL.test(email) || (!code && !body.ticket)) return json({ error: 'bad_request' }, 400)
+        if (!LOGIN_ID.test(id) || !email || (!code && !body.ticket)) return json({ error: 'bad_request' }, 400)
         if (pw.length < 8 || pw.length > 72 || !/[A-Za-z]/.test(pw) || !/\d/.test(pw)) return json({ error: 'password_rule' }, 400)
         const idHmac = await blindIndex('login', id)
         const keys = [`resetv:${idHmac}`, `resetvip:${await blindIndex('ip', clientIp(req))}`]
@@ -235,12 +263,12 @@ Deno.serve(async (req) => {
       // 아이디 없는 계정은 로그인 방법 안내, 가입 안 된 이메일은 아무것도 보내지 않는다. 화면 응답은 모두 같다.
       // 제한: IP 10분 5회 + 이메일 1시간 3회·하루 5회 (메일 폭탄 방지)
       case 'find_code': {
-        const email = String(body.email ?? '').trim()
-        if (!EMAIL.test(email) || email.length > 254) return json({ error: 'bad_request' }, 400)
+        const email = normEmail(body.email) // ASCII·소문자로 맞춘 값: DB 조회(lower())와 메일 받는 주소가 같은 문자열이 된다
+        if (!email) return json({ error: 'bad_request' }, 400)
         if (!canMail(email)) return json({ ok: true, mailReady: false })
         if (!(await verifyCaptcha(body.captchaToken, clientIp(req)))) return json({ error: 'captcha_failed' }, 400)
         const key = `find:${await blindIndex('ip', clientIp(req))}`
-        const mailKey = `mail:${await blindIndex('email', email.toLowerCase())}`
+        const mailKey = `mail:${await blindIndex('email', email)}`
         if (await recent(db, key) >= LIMIT.find || await mailFlood(db, mailKey)) return json({ error: 'too_many_attempts' }, 429)
         await db.from('login_attempts').insert([{ key }, { key: mailKey }])
         const { data } = await db.rpc('login_id_by_email', { p_email: email })
@@ -252,7 +280,9 @@ Deno.serve(async (req) => {
             expires_at: new Date(Date.now() + CODE_TTL_SEC * 1000).toISOString(), tries: 0,
           })
           if (saveErr) throw saveErr
-          await sendMail(email, '[덕친소] 아이디 찾기 인증 코드',
+          // 코드는 입력한 문자열이 아니라 계정에 저장된 주소로 보낸다
+          const { data: owner } = await db.auth.admin.getUserById(row.user_id)
+          await sendMail(owner.user?.email, '[덕친소] 아이디 찾기 인증 코드',
             `인증 코드: ${code}\n\n5분 안에 아이디 찾기 화면에 입력하면 아이디가 화면에 나타나요.\n직접 요청하지 않았다면 이 메일은 무시해 주세요.`)
         } else if ((await db.rpc('email_registered', { p_email: email })).data) {
           // 가입은 됐지만 아이디가 없는 계정(구글 등 간편 로그인, 아이디 만들기 전 이메일 가입). 전에는 아무 메일도 안 가서 "안 온다"로 보였다
@@ -268,9 +298,9 @@ Deno.serve(async (req) => {
       // 아이디 찾기 2단계: 이메일 + 코드 → 아이디를 화면에만 돌려준다(저장·메일 없음).
       // 함께 30분짜리 표를 줘서 바로 비밀번호를 바꿀 때 코드를 다시 받지 않게 한다
       case 'find_verify': {
-        const email = String(body.email ?? '').trim()
+        const email = normEmail(body.email)
         const code = String(body.code ?? '').trim().toUpperCase()
-        if (!EMAIL.test(email) || !code) return json({ error: 'bad_request' }, 400)
+        if (!email || !code) return json({ error: 'bad_request' }, 400)
         const key = `findv:${await blindIndex('ip', clientIp(req))}`
         if (await recent(db, key) >= LIMIT.ip) return json({ error: 'too_many_attempts' }, 429)
         await db.from('login_attempts').insert({ key })

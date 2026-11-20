@@ -210,7 +210,7 @@ export function createDemoApi(): Api {
     async findLoginIdVerify() { await wait(); return { loginId: 'demo_user', ticket: 'demo' } }, // 데모: 어떤 코드든 통과
     async requestPasswordReset() { await wait() },
     async resetPasswordWithCode() { await wait() }, // 데모: 메일이 없어 어떤 코드든 통과
-    async updatePassword(password) { await wait(); me().password = password; save() },
+    async updatePassword(current, password) { await wait(); const a = me(); if (a.password && a.password !== current) throw new Error('wrong_password'); a.password = password; save() },
     async signOut() { setSession(null) },
     async deleteAccount() {
       const uid = me().id
