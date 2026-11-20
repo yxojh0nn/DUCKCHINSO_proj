@@ -128,14 +128,18 @@ Deno.serve(async (req) => {
         if (!id || !pw || id.length > 40 || pw.length > 200) return json({ error: 'invalid_login' }, 400)
         const idHmac = await blindIndex('login', id)
         const keys = [`id:${idHmac}`, `ip:${await blindIndex('ip', clientIp(req))}`]
+        // 이번 시도를 먼저 기록한 뒤 센다. 세고 나서 기록하면 동시에 보낸 요청들이 모두 "0회"로 보고 통과해
+        // 10분 5회 제한을 넘겨 비밀번호를 대입할 수 있다. 막힌 시도·성공한 시도는 다시 지워 틀린 비밀번호만 남긴다
+        const at = new Date().toISOString()
+        const { error: logErr } = await db.from('login_attempts').insert(keys.map((key) => ({ key, at })))
+        if (logErr) throw logErr
+        const forget = () => db.from('login_attempts').delete().in('key', keys).eq('at', at)
         const [byId, byIp] = await Promise.all(keys.map((k) => recent(db, k)))
-        if (byId >= LIMIT.id || byIp >= LIMIT.ip) return json({ error: 'too_many_attempts' }, 429)
+        if (byId > LIMIT.id || byIp > LIMIT.ip) { await forget(); return json({ error: 'too_many_attempts' }, 429) }
         const { data: uid, error } = await db.rpc('check_login', { p_id_hmac: idHmac, p_password: pw })
         if (error) throw error
-        if (!uid) {
-          await db.from('login_attempts').insert(keys.map((key) => ({ key })))
-          return json({ error: 'invalid_login' }, 400)
-        }
+        if (!uid) return json({ error: 'invalid_login' }, 400)
+        await forget()
         return json({ tokenHash: await magicLink(db, uid) })
       }
 

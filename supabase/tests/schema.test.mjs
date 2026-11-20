@@ -25,7 +25,7 @@ grant usage on schema public, storage, auth to authenticated, anon;
 `
 await db.exec(stub)
 // 표 권한은 실제 Supabase 처럼 자동으로 주지 않고 마이그레이션(20261104000004_grants)이 준 것만 쓴다
-for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql', '20261111000030_inquiry_delete_and_hardening.sql', '20261111000031_nickname_validate.sql', '20261111000032_revoke_sessions.sql', '20261112000033_notices.sql', '20261112000034_notice_period.sql', '20261112000035_notice_schedule.sql', '20261112000036_admin_badge.sql', '20261112000037_chat_media_gifs.sql', '20261113000038_klipy_gifs.sql', '20261113000039_fk_indexes.sql', '20261113000040_ticket_link_clicks.sql', '20261115000041_cancel_friend_request.sql', '20261117000042_my_inquiries.sql', '20261117000043_memberships.sql', '20261118000044_pg_subscriptions.sql', '20261119000045_user_region.sql', '20261119000046_region_public_daily_photos.sql', '20261119000047_pg_late_paid.sql', '20261119000048_nickname_key.sql', '20261120000049_insert_columns.sql'])
+for (const f of ['20261103000001_init.sql', '20261103000002_rls_and_rpc.sql', '20261104000004_grants.sql', '20261105000006_admin_review.sql', '20261105000007_admin_moderation.sql', '20261105000008_retention.sql', '20261105000009_report_fixes.sql', '20261106000010_word_filter.sql', '20261106000011_login_ids.sql', '20261106000012_login_needs_confirm.sql', '20261106000013_email_codes.sql', '20261110000014_warning_escalation.sql', '20261110000015_ticket_tips_admin_users.sql', '20261110000016_guest_cleanup.sql', '20261110000017_admin_post_user.sql', '20261111000018_replies_reviews_notify.sql', '20261111000019_guest_policy.sql', '20261111000020_concert_intro_images.sql', '20261111000021_security_guest_scope.sql', '20261111000022_own_edit.sql', '20261111000023_guest_profile_scope.sql', '20261111000024_admin_users_split.sql', '20261111000025_restricted_basics.sql', '20261111000026_guest_profile_lock.sql', '20261111000027_audit_and_integrity.sql', '20261111000028_admin_rpc.sql', '20261111000029_revoke_admin_grants.sql', '20261111000030_inquiry_delete_and_hardening.sql', '20261111000031_nickname_validate.sql', '20261111000032_revoke_sessions.sql', '20261112000033_notices.sql', '20261112000034_notice_period.sql', '20261112000035_notice_schedule.sql', '20261112000036_admin_badge.sql', '20261112000037_chat_media_gifs.sql', '20261113000038_klipy_gifs.sql', '20261113000039_fk_indexes.sql', '20261113000040_ticket_link_clicks.sql', '20261115000041_cancel_friend_request.sql', '20261117000042_my_inquiries.sql', '20261117000043_memberships.sql', '20261118000044_pg_subscriptions.sql', '20261119000045_user_region.sql', '20261119000046_region_public_daily_photos.sql', '20261119000047_pg_late_paid.sql', '20261119000048_nickname_key.sql', '20261120000049_insert_columns.sql', '20261120000050_chat_moderation_lock.sql'])
   await db.exec(readFileSync(`${repo}supabase/migrations/${f}`, 'utf8'))
 
 const ids = {}
@@ -530,6 +530,22 @@ await assert.rejects(img('https://evil.example.com/x.gif', null), /messages_imag
 await assert.rejects(img('https://static.klipy.com/x.webp', null), /messages_image_source/) // slug 없는 KLIPY 주소 X
 await assert.rejects(img(`${dsr}/${ids.d}/a.jpg`, 'cat'), /messages_image_source/) // slug 는 KLIPY 주소에만
 assert.equal((await db.query(`select to_regclass('public.gifs') as t`)).rows[0].t, null)
+// 마이그 50: 사진·GIF 메시지에 글을 실어 금칙어 필터를 건너뛰지 못한다
+await assert.rejects(as('d', `insert into public.messages (room_id, sender_id, kind, image_path, body) values ($1, $2, 'image', 'x', '씨발')`, [dsr, ids.d]), /messages_image_no_body/)
+// 마이그 50: 운영자가 신고 처리로 가린 메시지는 보낸 사람이 고치지 못한다 (사진 메시지도)
+for (const ins of [
+  [`insert into public.messages (room_id, sender_id, body) values ($1, $2, '신고될 글') returning id`, [dsr, ids.d]],
+  [`insert into public.messages (room_id, sender_id, kind, image_path) values ($1, $2, 'image', $3) returning id`, [dsr, ids.d, `${dsr}/${ids.d}/bad.jpg`]],
+]) {
+  const hm = (await as('d', ...ins)).rows[0].id
+  const hr = (await db.query(`insert into public.reports (reporter, target_user, message_id, reason) values ($1, $2, $3, 'scam') returning id`, [ids.b, ids.d, hm])).rows[0].id
+  await as('b', `select public.admin_resolve_report($1, 'resolved', true)`, [hr])
+  const hidden = (await db.query(`select m.kind, m.body, m.image_path, m.moderated_at, o.body as orig from public.messages m left join public.message_originals o on o.message_id = m.id where m.id = $1`, [hm])).rows[0]
+  assert.ok(hidden.moderated_at && hidden.kind === 'text' && hidden.image_path === null)
+  assert.ok(hidden.orig) // 가리기 전 원문(사진은 경로)이 남는다
+  await assert.rejects(as('d', `select public.edit_my_message($1, 'https://scam.example')`, [hm]), /not_found/)
+  assert.equal((await db.query(`select body from public.messages where id = $1`, [hm])).rows[0].body, '운영정책에 따라 가려진 메시지예요.')
+}
 // 마이그 39: 모든 FK 는 그 첫 컬럼으로 시작하는 (부분 인덱스 아닌) 인덱스가 있어야 한다 — 부모 삭제 때 자식 표 전체 스캔 방지
 const fkNoIdx = (await db.query(`select c.conrelid::regclass || '.' || a.attname as col from pg_constraint c
   join pg_attribute a on a.attrelid = c.conrelid and a.attnum = c.conkey[1]
