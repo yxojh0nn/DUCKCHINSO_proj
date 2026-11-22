@@ -1,4 +1,4 @@
-# PR·푸시마다 타입 검사 → 린트 → 테스트 → 빌드 (개발환경 가이드 4.6)
+# PR·푸시마다 타입 검사 → 린트 → 테스트 → 빌드 (개발환경 가이드 4.6). main 푸시는 통과 후 deploy 잡이 배포
 name: CI
 on:
   pull_request:
@@ -19,3 +19,26 @@ jobs:
       - run: pnpm lint
       - run: pnpm test
       - run: pnpm build
+
+  # main 에 머지(푸시)되고 검사를 통과했을 때만 Vercel 프로덕션 배포. PR 에서는 배포하지 않는다 (vercel.json git.deploymentEnabled=false)
+  # 필요 시크릿: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
+  deploy:
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency: { group: production-deploy, cancel-in-progress: false }
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm dlx vercel@latest pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+      - run: pnpm dlx vercel@latest build --prod --token=${{ secrets.VERCEL_TOKEN }}
+      - run: pnpm dlx vercel@latest deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
